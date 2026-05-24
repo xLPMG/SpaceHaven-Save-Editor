@@ -76,10 +76,10 @@ class DropZone(QFrame):
 
     def _refresh_style(self) -> None:
         if self._hovered:
-            border = "#89b4fa"
-            bg = "rgba(137,180,250,0.07)"
+            border = "#00cfff"
+            bg = "rgba(0,207,255,0.06)"
         else:
-            border = "#45475a"
+            border = "rgba(0,207,255,0.25)"
             bg = "transparent"
         self.setStyleSheet(
             f"""
