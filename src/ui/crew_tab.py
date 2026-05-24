@@ -304,16 +304,26 @@ class CrewTab(QWidget):
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setContentsMargins(12, 12, 12, 12)
-
-        info = QLabel("Active conditions (read-only).")
-        info.setStyleSheet("color: #888; font-size: 11px;")
-        layout.addWidget(info)
+        layout.setSpacing(6)
 
         self._conditions_list = QListWidget()
         self._conditions_list.setSelectionMode(
-            QAbstractItemView.SelectionMode.NoSelection
+            QAbstractItemView.SelectionMode.SingleSelection
         )
         layout.addWidget(self._conditions_list)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(6)
+        remove_cond_btn = QPushButton("Remove Selected")
+        remove_cond_btn.setObjectName("InlineButton")
+        remove_cond_btn.clicked.connect(self._remove_condition)
+        btn_row.addWidget(remove_cond_btn)
+        clear_cond_btn = QPushButton("Clear All")
+        clear_cond_btn.setObjectName("DangerButton")
+        clear_cond_btn.clicked.connect(self._clear_conditions)
+        btn_row.addWidget(clear_cond_btn)
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
         return w
 
     def _build_relationships_tab(self) -> QWidget:
@@ -479,7 +489,9 @@ class CrewTab(QWidget):
     def _populate_conditions(self, char: Character) -> None:
         self._conditions_list.clear()
         for cond in sorted(char.conditions, key=lambda c: c.name):
-            self._conditions_list.addItem(cond.name)
+            item = QListWidgetItem(cond.name)
+            item.setData(Qt.ItemDataRole.UserRole, cond)
+            self._conditions_list.addItem(item)
 
     def _populate_relationships(self, char: Character) -> None:
         self._rel_table.setRowCount(0)
@@ -492,8 +504,28 @@ class CrewTab(QWidget):
             self._rel_table.setItem(row, 3, QTableWidgetItem(str(rel.compatibility)))
 
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Apply changes
     # ------------------------------------------------------------------
+
+    def _remove_condition(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        selected = self._conditions_list.currentItem()
+        if selected is None:
+            return
+        from src.save_file import Condition
+        cond: Condition = selected.data(Qt.ItemDataRole.UserRole)
+        self._save.remove_condition(self._current_char, cond)
+        self._conditions_list.takeItem(self._conditions_list.row(selected))
+        self.status_message.emit("Condition removed (unsaved).")
+
+    def _clear_conditions(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        self._save.clear_conditions(self._current_char)
+        self._conditions_list.clear()
+        self.status_message.emit("All conditions cleared (unsaved).")
 
     def _rename_character(self) -> None:
         if self._save is None or self._current_char is None:

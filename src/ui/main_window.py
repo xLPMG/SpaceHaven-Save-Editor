@@ -23,6 +23,8 @@ from PySide6.QtWidgets import (
 from src.save_file import SaveFile
 from src.ui.crew_tab import CrewTab
 from src.ui.globals_tab import GlobalsTab
+from src.ui.research_tab import ResearchTab
+from src.ui.ships_tab import ShipsTab
 from src.ui.storage_tab import StorageTab
 from src.ui.welcome_widget import WelcomeWidget
 
@@ -120,13 +122,19 @@ class MainWindow(QMainWindow):
         self._globals_tab = GlobalsTab()
         self._crew_tab = CrewTab()
         self._storage_tab = StorageTab()
+        self._ships_tab = ShipsTab()
+        self._research_tab = ResearchTab()
         self._content_stack.addWidget(self._globals_tab)   # index 0
         self._content_stack.addWidget(self._crew_tab)      # index 1
         self._content_stack.addWidget(self._storage_tab)   # index 2
+        self._content_stack.addWidget(self._ships_tab)     # index 3
+        self._content_stack.addWidget(self._research_tab)  # index 4
 
         self._globals_tab.status_message.connect(self._mark_unsaved)
         self._crew_tab.status_message.connect(self._mark_unsaved)
         self._storage_tab.status_message.connect(self._mark_unsaved)
+        self._ships_tab.status_message.connect(self._mark_unsaved)
+        self._research_tab.status_message.connect(self._mark_unsaved)
 
         body_layout.addWidget(self._content_stack)
         ev.addWidget(body)
@@ -148,6 +156,8 @@ class MainWindow(QMainWindow):
             ("Overview", 0),
             ("Crew", 1),
             ("Storage", 2),
+            ("Ships", 3),
+            ("Research", 4),
         ]
 
         for label, page_idx in nav_items:
@@ -281,6 +291,8 @@ class MainWindow(QMainWindow):
         self._globals_tab.load(save)
         self._crew_tab.load(save)
         self._storage_tab.load(save)
+        self._ships_tab.load(save)
+        self._research_tab.load(save)
         self._update_actions()
         self._clear_unsaved()
 
@@ -328,6 +340,8 @@ class MainWindow(QMainWindow):
         self._globals_tab.clear()
         self._crew_tab.clear()
         self._storage_tab.clear()
+        self._ships_tab.clear()
+        self._research_tab.clear()
         self._clear_unsaved()
         self._update_actions()
         self._show_welcome()

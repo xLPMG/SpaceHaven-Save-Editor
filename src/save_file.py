@@ -19,6 +19,7 @@ from src.game_data import (
     CONDITION_IDS,
     SKILL_IDS,
     STORAGE_IDS,
+    TECH_IDS,
     TRAIT_IDS,
 )
 
@@ -62,6 +63,7 @@ class Trait:
 class Condition:
     cond_id: int
     name: str
+    element: object = field(repr=False, default=None)
 
 
 @dataclass
@@ -118,6 +120,15 @@ class Ship:
     element: object = field(repr=False, default=None)  # <ship> element
 
 
+@dataclass
+class ResearchEntry:
+    tech_id: int
+    name: str
+    done: bool          # True if all stages completed
+    in_progress: bool   # True if any stage has partial progress
+    element: object = field(repr=False, default=None)  # <l techId=...> element
+
+
 # ---------------------------------------------------------------------------
 # Main save-file class
 # ---------------------------------------------------------------------------
@@ -133,6 +144,7 @@ class SaveFile:
         self.path: Optional[Path] = None
         self.ships: list[Ship] = []
         self.characters: list[Character] = []
+        self.research: list[ResearchEntry] = []
 
     # ------------------------------------------------------------------
     # Load / Save
@@ -149,6 +161,7 @@ class SaveFile:
 
         self._parse_ships()
         self._parse_characters()
+        self._parse_research()
 
     def save(self, path: str | Path | None = None) -> None:
         dest = Path(path) if path else self.path
@@ -469,8 +482,11 @@ class SaveFile:
                 cond_id = int(c.get("id", "0"))
             except ValueError:
                 continue
-            if cond_id in CONDITION_IDS:
-                char.conditions.append(Condition(cond_id=cond_id, name=CONDITION_IDS[cond_id]))
+            char.conditions.append(Condition(
+                cond_id=cond_id,
+                name=CONDITION_IDS.get(cond_id, f"Unknown ({cond_id})"),
+                element=c,
+            ))
 
     def _parse_char_relationships(self, pers: etree._Element, char: Character) -> None:
         sociality = pers.find("sociality")
@@ -555,3 +571,134 @@ class SaveFile:
         if char.element is not None:
             char.element.set("name", first)
             char.element.set("lname", last)
+
+    def remove_condition(self, char: Character, cond: Condition) -> None:
+        if cond.element is not None:
+            parent = cond.element.getparent()
+            if parent is not None:
+                parent.remove(cond.element)
+        if cond in char.conditions:
+            char.conditions.remove(cond)
+
+    def clear_conditions(self, char: Character) -> None:
+        if char.pers_element is not None:
+            conds_el = char.pers_element.find("conditions")
+            if conds_el is not None:
+                for c in list(conds_el.findall("c")):
+                    conds_el.remove(c)
+        char.conditions.clear()
+
+    # ------------------------------------------------------------------
+    # Batch operations
+    # ------------------------------------------------------------------
+
+    def heal_all_crew(self) -> int:
+        """Set all crew stats to 100. Returns number of crew affected."""
+        count = 0
+        for char in self.characters:
+            for stat in char.stats:
+                self.set_stat(stat, 100)
+            if char.stats:
+                count += 1
+        return count
+
+    def max_all_skills(self) -> int:
+        """Set all crew skills to level 20 / max 20. Returns number of skills changed."""
+        count = 0
+        for char in self.characters:
+            for skill in char.skills:
+                self.set_skill_level(skill, 20)
+                self.set_skill_max(skill, 20)
+                count += 1
+        return count
+
+    def clear_all_conditions(self) -> int:
+        """Remove all conditions from all crew. Returns number of crew affected."""
+        count = 0
+        for char in self.characters:
+            if char.conditions:
+                self.clear_conditions(char)
+                count += 1
+        return count
+
+    def fill_all_storage(self, quantity: int) -> int:
+        """Set every existing storage item across all ships to `quantity`.
+        Returns number of items updated."""
+        count = 0
+        for ship in self.ships:
+            for container in self.get_storage_containers(ship):
+                for item in container.items:
+                    self.set_storage_quantity(item, quantity)
+                    count += 1
+        return count
+
+    def rename_ship(self, ship: Ship, name: str) -> None:
+        ship.name = name
+        if ship.element is not None:
+            ship.element.set("sname", name)
+
+    # ------------------------------------------------------------------
+    # Research
+    # ------------------------------------------------------------------
+
+    def _parse_research(self) -> None:
+        self.research.clear()
+        research_el = self._root.find(".//research")
+        if research_el is None:
+            return
+        states_el = research_el.find("states")
+        if states_el is None:
+            return
+        for l_el in states_el.findall("l"):
+            try:
+                tech_id = int(l_el.get("techId", "0"))
+            except ValueError:
+                continue
+            if tech_id == 0:
+                continue
+            stage_states = l_el.find("stageStates")
+            stages = stage_states.findall("l") if stage_states is not None else []
+            done = bool(stages) and all(s.get("done", "false") == "true" for s in stages)
+            in_progress = (not done) and any(
+                any(int(bd.get(attr, "0")) > 0
+                    for attr in ("level1", "level2", "level3")
+                    for bd in [s.find("blocksDone")] if bd is not None)
+                for s in stages
+            )
+            self.research.append(ResearchEntry(
+                tech_id=tech_id,
+                name=TECH_IDS.get(tech_id, f"Unknown ({tech_id})"),
+                done=done,
+                in_progress=in_progress,
+                element=l_el,
+            ))
+        self.research.sort(key=lambda r: r.name)
+
+    def complete_research(self, entry: ResearchEntry) -> None:
+        """Mark a single research entry as fully completed."""
+        if entry.element is None:
+            return
+        stage_states = entry.element.find("stageStates")
+        if stage_states is None:
+            return
+        for stage_el in stage_states.findall("l"):
+            stage_el.set("done", "true")
+            bd = stage_el.find("blocksDone")
+            if bd is None:
+                bd = etree.SubElement(stage_el, "blocksDone")
+            # Set high values so the game treats it as complete
+            bd.set("level1", "9999")
+            bd.set("level2", "9999")
+            bd.set("level3", "9999")
+        entry.done = True
+        entry.in_progress = False
+
+    def complete_all_research(self) -> int:
+        """Complete every research entry. Returns number completed."""
+        count = 0
+        for entry in self.research:
+            if not entry.done:
+                self.complete_research(entry)
+                count += 1
+        return count
+

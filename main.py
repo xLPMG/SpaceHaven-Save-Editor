@@ -381,6 +381,23 @@ def _apply_dark_palette(app: QApplication) -> None:
             background-color: rgba(255,51,102,0.1);
             border-color: #ff3366;
         }
+        QPushButton#FilterButton {
+            background-color: transparent;
+            color: #6ea8d4;
+            border: 1px solid rgba(0,207,255,0.15);
+            border-radius: 6px;
+            padding: 4px 12px;
+        }
+        QPushButton#FilterButton:hover {
+            background-color: rgba(0,207,255,0.06);
+            border-color: rgba(0,207,255,0.4);
+            color: #e2f0ff;
+        }
+        QPushButton#FilterButton:checked {
+            background-color: rgba(0,207,255,0.12);
+            border-color: #00cfff;
+            color: #00cfff;
+        }
 
         /* ── Search / filter ──────────────────────────────────── */
         QLineEdit#FilterEdit {
@@ -392,6 +409,53 @@ def _apply_dark_palette(app: QApplication) -> None:
         }
         QLineEdit#FilterEdit:focus {
             border-color: #00cfff;
+        }
+
+        /* ── Research tab ──────────────────────────────────────── */
+        QFrame#ResearchBanner {
+            background-color: #081626;
+            border: 1px solid rgba(0,207,255,0.15);
+            border-radius: 8px;
+        }
+        QListWidget#TechList {
+            background-color: #030d1a;
+            border: 1px solid rgba(0,207,255,0.12);
+            border-radius: 6px;
+            outline: none;
+        }
+        QListWidget#TechList::item {
+            padding: 0px;
+            border: none;
+        }
+        QListWidget#TechList::item:selected {
+            background-color: #0a1e38;
+        }
+        QProgressBar#ResearchProgress {
+            background-color: #030d1a;
+            border: 1px solid rgba(0,207,255,0.15);
+            border-radius: 3px;
+        }
+        QProgressBar#ResearchProgress::chunk {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #005f80, stop:1 #00cfff);
+            border-radius: 3px;
+        }
+        QPushButton#FilterButton {
+            background-color: transparent;
+            color: #2d5a7a;
+            border: 1px solid rgba(0,207,255,0.12);
+            border-radius: 5px;
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+        QPushButton#FilterButton:hover {
+            color: #6ea8d4;
+            border-color: rgba(0,207,255,0.3);
+        }
+        QPushButton#FilterButton:checked {
+            background-color: rgba(0,207,255,0.12);
+            color: #00cfff;
+            border-color: rgba(0,207,255,0.5);
         }
 
         /* ── Standard controls ────────────────────────────────── */

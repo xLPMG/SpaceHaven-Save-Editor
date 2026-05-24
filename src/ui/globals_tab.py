@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QScrollArea,
     QSpinBox,
     QVBoxLayout,
@@ -170,6 +171,82 @@ class GlobalsTab(QWidget):
 
         root.addWidget(diff_group)
 
+        # ── Quick Actions ──────────────────────────────────────────────
+        root.addWidget(_sep())
+
+        qa_group = QGroupBox("Quick Actions")
+        qa_layout = QVBoxLayout(qa_group)
+        qa_layout.setContentsMargins(16, 16, 16, 16)
+        qa_layout.setSpacing(10)
+
+        def _action_row(label: str, desc: str, btn_text: str, slot) -> QHBoxLayout:
+            row = QHBoxLayout()
+            row.setSpacing(12)
+            text_col = QVBoxLayout()
+            text_col.setSpacing(2)
+            lbl = QLabel(label)
+            lbl.setObjectName("StatCardLabel")
+            text_col.addWidget(lbl)
+            d = QLabel(desc)
+            d.setObjectName("StatCardDesc")
+            text_col.addWidget(d)
+            row.addLayout(text_col)
+            row.addStretch()
+            btn = QPushButton(btn_text)
+            btn.setObjectName("InlineButton")
+            btn.setFixedWidth(140)
+            btn.clicked.connect(slot)
+            row.addWidget(btn)
+            return row
+
+        qa_layout.addLayout(_action_row(
+            "Heal All Crew",
+            "Set every stat (health, food, rest…) to 100 for all crew members.",
+            "Heal All",
+            self._qa_heal_all,
+        ))
+        qa_layout.addWidget(_sep())
+        qa_layout.addLayout(_action_row(
+            "Max All Skills",
+            "Set all crew skills to level 20 and max natural level 20.",
+            "Max Skills",
+            self._qa_max_skills,
+        ))
+        qa_layout.addWidget(_sep())
+        qa_layout.addLayout(_action_row(
+            "Clear All Conditions",
+            "Remove every active condition from all crew (injuries, moods, etc.).",
+            "Clear Conditions",
+            self._qa_clear_conditions,
+        ))
+        qa_layout.addWidget(_sep())
+
+        fill_row = QHBoxLayout()
+        fill_row.setSpacing(12)
+        fill_text = QVBoxLayout()
+        fill_text.setSpacing(2)
+        fill_lbl = QLabel("Fill All Storage")
+        fill_lbl.setObjectName("StatCardLabel")
+        fill_text.addWidget(fill_lbl)
+        fill_desc = QLabel("Set every item in every storage container to the specified quantity.")
+        fill_desc.setObjectName("StatCardDesc")
+        fill_text.addWidget(fill_desc)
+        fill_row.addLayout(fill_text)
+        fill_row.addStretch()
+        self._fill_qty_spin = QSpinBox()
+        self._fill_qty_spin.setRange(1, 1_000_000)
+        self._fill_qty_spin.setValue(9999)
+        self._fill_qty_spin.setFixedWidth(90)
+        fill_row.addWidget(self._fill_qty_spin)
+        fill_btn = QPushButton("Fill Storage")
+        fill_btn.setObjectName("InlineButton")
+        fill_btn.setFixedWidth(140)
+        fill_btn.clicked.connect(self._qa_fill_storage)
+        fill_row.addWidget(fill_btn)
+        qa_layout.addLayout(fill_row)
+
+        root.addWidget(qa_group)
+
         # Wire auto-apply
         self._credits_card.spin.valueChanged.connect(self._apply)
         self._prestige_card.spin.valueChanged.connect(self._apply)
@@ -183,6 +260,7 @@ class GlobalsTab(QWidget):
         self._credits_card.spin.setEnabled(enabled)
         self._prestige_card.spin.setEnabled(enabled)
         self._sandbox_check.setEnabled(enabled)
+        self._fill_qty_spin.setEnabled(enabled)
 
     def load(self, save: SaveFile) -> None:
         self._save = save
@@ -223,5 +301,34 @@ class GlobalsTab(QWidget):
         self._save.set_prestige(self._prestige_card.spin.value())
         self._save.set_sandbox(self._sandbox_check.isChecked())
         self.status_message.emit("Changes applied (unsaved).")
+
+    # ------------------------------------------------------------------
+    # Quick actions
+    # ------------------------------------------------------------------
+
+    def _qa_heal_all(self) -> None:
+        if self._save is None:
+            return
+        n = self._save.heal_all_crew()
+        self.status_message.emit(f"Healed {n} crew members (unsaved).")
+
+    def _qa_max_skills(self) -> None:
+        if self._save is None:
+            return
+        n = self._save.max_all_skills()
+        self.status_message.emit(f"Maxed {n} skills across all crew (unsaved).")
+
+    def _qa_clear_conditions(self) -> None:
+        if self._save is None:
+            return
+        n = self._save.clear_all_conditions()
+        self.status_message.emit(f"Cleared conditions from {n} crew members (unsaved).")
+
+    def _qa_fill_storage(self) -> None:
+        if self._save is None:
+            return
+        qty = self._fill_qty_spin.value()
+        n = self._save.fill_all_storage(qty)
+        self.status_message.emit(f"Set {n} storage items to {qty:,} (unsaved).")
 
 
