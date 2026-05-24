@@ -32,17 +32,17 @@ if TYPE_CHECKING:
 class _TechDelegate(QStyledItemDelegate):
     """Paints each research entry as a styled row with accent strip + badge."""
 
-    _DONE_COLOR = QColor("#00cfff")
-    _PROG_COLOR = QColor("#ffa040")
-    _NONE_COLOR = QColor("#2d5a7a")
+    _DONE_COLOR = QColor("#04D912")
+    _PROG_COLOR = QColor("#FF8800")
+    _NONE_COLOR = QColor("#1A4A58")
 
-    _BG_EVEN = QColor("#030d1a")
-    _BG_ODD  = QColor("#061428")
-    _BG_SEL  = QColor("#0a1e38")
-    _SEP     = QColor(0, 207, 255, 18)
+    _BG_EVEN = QColor("#050A0B")
+    _BG_ODD  = QColor("#070E10")
+    _BG_SEL  = QColor("#071820")
+    _SEP     = QColor(0, 216, 240, 18)
 
-    _TEXT_MAIN = QColor("#e2f0ff")
-    _TEXT_DIM  = QColor("#6ea8d4")
+    _TEXT_MAIN = QColor("#DDF0F5")
+    _TEXT_DIM  = QColor("#3BBECE")
 
     def sizeHint(self, option: QStyleOptionViewItem, index) -> QSize:  # noqa: N802
         return QSize(option.rect.width(), 48)
@@ -64,7 +64,7 @@ class _TechDelegate(QStyledItemDelegate):
         if selected:
             painter.fillRect(r, self._BG_SEL)
         elif hovered:
-            painter.fillRect(r, QColor("#081626"))
+            painter.fillRect(r, QColor("#0A1618"))
         else:
             painter.fillRect(r, self._BG_EVEN if index.row() % 2 == 0 else self._BG_ODD)
 
@@ -93,15 +93,15 @@ class _TechDelegate(QStyledItemDelegate):
         if entry.done:
             badge_txt = "COMPLETE"
             badge_fg  = self._DONE_COLOR
-            badge_bg  = QColor(0, 207, 255, 28)
+            badge_bg  = QColor(4, 217, 18, 28)
         elif entry.in_progress:
             badge_txt = "IN PROGRESS"
             badge_fg  = self._PROG_COLOR
-            badge_bg  = QColor(255, 160, 64, 28)
+            badge_bg  = QColor(255, 136, 0, 28)
         else:
             badge_txt = "NOT DONE"
             badge_fg  = self._NONE_COLOR
-            badge_bg  = QColor(45, 90, 122, 20)
+            badge_bg  = QColor(26, 74, 88, 20)
 
         bw, bh = 114, 24
         badge_rect = QRect(
@@ -161,10 +161,10 @@ class ResearchTab(QWidget):
         counts_row = QHBoxLayout()
         counts_row.setSpacing(0)
 
-        self._lbl_done     = self._stat_label("0", "COMPLETE",    "#00cfff")
-        self._lbl_progress = self._stat_label("0", "IN PROGRESS", "#ffa040")
-        self._lbl_remain   = self._stat_label("0", "REMAINING",   "#6ea8d4")
-        self._lbl_total    = self._stat_label("0", "TOTAL",       "#2d5a7a")
+        self._lbl_done     = self._stat_label("0", "COMPLETE",    "#04D912")
+        self._lbl_progress = self._stat_label("0", "IN PROGRESS", "#FF8800")
+        self._lbl_remain   = self._stat_label("0", "REMAINING",   "#3BBECE")
+        self._lbl_total    = self._stat_label("0", "TOTAL",       "#1A4A58")
 
         for w in (self._lbl_done, self._lbl_progress, self._lbl_remain, self._lbl_total):
             counts_row.addWidget(w)
@@ -220,13 +220,13 @@ class ResearchTab(QWidget):
         btn_row.addStretch()
 
         self._complete_sel_btn = QPushButton("Complete Selected")
-        self._complete_sel_btn.setObjectName("InlineButton")
+        self._complete_sel_btn.setObjectName("CompleteButton")
         self._complete_sel_btn.setEnabled(False)
         self._complete_sel_btn.clicked.connect(self._complete_selected)
         btn_row.addWidget(self._complete_sel_btn)
 
         self._complete_all_btn = QPushButton("Complete All")
-        self._complete_all_btn.setObjectName("InlineButton")
+        self._complete_all_btn.setObjectName("CompleteButton")
         self._complete_all_btn.setEnabled(False)
         self._complete_all_btn.clicked.connect(self._complete_all)
         btn_row.addWidget(self._complete_all_btn)
@@ -237,6 +237,7 @@ class ResearchTab(QWidget):
     def _stat_label(number: str, caption: str, color: str) -> QWidget:
         """Vertical stack: big number on top, small caption below."""
         w = QWidget()
+        w.setStyleSheet("background-color: transparent;")
         v = QVBoxLayout(w)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(1)
@@ -245,7 +246,7 @@ class ResearchTab(QWidget):
         num_lbl.setStyleSheet(f"color: {color}; font-size: 18px; font-weight: bold;")
         cap_lbl = QLabel(caption)
         cap_lbl.setObjectName("StatCaption")
-        cap_lbl.setStyleSheet("color: #2d5a7a; font-size: 9px; letter-spacing: 1px;")
+        cap_lbl.setStyleSheet("color: #1A4A58; font-size: 9px; letter-spacing: 1px;")
         v.addWidget(num_lbl)
         v.addWidget(cap_lbl)
         # Store refs for updating

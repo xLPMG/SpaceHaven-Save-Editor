@@ -201,7 +201,7 @@ class CrewTab(QWidget):
             "Edit current stat values (0–100). Changes apply to the in-memory XML."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #888; font-size: 11px;")
+        info.setStyleSheet("color: #1A4A58; font-size: 11px;")
         layout.addWidget(info)
 
         self._stats_form = QFormLayout()
@@ -226,7 +226,7 @@ class CrewTab(QWidget):
         layout.setSpacing(4)
 
         info = QLabel("Attribute points (typically 0–10).")
-        info.setStyleSheet("color: #888; font-size: 11px;")
+        info.setStyleSheet("color: #1A4A58; font-size: 11px;")
         layout.addWidget(info)
 
         self._attr_table = QTableWidget(0, 2)
@@ -247,7 +247,7 @@ class CrewTab(QWidget):
         layout.setSpacing(4)
 
         info = QLabel("Edit skill levels and max natural levels.")
-        info.setStyleSheet("color: #888; font-size: 11px;")
+        info.setStyleSheet("color: #1A4A58; font-size: 11px;")
         layout.addWidget(info)
 
         self._skills_table = QTableWidget(0, 3)
@@ -288,11 +288,13 @@ class CrewTab(QWidget):
         row.addWidget(self._add_trait_combo)
 
         add_btn = QPushButton("Add Trait")
+        add_btn.setObjectName("InlineButton")
         add_btn.setFixedWidth(90)
         add_btn.clicked.connect(self._add_trait)
         row.addWidget(add_btn)
 
         remove_btn = QPushButton("Remove")
+        remove_btn.setObjectName("DangerButton")
         remove_btn.setFixedWidth(80)
         remove_btn.clicked.connect(self._remove_trait)
         row.addWidget(remove_btn)
@@ -315,7 +317,7 @@ class CrewTab(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
         remove_cond_btn = QPushButton("Remove Selected")
-        remove_cond_btn.setObjectName("InlineButton")
+        remove_cond_btn.setObjectName("DangerButton")
         remove_cond_btn.clicked.connect(self._remove_condition)
         btn_row.addWidget(remove_cond_btn)
         clear_cond_btn = QPushButton("Clear All")
