@@ -118,6 +118,7 @@ class StorageTab(QWidget):
             QAbstractItemView.SelectionBehavior.SelectRows
         )
         self._items_table.verticalHeader().setVisible(False)
+        self._items_table.verticalHeader().setDefaultSectionSize(42)
         rv.addWidget(self._items_table)
 
         # Toolbar: remove

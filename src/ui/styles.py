@@ -627,6 +627,8 @@ def apply_theme(app: QApplication) -> None:
             border-radius: 9px;
             gridline-color: rgba(0,216,240,0.06);
             outline: none;
+            selection-background-color: rgba(0,216,240,0.14);
+            selection-color: #00D8F0;
         }
         QTableWidget::item {
             padding: 6px 10px;

@@ -295,6 +295,7 @@ class CrewTab(QWidget):
             QAbstractItemView.SelectionBehavior.SelectRows
         )
         self._attr_table.verticalHeader().setVisible(False)
+        self._attr_table.verticalHeader().setDefaultSectionSize(42)
         layout.addWidget(self._attr_table)
 
         return w
