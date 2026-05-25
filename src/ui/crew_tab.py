@@ -273,6 +273,7 @@ class CrewTab(QWidget):
             QAbstractItemView.SelectionBehavior.SelectRows
         )
         self._skills_table.verticalHeader().setVisible(False)
+        self._skills_table.verticalHeader().setDefaultSectionSize(42)
         layout.addWidget(self._skills_table)
 
         return w
@@ -505,20 +506,28 @@ class CrewTab(QWidget):
             self._skills_table.setItem(row, 0, name_item)
 
             level_spin = QSpinBox()
-            level_spin.setRange(0, 20)
+            level_spin.setRange(0, skill.max_level)
             level_spin.setValue(skill.level)
-            level_spin.valueChanged.connect(
-                lambda v, sk=skill: self._on_skill_level_changed(sk, v)
-            )
             self._skills_table.setCellWidget(row, 1, level_spin)
 
             max_spin = QSpinBox()
-            max_spin.setRange(0, 20)
+            max_spin.setRange(skill.level, 20)
             max_spin.setValue(skill.max_level)
-            max_spin.valueChanged.connect(
-                lambda v, sk=skill: self._on_skill_max_changed(sk, v)
-            )
             self._skills_table.setCellWidget(row, 2, max_spin)
+
+            # Cross-link: level's max tracks max_spin; max's min tracks level_spin
+            level_spin.valueChanged.connect(
+                lambda v, ms=max_spin, sk=skill: (
+                    ms.setMinimum(v),
+                    self._on_skill_level_changed(sk, v),
+                )
+            )
+            max_spin.valueChanged.connect(
+                lambda v, ls=level_spin, sk=skill: (
+                    ls.setMaximum(v),
+                    self._on_skill_max_changed(sk, v),
+                )
+            )
 
     def _on_skill_level_changed(self, skill, value: int) -> None:
         if self._save is None:
