@@ -15,14 +15,6 @@ from PySide6.QtGui import (
     QLinearGradient,
     QPainter,
 )
-
-_ICONS_DIR = Path(__file__).parent / "icons"
-
-
-def _icon(name: str) -> QIcon:
-    """Load an SVG icon from the icons directory; returns empty QIcon if missing."""
-    path = _ICONS_DIR / f"{name}.svg"
-    return QIcon(str(path)) if path.exists() else QIcon()
 from PySide6.QtWidgets import (
     QButtonGroup,
     QDialog,
@@ -46,6 +38,15 @@ from src.ui.research_tab import ResearchTab
 from src.ui.ships_tab import ShipsTab
 from src.ui.storage_tab import StorageTab
 from src.ui.welcome_widget import WelcomeWidget
+
+_ICONS_DIR = Path(__file__).parent / "icons"
+
+
+def _icon(name: str) -> QIcon:
+    """Load an SVG icon from the icons directory; returns empty QIcon if missing."""
+    path = _ICONS_DIR / f"{name}.svg"
+    return QIcon(str(path)) if path.exists() else QIcon()
+
 
 # ── Themed confirm dialog ──────────────────────────────────────────────────
 
@@ -466,16 +467,6 @@ class MainWindow(QMainWindow):
         self._show_editor()
 
     def _open_file(self) -> None:
-        if self._unsaved:
-            dlg = _ConfirmDialog(
-                "Unsaved Changes",
-                "You have unsaved changes. Open a new file anyway?",
-                "Open anyway",
-                self,
-            )
-            if dlg.exec() != QDialog.DialogCode.Accepted:
-                return
-
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Open Space Haven Save File",

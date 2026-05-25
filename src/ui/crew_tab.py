@@ -263,13 +263,13 @@ class CrewTab(QWidget):
             "Health",
             "Food",
             "Rest",
-            "Mood",
             "Comfort",
+            "Mood",
             "Oxygen",
             "Temperature",
         ):
             spin = QSpinBox()
-            spin.setRange(0, 100)
+            spin.setRange(0, 200)  # game allows values > 100 (e.g. buffed health)
             spin.setFixedWidth(80)
             self._stats_spins[tag] = spin
             self._stats_form.addRow(f"{tag}:", spin)
@@ -621,8 +621,7 @@ class CrewTab(QWidget):
         if self._save is None:
             return
         self._save.set_skill_max(skill, value)
-        self.status_message.emit("Skills applied (unsaved.).")
-
+        self.status_message.emit("Skills applied (unsaved).")
     def _populate_traits(self, char: Character) -> None:
         self._traits_list.clear()
         for trait in sorted(char.traits, key=lambda t: t.name):
@@ -651,11 +650,20 @@ class CrewTab(QWidget):
             ]:
                 edit = QLineEdit(str(value))
                 edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                edit.editingFinished.connect(
-                    lambda e=edit, r=rel, s=setter: (
-                        s(r, int(e.text())) if s and e.text().lstrip("-").isdigit() else None
-                    ) or self.status_message.emit("Relationships applied (unsaved).")
-                )
+
+                def _make_handler(e=edit, r=rel, s=setter):
+                    def _on_editing_finished():
+                        if s is None:
+                            return
+                        try:
+                            v = int(e.text())
+                        except ValueError:
+                            return
+                        s(r, v)
+                        self.status_message.emit("Relationships applied (unsaved).")
+                    return _on_editing_finished
+
+                edit.editingFinished.connect(_make_handler())
                 self._rel_table.setCellWidget(row, col, edit)
 
     # ------------------------------------------------------------------
@@ -705,10 +713,6 @@ class CrewTab(QWidget):
         if trait is None:
             QMessageBox.information(self, "Add Trait", "That trait is already present.")
             return
-        item = QListWidgetItem(trait.name)
-        item.setData(Qt.ItemDataRole.UserRole, trait)
-        self._traits_list.addItem(item)
-        # Keep sorted
         self._populate_traits(self._current_char)
         self.status_message.emit("Trait added (unsaved).")
 
@@ -750,7 +754,9 @@ class CrewTab(QWidget):
         self._first_name_edit.clear()
         self._last_name_edit.clear()
         for spin in self._stats_spins.values():
+            spin.blockSignals(True)
             spin.setValue(0)
+            spin.blockSignals(False)
         self._attr_table.setRowCount(0)
         self._skills_table.setRowCount(0)
         self._traits_list.clear()

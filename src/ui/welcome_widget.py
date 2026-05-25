@@ -118,10 +118,10 @@ class _StarfieldWidget(QWidget):
             color = QColor(r, g, b, alpha)
             painter.setBrush(color)
             painter.setPen(Qt.PenStyle.NoPen)
-            r = s["size"] / 2
+            radius = s["size"] / 2
             painter.drawEllipse(
-                int(s["x"] - r),
-                int(s["y"] - r),
+                int(s["x"] - radius),
+                int(s["y"] - radius),
                 s["size"],
                 s["size"],
             )
@@ -177,7 +177,14 @@ class DropZone(QFrame):
         self._pulse_timer = QTimer(self)
         self._pulse_timer.setInterval(30)
         self._pulse_timer.timeout.connect(self._on_pulse)
+
+    def showEvent(self, event) -> None:  # noqa: N802
         self._pulse_timer.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event) -> None:  # noqa: N802
+        self._pulse_timer.stop()
+        super().hideEvent(event)
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)

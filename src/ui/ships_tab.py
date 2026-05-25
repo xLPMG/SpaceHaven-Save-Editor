@@ -184,12 +184,12 @@ class ShipsTab(QWidget):
         resize_layout.setSpacing(10)
 
         self._width_spin = QSpinBox()
-        self._width_spin.setRange(1, 10)
+        self._width_spin.setRange(1, 8)
         self._width_spin.setSuffix(" squares")
         resize_layout.addRow("Width:", self._width_spin)
 
         self._height_spin = QSpinBox()
-        self._height_spin.setRange(1, 10)
+        self._height_spin.setRange(1, 8)
         self._height_spin.setSuffix(" squares")
         resize_layout.addRow("Height:", self._height_spin)
 
@@ -260,7 +260,7 @@ class ShipsTab(QWidget):
         self._info_sid.setText(str(ship.sid))
         crew_count = sum(1 for c in self._save.characters if c.ship_sid == ship.sid)
         self._info_crew.setText(str(crew_count))
-        self._info_pos.setText(f"({ship.sx}, {ship.sy})")
+        self._info_pos.setText(f"({ship.ox}, {ship.oy})")
         w_sq = max(1, round(ship.sx / 28))
         h_sq = max(1, round(ship.sy / 28))
         self._info_size.setText(f"{w_sq} × {h_sq}")

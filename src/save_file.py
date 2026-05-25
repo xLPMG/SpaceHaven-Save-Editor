@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import random
 import shutil
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -113,8 +114,10 @@ class StorageContainer:
 class Ship:
     sid: int
     name: str
-    sx: int
-    sy: int
+    sx: int  # grid size X in units (1 square = 28 units)
+    sy: int  # grid size Y in units
+    ox: int = 0  # sector offset X
+    oy: int = 0  # sector offset Y
     element: object = field(repr=False, default=None)  # <ship> element
 
 
@@ -170,12 +173,25 @@ class SaveFile:
         dest = Path(path) if path else self.path
         if dest is None:
             raise ValueError("No save path specified.")
-        self._tree.write(
-            str(dest),
-            pretty_print=True,
-            xml_declaration=False,
-            encoding="unicode",
-        )
+        # Write to a temp file in the same directory, then replace atomically so a
+        # crash or full-disk mid-write cannot produce a partial/corrupt save file.
+        dest_dir = dest.parent
+        fd, tmp_path = tempfile.mkstemp(dir=dest_dir, prefix=".tmp_save_")
+        try:
+            with open(fd, "w", encoding="utf-8") as fh:
+                self._tree.write(
+                    fh,
+                    pretty_print=True,
+                    xml_declaration=False,
+                    encoding="unicode",
+                )
+            shutil.move(tmp_path, str(dest))
+        except Exception:
+            try:
+                Path(tmp_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
 
     def backup(self) -> Path:
         """Create a timestamped backup next to the save file."""
@@ -278,6 +294,8 @@ class SaveFile:
                     name=ship_el.get("sname") or f"Ship #{sid}",
                     sx=int(ship_el.get("sx", 0)),
                     sy=int(ship_el.get("sy", 0)),
+                    ox=int(ship_el.get("ox", 0)),
+                    oy=int(ship_el.get("oy", 0)),
                     element=ship_el,
                 )
             )
@@ -839,6 +857,8 @@ class SaveFile:
             name=name,
             sx=source_ship.sx,
             sy=source_ship.sy,
+            ox=int(new_ship_el.get("ox", 0)),
+            oy=int(new_ship_el.get("oy", 0)),
             element=new_ship_el,
         )
         self.ships.append(new_ship)
@@ -948,7 +968,7 @@ class SaveFile:
 
     def _parse_research(self) -> None:
         self.research.clear()
-        research_el = self._root.find(".//research")
+        research_el = self._root.find("research")
         if research_el is None:
             return
         states_el = research_el.find("states")

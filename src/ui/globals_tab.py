@@ -252,6 +252,7 @@ class GlobalsTab(QWidget):
         fill_btn.setFixedWidth(140)
         fill_btn.clicked.connect(self._fill_all_storage)
         fill_row.addWidget(fill_btn)
+        self._fill_btn = fill_btn
         qa_layout.addLayout(fill_row)
 
         root.addWidget(qa_group)
@@ -267,6 +268,7 @@ class GlobalsTab(QWidget):
         self._prestige_card.spin.setEnabled(enabled)
         self._sandbox_check.setEnabled(enabled)
         self._fill_qty_spin.setEnabled(enabled)
+        self._fill_btn.setEnabled(enabled)
 
     def load(self, save: SaveFile) -> None:
         self._save = save
@@ -351,4 +353,4 @@ class GlobalsTab(QWidget):
             return
         qty = self._fill_qty_spin.value()
         n = self._save.fill_all_storage(qty)
-        self.status_message.emit(f"Set {n} storage items to {qty:,} (unsaved.).")
+        self.status_message.emit(f"Set {n} storage items to {qty:,} (unsaved).")
