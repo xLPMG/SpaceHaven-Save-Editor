@@ -1,4 +1,5 @@
 """crew_tab.py – Ship / crew / character editor tab."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -34,8 +35,14 @@ from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
 
 # Palette of muted accent colors for avatar circles
 _AVATAR_COLORS = [
-    "#89b4fa", "#a6e3a1", "#fab387", "#f38ba8",
-    "#cba6f7", "#94e2d5", "#f9e2af", "#89dceb",
+    "#89b4fa",
+    "#a6e3a1",
+    "#fab387",
+    "#f38ba8",
+    "#cba6f7",
+    "#94e2d5",
+    "#f9e2af",
+    "#89dceb",
 ]
 
 
@@ -49,9 +56,7 @@ class _AvatarLabel(QLabel):
         self.setFixedSize(56, 56)
 
     def set_character(self, first: str, last: str) -> None:
-        self._initials = (
-            (first[:1] + last[:1]).upper() if first or last else "?"
-        )
+        self._initials = (first[:1] + last[:1]).upper() if first or last else "?"
         # Deterministic color from name
         idx = (ord(first[:1]) if first else 0) % len(_AVATAR_COLORS)
         self._color = _AVATAR_COLORS[idx]
@@ -125,7 +130,9 @@ class CrewTab(QWidget):
 
         self._crew_list = QListWidget()
         self._crew_list.setObjectName("CrewList")
-        self._crew_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self._crew_list.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
         self._crew_list.currentRowChanged.connect(self._on_crew_selected)
         lv.addWidget(self._crew_list)
 
@@ -188,7 +195,6 @@ class CrewTab(QWidget):
 
         self._set_right_enabled(False)
 
-
     # ── Sub-tab builders ────────────────────────────────────────────
 
     def _build_stats_tab(self) -> QWidget:
@@ -207,7 +213,15 @@ class CrewTab(QWidget):
         self._stats_form = QFormLayout()
         self._stats_form.setSpacing(6)
         self._stats_spins: dict[str, QSpinBox] = {}
-        for tag in ("Health", "Food", "Rest", "Mood", "Comfort", "Oxygen", "Temperature"):
+        for tag in (
+            "Health",
+            "Food",
+            "Rest",
+            "Mood",
+            "Comfort",
+            "Oxygen",
+            "Temperature",
+        ):
             spin = QSpinBox()
             spin.setRange(0, 100)
             spin.setFixedWidth(80)
@@ -342,9 +356,7 @@ class CrewTab(QWidget):
         self._rel_table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows
         )
-        self._rel_table.setEditTriggers(
-            QAbstractItemView.EditTrigger.NoEditTriggers
-        )
+        self._rel_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._rel_table.verticalHeader().setVisible(False)
         layout.addWidget(self._rel_table)
         return w

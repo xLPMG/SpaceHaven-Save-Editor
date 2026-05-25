@@ -8,29 +8,31 @@ def apply_theme(app: QApplication) -> None:
     app.setStyle("Fusion")
 
     palette = QPalette()
-    base    = QColor("#030709")
+    base = QColor("#030709")
     surface = QColor("#060D0F")
     overlay = QColor("#0A1A1E")
-    text    = QColor("#DDF0F5")
+    text = QColor("#DDF0F5")
     subtext = QColor("#3BBECE")
-    accent  = QColor("#00D8F0")
-    danger  = QColor("#FF8800")
+    accent = QColor("#00D8F0")
+    danger = QColor("#FFC533")
 
-    palette.setColor(QPalette.ColorRole.Window,          surface)
-    palette.setColor(QPalette.ColorRole.WindowText,      text)
-    palette.setColor(QPalette.ColorRole.Base,            base)
-    palette.setColor(QPalette.ColorRole.AlternateBase,   overlay)
-    palette.setColor(QPalette.ColorRole.ToolTipBase,     overlay)
-    palette.setColor(QPalette.ColorRole.ToolTipText,     text)
-    palette.setColor(QPalette.ColorRole.Text,            text)
-    palette.setColor(QPalette.ColorRole.Button,          overlay)
-    palette.setColor(QPalette.ColorRole.ButtonText,      text)
-    palette.setColor(QPalette.ColorRole.BrightText,      danger)
-    palette.setColor(QPalette.ColorRole.Link,            accent)
-    palette.setColor(QPalette.ColorRole.Highlight,       accent)
+    palette.setColor(QPalette.ColorRole.Window, surface)
+    palette.setColor(QPalette.ColorRole.WindowText, text)
+    palette.setColor(QPalette.ColorRole.Base, base)
+    palette.setColor(QPalette.ColorRole.AlternateBase, overlay)
+    palette.setColor(QPalette.ColorRole.ToolTipBase, overlay)
+    palette.setColor(QPalette.ColorRole.ToolTipText, text)
+    palette.setColor(QPalette.ColorRole.Text, text)
+    palette.setColor(QPalette.ColorRole.Button, overlay)
+    palette.setColor(QPalette.ColorRole.ButtonText, text)
+    palette.setColor(QPalette.ColorRole.BrightText, danger)
+    palette.setColor(QPalette.ColorRole.Link, accent)
+    palette.setColor(QPalette.ColorRole.Highlight, accent)
     palette.setColor(QPalette.ColorRole.HighlightedText, base)
-    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text,       subtext)
-    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, subtext)
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, subtext)
+    palette.setColor(
+        QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, subtext
+    )
 
     app.setPalette(palette)
 
@@ -222,6 +224,11 @@ def apply_theme(app: QApplication) -> None:
             font-size: 32px;
             font-weight: bold;
             letter-spacing: 3px;
+        }
+        QLabel#WelcomeSubtitle {
+            color: #5DDAEB;
+            font-size: 15px;
+            letter-spacing: 1px;
         }
         QLabel#WelcomeTip {
             color: #1A4A58;
@@ -719,4 +726,3 @@ def apply_theme(app: QApplication) -> None:
             padding: 5px 10px;
         }
     """)
-

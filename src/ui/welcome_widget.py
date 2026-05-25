@@ -1,17 +1,17 @@
 """welcome_widget.py – Welcome screen with drag-and-drop file loading."""
+
 from __future__ import annotations
 
 import math
 import random
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
+from PySide6.QtCore import QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QDragEnterEvent,
     QDropEvent,
     QFont,
-    QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
@@ -19,7 +19,6 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QVBoxLayout,
@@ -27,30 +26,31 @@ from PySide6.QtWidgets import (
 )
 
 # ── Palette tokens ─────────────────────────────────────────────────────────
-_BG       = QColor("#030709")
-_ACCENT   = QColor(0, 216, 240)
-_TEXT     = QColor("#DDF0F5")
+_BG = QColor("#030709")
+_ACCENT = QColor(0, 216, 240)
+_TEXT = QColor("#DDF0F5")
 
 
 # ── Starfield background ────────────────────────────────────────────────────
 
+
 class _StarfieldWidget(QWidget):
     """Lightweight animated starfield background for the welcome screen."""
 
-    _N_STARS = 90          # total star count
-    _FPS     = 28          # target frame rate
-    _LAYERS  = [           # (size_px, speed_px_per_tick, base_alpha)
+    _N_STARS = 90  # total star count
+    _FPS = 28  # target frame rate
+    _LAYERS = [  # (size_px, speed_px_per_tick, base_alpha)
         (1, 0.12, 100),
         (1, 0.22, 140),
         (2, 0.35, 110),
     ]
     # Possible star tints: cool white, neutral white, warm white, faint amber, faint rose
     _TINTS = [
-        (220, 235, 255),   # cool blue-white
-        (255, 255, 255),   # pure white
-        (255, 252, 240),   # warm white
-        (255, 240, 200),   # soft amber
-        (255, 225, 215),   # faint rose
+        (220, 235, 255),  # cool blue-white
+        (255, 255, 255),  # pure white
+        (255, 252, 240),  # warm white
+        (255, 240, 200),  # soft amber
+        (255, 225, 215),  # faint rose
     ]
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -82,15 +82,17 @@ class _StarfieldWidget(QWidget):
         per_layer = self._N_STARS // len(self._LAYERS)
         for size, speed, alpha in self._LAYERS:
             for _ in range(per_layer):
-                self._stars.append({
-                    "x": random.uniform(0, w),
-                    "y": random.uniform(0, h),
-                    "size": size,
-                    "speed": speed * (0.7 + random.random() * 0.6),
-                    "alpha": alpha + random.randint(-20, 20),
-                    "twinkle_offset": random.uniform(0, math.tau),
-                    "tint": random.choice(self._TINTS),
-                })
+                self._stars.append(
+                    {
+                        "x": random.uniform(0, w),
+                        "y": random.uniform(0, h),
+                        "size": size,
+                        "speed": speed * (0.7 + random.random() * 0.6),
+                        "alpha": alpha + random.randint(-20, 20),
+                        "twinkle_offset": random.uniform(0, math.tau),
+                        "tint": random.choice(self._TINTS),
+                    }
+                )
 
     def _step(self) -> None:
         self._tick += 1
@@ -108,7 +110,7 @@ class _StarfieldWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.fillRect(self.rect(), _BG)
 
-        t = self._tick * 0.04   # slow twinkle phase
+        t = self._tick * 0.04  # slow twinkle phase
         for s in self._stars:
             phase = math.sin(t + s["twinkle_offset"])
             alpha = int(max(30, min(255, s["alpha"] + phase * 30)))
@@ -118,13 +120,16 @@ class _StarfieldWidget(QWidget):
             painter.setPen(Qt.PenStyle.NoPen)
             r = s["size"] / 2
             painter.drawEllipse(
-                int(s["x"] - r), int(s["y"] - r),
-                s["size"], s["size"],
+                int(s["x"] - r),
+                int(s["y"] - r),
+                s["size"],
+                s["size"],
             )
         painter.end()
 
 
 # ── Program Title ─────────────────────────────────────────────────────────────
+
 
 class _TitleLabel(QWidget):
 
@@ -139,6 +144,7 @@ class _TitleLabel(QWidget):
 
     def sizeHint(self):  # noqa: N802
         from PySide6.QtCore import QSize
+
         return QSize(600, 80)
 
     def paintEvent(self, event) -> None:  # noqa: N802
@@ -152,12 +158,13 @@ class _TitleLabel(QWidget):
 
 # ── Drop zone ──────────────────────────────────────────────────────────────
 
+
 class DropZone(QFrame):
     """Area that accepts file drops."""
 
     file_dropped = Signal(str)
 
-    _PULSE_STEPS = 60   # one full pulse cycle in ticks
+    _PULSE_STEPS = 60  # one full pulse cycle in ticks
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -259,8 +266,12 @@ class DropZone(QFrame):
             dot_color = QColor(0, 216, 240, 200)
             painter.setBrush(dot_color)
             painter.setPen(Qt.PenStyle.NoPen)
-            for cx, cy in [(r.x(), r.y()), (r.right(), r.y()),
-                           (r.x(), r.bottom()), (r.right(), r.bottom())]:
+            for cx, cy in [
+                (r.x(), r.y()),
+                (r.right(), r.y()),
+                (r.x(), r.bottom()),
+                (r.right(), r.bottom()),
+            ]:
                 painter.drawEllipse(QPoint(cx, cy), 4, 4)
 
         painter.end()
@@ -283,6 +294,7 @@ class DropZone(QFrame):
 
 
 # ── Welcome widget ─────────────────────────────────────────────────────────
+
 
 class WelcomeWidget(QWidget):
     """Shown at startup before any file is loaded."""
@@ -313,10 +325,7 @@ class WelcomeWidget(QWidget):
 
         subtitle = QLabel("Mission Control for your save files")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        sf = QFont()
-        sf.setPointSize(11)
-        subtitle.setFont(sf)
-        subtitle.setObjectName("WelcomeTip")
+        subtitle.setObjectName("WelcomeSubtitle")
         root.addWidget(subtitle)
 
         root.addSpacing(36)
@@ -331,7 +340,9 @@ class WelcomeWidget(QWidget):
 
         root.addSpacing(28)
 
-        tip_text = QLabel("<b>Tip:</b> Always create a backup before editing your save file.")
+        tip_text = QLabel(
+            "<b>Tip:</b> Always create a backup before editing your save file."
+        )
         tip_text.setTextFormat(Qt.TextFormat.RichText)
         tip_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tip_text.setObjectName("WelcomeTip")
@@ -353,4 +364,3 @@ class WelcomeWidget(QWidget):
         )
         if path:
             self.file_selected.emit(path)
-

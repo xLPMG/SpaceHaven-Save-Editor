@@ -1,4 +1,5 @@
 """ships_tab.py – Ship editor tab."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -186,4 +187,4 @@ class ShipsTab(QWidget):
             if item.data(Qt.ItemDataRole.UserRole) is self._current_ship:
                 item.setText(name)
                 break
-        self.status_message.emit(f"Ship renamed to \"{name}\" (unsaved).")
+        self.status_message.emit(f'Ship renamed to "{name}" (unsaved).')

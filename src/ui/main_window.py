@@ -1,10 +1,18 @@
 """main_window.py – Application main window."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt
-from PySide6.QtGui import QAction, QColor, QDragEnterEvent, QDropEvent, QKeySequence, QPainter
+from PySide6.QtGui import (
+    QAction,
+    QColor,
+    QDragEnterEvent,
+    QDropEvent,
+    QKeySequence,
+    QPainter,
+)
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFileDialog,
@@ -28,8 +36,8 @@ from src.ui.ships_tab import ShipsTab
 from src.ui.storage_tab import StorageTab
 from src.ui.welcome_widget import WelcomeWidget
 
-
 # ── Animated sidebar active-indicator ──────────────────────────────────────
+
 
 class _SidebarIndicator(QWidget):
     """A glowing bar that slides smoothly to the active nav button."""
@@ -60,6 +68,7 @@ class _SidebarIndicator(QWidget):
 
         # Gradient fade from left (bright) to right (transparent)
         from PySide6.QtGui import QLinearGradient
+
         grad = QLinearGradient(0, 0, self.width(), 0)
         grad.setColorAt(0.0, QColor(0, 216, 240, 45))
         grad.setColorAt(0.6, QColor(0, 216, 240, 18))
@@ -69,8 +78,6 @@ class _SidebarIndicator(QWidget):
         # Bright left edge accent
         painter.fillRect(0, 0, 3, self.height(), QColor(0, 216, 240, 230))
         painter.end()
-
-
 
 
 class MainWindow(QMainWindow):
@@ -168,10 +175,10 @@ class MainWindow(QMainWindow):
         self._storage_tab = StorageTab()
         self._ships_tab = ShipsTab()
         self._research_tab = ResearchTab()
-        self._content_stack.addWidget(self._globals_tab)   # index 0
-        self._content_stack.addWidget(self._crew_tab)      # index 1
-        self._content_stack.addWidget(self._storage_tab)   # index 2
-        self._content_stack.addWidget(self._ships_tab)     # index 3
+        self._content_stack.addWidget(self._globals_tab)  # index 0
+        self._content_stack.addWidget(self._crew_tab)  # index 1
+        self._content_stack.addWidget(self._storage_tab)  # index 2
+        self._content_stack.addWidget(self._ships_tab)  # index 3
         self._content_stack.addWidget(self._research_tab)  # index 4
 
         self._globals_tab.status_message.connect(self._mark_unsaved)
@@ -252,13 +259,13 @@ class MainWindow(QMainWindow):
             return
         # Map button rect to sidebar coords (indicator's parent)
         btn_rect = checked.geometry()
-        target = QRect(0, btn_rect.y(), self._nav_indicator.parent().width(), btn_rect.height())
+        target = QRect(
+            0, btn_rect.y(), self._nav_indicator.parent().width(), btn_rect.height()
+        )
         if animated:
             self._nav_indicator.slide_to(target)
         else:
             self._nav_indicator.setGeometry(target)
-
-
 
     def _build_file_bar(self) -> QWidget:
         bar = QWidget()
@@ -270,7 +277,9 @@ class MainWindow(QMainWindow):
 
         self._file_label = QLabel("No file loaded")
         self._file_label.setObjectName("FileLabel")
-        self._file_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._file_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         layout.addWidget(self._file_label)
 
         self._unsaved_badge = QLabel("● Unsaved")

@@ -526,5 +526,9 @@ TECH_IDS: dict[int, str] = {
 }
 
 # Sorted name->id lookup for UI combo boxes
-STORAGE_BY_NAME: dict[str, int] = {v: k for k, v in sorted(STORAGE_IDS.items(), key=lambda x: x[1])}
-TRAIT_BY_NAME: dict[str, int] = {v: k for k, v in sorted(TRAIT_IDS.items(), key=lambda x: x[1])}
+STORAGE_BY_NAME: dict[str, int] = {
+    v: k for k, v in sorted(STORAGE_IDS.items(), key=lambda x: x[1])
+}
+TRAIT_BY_NAME: dict[str, int] = {
+    v: k for k, v in sorted(TRAIT_IDS.items(), key=lambda x: x[1])
+}

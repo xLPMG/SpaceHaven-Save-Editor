@@ -1,4 +1,5 @@
 """storage_tab.py – Ship inventory / storage editor tab."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -219,7 +220,9 @@ class StorageTab(QWidget):
 
         self._items_table.setRowCount(0)
         total = sum(len(c.items) for c in containers)
-        self._container_info.setText(f"{len(containers)} containers  •  {total} item types")
+        self._container_info.setText(
+            f"{len(containers)} containers  •  {total} item types"
+        )
         self._set_right_enabled(False)
 
     def _on_container_selected(self, row: int) -> None:
@@ -292,7 +295,9 @@ class StorageTab(QWidget):
             return
         selected = self._items_table.selectedItems()
         if not selected:
-            QMessageBox.information(self, "Remove Item", "Select an item row to remove.")
+            QMessageBox.information(
+                self, "Remove Item", "Select an item row to remove."
+            )
             return
         row = self._items_table.currentRow()
         storage_item: StorageItem = self._items_table.item(row, 0).data(

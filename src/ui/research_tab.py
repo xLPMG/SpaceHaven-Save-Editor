@@ -1,4 +1,5 @@
 """research_tab.py – Technology research viewer and editor."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 # Custom item delegate – rich row rendering
 # ---------------------------------------------------------------------------
 
+
 class _TechDelegate(QStyledItemDelegate):
     """Paints each research entry as a styled row with accent strip + badge."""
 
@@ -37,17 +39,19 @@ class _TechDelegate(QStyledItemDelegate):
     _NONE_COLOR = QColor("#1A4A58")
 
     _BG_EVEN = QColor("#050A0B")
-    _BG_ODD  = QColor("#070E10")
-    _BG_SEL  = QColor("#071820")
-    _SEP     = QColor(0, 216, 240, 18)
+    _BG_ODD = QColor("#070E10")
+    _BG_SEL = QColor("#071820")
+    _SEP = QColor(0, 216, 240, 18)
 
     _TEXT_MAIN = QColor("#DDF0F5")
-    _TEXT_DIM  = QColor("#3BBECE")
+    _TEXT_DIM = QColor("#3BBECE")
 
     def sizeHint(self, option: QStyleOptionViewItem, index) -> QSize:  # noqa: N802
         return QSize(option.rect.width(), 48)
 
-    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:  # noqa: N802
+    def paint(
+        self, painter: QPainter, option: QStyleOptionViewItem, index
+    ) -> None:  # noqa: N802
         entry: ResearchEntry | None = index.data(Qt.ItemDataRole.UserRole)
         if entry is None:
             super().paint(painter, option, index)
@@ -58,7 +62,7 @@ class _TechDelegate(QStyledItemDelegate):
 
         r = option.rect
         selected = bool(option.state & QStyle.StateFlag.State_Selected)
-        hovered  = bool(option.state & QStyle.StateFlag.State_MouseOver)
+        hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
 
         # Row background
         if selected:
@@ -70,14 +74,18 @@ class _TechDelegate(QStyledItemDelegate):
 
         # Left accent strip (4 px)
         accent = (
-            self._DONE_COLOR if entry.done
-            else self._PROG_COLOR if entry.in_progress
-            else self._NONE_COLOR
+            self._DONE_COLOR
+            if entry.done
+            else self._PROG_COLOR if entry.in_progress else self._NONE_COLOR
         )
         painter.fillRect(QRect(r.x(), r.y(), 4, r.height()), accent)
 
         # Tech name
-        text_color = self._TEXT_DIM if (not entry.done and not entry.in_progress) else self._TEXT_MAIN
+        text_color = (
+            self._TEXT_DIM
+            if (not entry.done and not entry.in_progress)
+            else self._TEXT_MAIN
+        )
         font = painter.font()
         font.setPointSize(10)
         painter.setFont(font)
@@ -92,22 +100,23 @@ class _TechDelegate(QStyledItemDelegate):
         # Status badge
         if entry.done:
             badge_txt = "COMPLETE"
-            badge_fg  = self._DONE_COLOR
-            badge_bg  = QColor(4, 217, 18, 28)
+            badge_fg = self._DONE_COLOR
+            badge_bg = QColor(4, 217, 18, 28)
         elif entry.in_progress:
             badge_txt = "IN PROGRESS"
-            badge_fg  = self._PROG_COLOR
-            badge_bg  = QColor(255, 136, 0, 28)
+            badge_fg = self._PROG_COLOR
+            badge_bg = QColor(255, 136, 0, 28)
         else:
             badge_txt = "NOT DONE"
-            badge_fg  = self._NONE_COLOR
-            badge_bg  = QColor(26, 74, 88, 20)
+            badge_fg = self._NONE_COLOR
+            badge_bg = QColor(26, 74, 88, 20)
 
         bw, bh = 114, 24
         badge_rect = QRect(
             r.right() - bw - 12,
             r.y() + (r.height() - bh) // 2,
-            bw, bh,
+            bw,
+            bh,
         )
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(badge_bg)
@@ -130,6 +139,7 @@ class _TechDelegate(QStyledItemDelegate):
 # ---------------------------------------------------------------------------
 # Main tab widget
 # ---------------------------------------------------------------------------
+
 
 class ResearchTab(QWidget):
     status_message = Signal(str)
@@ -161,10 +171,14 @@ class ResearchTab(QWidget):
         counts_row = QHBoxLayout()
         counts_row.setSpacing(0)
 
-        self._count_done,     w_done     = self._make_stat_widget("0", "COMPLETE",    "#04D912")
-        self._count_progress, w_progress = self._make_stat_widget("0", "IN PROGRESS", "#FF8800")
-        self._count_remain,   w_remain   = self._make_stat_widget("0", "REMAINING",   "#3BBECE")
-        self._count_total,    w_total    = self._make_stat_widget("0", "TOTAL",       "#1A4A58")
+        self._count_done, w_done = self._make_stat_widget("0", "COMPLETE", "#04D912")
+        self._count_progress, w_progress = self._make_stat_widget(
+            "0", "IN PROGRESS", "#FF8800"
+        )
+        self._count_remain, w_remain = self._make_stat_widget(
+            "0", "REMAINING", "#3BBECE"
+        )
+        self._count_total, w_total = self._make_stat_widget("0", "TOTAL", "#1A4A58")
 
         for w in (w_done, w_progress, w_remain, w_total):
             counts_row.addWidget(w)
@@ -193,8 +207,12 @@ class ResearchTab(QWidget):
         filter_row.addWidget(self._search, 1)
 
         filter_row.addSpacing(8)
-        for label, attr in [("All", "all"), ("Done", "done"),
-                             ("In Progress", "progress"), ("Not Done", "todo")]:
+        for label, attr in [
+            ("All", "all"),
+            ("Done", "done"),
+            ("In Progress", "progress"),
+            ("Not Done", "todo"),
+        ]:
             btn = QPushButton(label)
             btn.setObjectName("FilterButton")
             btn.setCheckable(True)
@@ -234,7 +252,9 @@ class ResearchTab(QWidget):
         root.addLayout(btn_row)
 
     @staticmethod
-    def _make_stat_widget(number: str, caption: str, color: str) -> tuple[QLabel, QWidget]:
+    def _make_stat_widget(
+        number: str, caption: str, color: str
+    ) -> tuple[QLabel, QWidget]:
         """Return (num_label, container_widget) for the stats banner."""
         w = QWidget()
         w.setStyleSheet("background-color: transparent;")
@@ -295,8 +315,8 @@ class ResearchTab(QWidget):
         self._list.blockSignals(False)
         self._on_selection_changed()
         total = len(self._all_entries)
-        done  = sum(1 for e in self._all_entries if e.done)
-        prog  = sum(1 for e in self._all_entries if e.in_progress)
+        done = sum(1 for e in self._all_entries if e.done)
+        prog = sum(1 for e in self._all_entries if e.in_progress)
         self._update_banner(total, done, prog, total - done - prog)
 
     def _update_banner(self, total: int, done: int, prog: int, rem: int) -> None:
@@ -344,7 +364,8 @@ class ResearchTab(QWidget):
         count = self._save.complete_all_research()
         self._refresh_list()
         if count:
-            self.status_message.emit(f"Completed all {count} remaining research items (unsaved).")
+            self.status_message.emit(
+                f"Completed all {count} remaining research items (unsaved)."
+            )
         else:
             self.status_message.emit("All research was already complete.")
-

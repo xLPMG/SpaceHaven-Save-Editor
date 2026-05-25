@@ -1,4 +1,5 @@
 """Parses and writes Space Haven 'game' save files (XML via lxml)."""
+
 from __future__ import annotations
 
 import shutil
@@ -17,15 +18,15 @@ from src.game_data import (
     TRAIT_IDS,
 )
 
-
 # ---------------------------------------------------------------------------
 # Data-model classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Stat:
-    tag: str       # XML element name, e.g. "Health"
-    value: int     # current value (attribute "v")
+    tag: str  # XML element name, e.g. "Health"
+    value: int  # current value (attribute "v")
     element: object = field(repr=False, default=None)  # lxml element
 
 
@@ -81,7 +82,7 @@ class Character:
     traits: list[Trait] = field(default_factory=list)
     conditions: list[Condition] = field(default_factory=list)
     relationships: list[Relationship] = field(default_factory=list)
-    element: object = field(repr=False, default=None)   # <c> element
+    element: object = field(repr=False, default=None)  # <c> element
     pers_element: object = field(repr=False, default=None)  # <pers> element
 
     @property
@@ -102,7 +103,7 @@ class StorageContainer:
     display_name: str
     items: list[StorageItem] = field(default_factory=list)
     feat_element: object = field(repr=False, default=None)  # <feat> element
-    inv_element: object = field(repr=False, default=None)   # <inv> element
+    inv_element: object = field(repr=False, default=None)  # <inv> element
 
 
 @dataclass
@@ -118,14 +119,15 @@ class Ship:
 class ResearchEntry:
     tech_id: int
     name: str
-    done: bool          # True if all stages completed
-    in_progress: bool   # True if any stage has partial progress
+    done: bool  # True if all stages completed
+    in_progress: bool  # True if any stage has partial progress
     element: object = field(repr=False, default=None)  # <l techId=...> element
 
 
 # ---------------------------------------------------------------------------
 # Main save-file class
 # ---------------------------------------------------------------------------
+
 
 class SaveFile:
     """Loads, exposes, and saves a Space Haven XML save file."""
@@ -151,7 +153,9 @@ class SaveFile:
         self._root = self._tree.getroot()
 
         if self._root is None or self._root.tag != "game":
-            raise ValueError("Not a valid Space Haven save file (root element must be <game>).")
+            raise ValueError(
+                "Not a valid Space Haven save file (root element must be <game>)."
+            )
 
         self._parse_ships()
         self._parse_characters()
@@ -261,13 +265,15 @@ class SaveFile:
             if sid == 0 or sid in seen:
                 continue
             seen.add(sid)
-            self.ships.append(Ship(
-                sid=sid,
-                name=ship_el.get("sname") or f"Ship #{sid}",
-                sx=int(ship_el.get("sx", 0)),
-                sy=int(ship_el.get("sy", 0)),
-                element=ship_el,
-            ))
+            self.ships.append(
+                Ship(
+                    sid=sid,
+                    name=ship_el.get("sname") or f"Ship #{sid}",
+                    sx=int(ship_el.get("sx", 0)),
+                    sy=int(ship_el.get("sy", 0)),
+                    element=ship_el,
+                )
+            )
         self.ships.sort(key=lambda s: s.name)
 
     def get_storage_containers(self, ship: Ship) -> list[StorageContainer]:
@@ -289,12 +295,14 @@ class SaveFile:
                     continue
                 if qty <= 0:
                     continue
-                items.append(StorageItem(
-                    item_id=item_id,
-                    name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
-                    quantity=qty,
-                    element=s_el,
-                ))
+                items.append(
+                    StorageItem(
+                        item_id=item_id,
+                        name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
+                        quantity=qty,
+                        element=s_el,
+                    )
+                )
             if not items:
                 idx += 1
                 continue
@@ -310,16 +318,20 @@ class SaveFile:
                 display = f"Storage (Type: {obj_id}) #{idx + 1}"
             else:
                 display = f"Storage Bay #{idx + 1}"
-            containers.append(StorageContainer(
-                display_name=display,
-                items=sorted(items, key=lambda i: i.name),
-                feat_element=feat,
-                inv_element=inv,
-            ))
+            containers.append(
+                StorageContainer(
+                    display_name=display,
+                    items=sorted(items, key=lambda i: i.name),
+                    feat_element=feat,
+                    inv_element=inv,
+                )
+            )
             idx += 1
         return containers
 
-    def add_storage_item(self, container: StorageContainer, item_id: int, quantity: int) -> None:
+    def add_storage_item(
+        self, container: StorageContainer, item_id: int, quantity: int
+    ) -> None:
         inv = container.inv_element
         # Check if item already exists
         for s_el in inv.findall("s"):
@@ -338,15 +350,19 @@ class SaveFile:
         new_el.set("inStorage", str(quantity))
         new_el.set("onTheWayIn", "0")
         new_el.set("onTheWayOut", "0")
-        container.items.append(StorageItem(
-            item_id=item_id,
-            name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
-            quantity=quantity,
-            element=new_el,
-        ))
+        container.items.append(
+            StorageItem(
+                item_id=item_id,
+                name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
+                quantity=quantity,
+                element=new_el,
+            )
+        )
         container.items.sort(key=lambda i: i.name)
 
-    def remove_storage_item(self, container: StorageContainer, item: StorageItem) -> None:
+    def remove_storage_item(
+        self, container: StorageContainer, item: StorageItem
+    ) -> None:
         if item.element is not None:
             parent = item.element.getparent()
             if parent is not None:
@@ -425,12 +441,14 @@ class SaveFile:
                 points = int(a.get("points", "0"))
             except ValueError:
                 continue
-            char.attributes.append(Attribute(
-                attr_id=attr_id,
-                name=ATTRIBUTE_IDS.get(attr_id, f"Unknown ({attr_id})"),
-                points=points,
-                element=a,
-            ))
+            char.attributes.append(
+                Attribute(
+                    attr_id=attr_id,
+                    name=ATTRIBUTE_IDS.get(attr_id, f"Unknown ({attr_id})"),
+                    points=points,
+                    element=a,
+                )
+            )
 
     def _parse_char_skills(self, pers: etree._Element, char: Character) -> None:
         skills_el = pers.find("skills")
@@ -443,13 +461,15 @@ class SaveFile:
                 max_level = int(s.get("mxn", "0"))
             except ValueError:
                 continue
-            char.skills.append(Skill(
-                skill_id=skill_id,
-                name=SKILL_IDS.get(skill_id, f"Unknown ({skill_id})"),
-                level=level,
-                max_level=max_level,
-                element=s,
-            ))
+            char.skills.append(
+                Skill(
+                    skill_id=skill_id,
+                    name=SKILL_IDS.get(skill_id, f"Unknown ({skill_id})"),
+                    level=level,
+                    max_level=max_level,
+                    element=s,
+                )
+            )
         char.skills.sort(key=lambda s: s.name)
 
     def _parse_char_traits(self, pers: etree._Element, char: Character) -> None:
@@ -461,11 +481,13 @@ class SaveFile:
                 trait_id = int(t.get("id", "0"))
             except ValueError:
                 continue
-            char.traits.append(Trait(
-                trait_id=trait_id,
-                name=TRAIT_IDS.get(trait_id, f"Unknown ({trait_id})"),
-                element=t,
-            ))
+            char.traits.append(
+                Trait(
+                    trait_id=trait_id,
+                    name=TRAIT_IDS.get(trait_id, f"Unknown ({trait_id})"),
+                    element=t,
+                )
+            )
 
     def _parse_char_conditions(self, pers: etree._Element, char: Character) -> None:
         conds_el = pers.find("conditions")
@@ -476,11 +498,13 @@ class SaveFile:
                 cond_id = int(c.get("id", "0"))
             except ValueError:
                 continue
-            char.conditions.append(Condition(
-                cond_id=cond_id,
-                name=CONDITION_IDS.get(cond_id, f"Unknown ({cond_id})"),
-                element=c,
-            ))
+            char.conditions.append(
+                Condition(
+                    cond_id=cond_id,
+                    name=CONDITION_IDS.get(cond_id, f"Unknown ({cond_id})"),
+                    element=c,
+                )
+            )
 
     def _parse_char_relationships(self, pers: etree._Element, char: Character) -> None:
         sociality = pers.find("sociality")
@@ -499,13 +523,15 @@ class SaveFile:
                 continue
             if target_id == 0:
                 continue
-            char.relationships.append(Relationship(
-                target_id=target_id,
-                target_name=f"Unknown ({target_id})",
-                friendship=friendship,
-                attraction=attraction,
-                compatibility=compatibility,
-            ))
+            char.relationships.append(
+                Relationship(
+                    target_id=target_id,
+                    target_name=f"Unknown ({target_id})",
+                    friendship=friendship,
+                    attraction=attraction,
+                    compatibility=compatibility,
+                )
+            )
 
     # ------------------------------------------------------------------
     # Character mutations
@@ -652,20 +678,27 @@ class SaveFile:
                 continue
             stage_states = l_el.find("stageStates")
             stages = stage_states.findall("l") if stage_states is not None else []
-            done = bool(stages) and all(s.get("done", "false") == "true" for s in stages)
+            done = bool(stages) and all(
+                s.get("done", "false") == "true" for s in stages
+            )
             in_progress = (not done) and any(
-                any(int(bd.get(attr, "0")) > 0
+                any(
+                    int(bd.get(attr, "0")) > 0
                     for attr in ("level1", "level2", "level3")
-                    for bd in [s.find("blocksDone")] if bd is not None)
+                    for bd in [s.find("blocksDone")]
+                    if bd is not None
+                )
                 for s in stages
             )
-            self.research.append(ResearchEntry(
-                tech_id=tech_id,
-                name=TECH_IDS.get(tech_id, f"Unknown ({tech_id})"),
-                done=done,
-                in_progress=in_progress,
-                element=l_el,
-            ))
+            self.research.append(
+                ResearchEntry(
+                    tech_id=tech_id,
+                    name=TECH_IDS.get(tech_id, f"Unknown ({tech_id})"),
+                    done=done,
+                    in_progress=in_progress,
+                    element=l_el,
+                )
+            )
         self.research.sort(key=lambda r: r.name)
 
     def complete_research(self, entry: ResearchEntry) -> None:
@@ -695,4 +728,3 @@ class SaveFile:
                 self.complete_research(entry)
                 count += 1
         return count
-

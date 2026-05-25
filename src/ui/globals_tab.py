@@ -1,4 +1,5 @@
 """globals_tab.py – Tab for editing game-wide settings."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -108,10 +109,10 @@ class GlobalsTab(QWidget):
             info_grid.addWidget(v, r, c * 2 + 1)
             self._info_labels[key] = v
 
-        _add_info(0, 0, "mode",  "Game Mode")
-        _add_info(0, 1, "seed",  "Seed")
+        _add_info(0, 0, "mode", "Game Mode")
+        _add_info(0, 1, "seed", "Seed")
         _add_info(1, 0, "ships", "Ships")
-        _add_info(1, 1, "crew",  "Total Crew")
+        _add_info(1, 1, "crew", "Total Crew")
 
         # Save path spans full width
         path_key = QLabel("Save Path")
@@ -199,26 +200,32 @@ class GlobalsTab(QWidget):
             row.addWidget(btn)
             return row
 
-        qa_layout.addLayout(_action_row(
-            "Heal All Crew",
-            "Set every stat (health, food, rest…) to 100 for all crew members.",
-            "Heal All",
-            self._heal_all_crew,
-        ))
+        qa_layout.addLayout(
+            _action_row(
+                "Heal All Crew",
+                "Set every stat (health, food, rest…) to 100 for all crew members.",
+                "Heal All",
+                self._heal_all_crew,
+            )
+        )
         qa_layout.addWidget(_sep())
-        qa_layout.addLayout(_action_row(
-            "Max All Skills",
-            "Set all crew skills to level 20 and max natural level 20.",
-            "Max Skills",
-            self._max_all_skills,
-        ))
+        qa_layout.addLayout(
+            _action_row(
+                "Max All Skills",
+                "Set all crew skills to level 20 and max natural level 20.",
+                "Max Skills",
+                self._max_all_skills,
+            )
+        )
         qa_layout.addWidget(_sep())
-        qa_layout.addLayout(_action_row(
-            "Clear All Conditions",
-            "Remove every active condition from all crew (injuries, moods, etc.).",
-            "Clear Conditions",
-            self._clear_all_conditions,
-        ))
+        qa_layout.addLayout(
+            _action_row(
+                "Clear All Conditions",
+                "Remove every active condition from all crew (injuries, moods, etc.).",
+                "Clear Conditions",
+                self._clear_all_conditions,
+            )
+        )
         qa_layout.addWidget(_sep())
 
         fill_row = QHBoxLayout()
@@ -228,7 +235,9 @@ class GlobalsTab(QWidget):
         fill_lbl = QLabel("Fill All Storage")
         fill_lbl.setObjectName("StatCardLabel")
         fill_text.addWidget(fill_lbl)
-        fill_desc = QLabel("Set every item in every storage container to the specified quantity.")
+        fill_desc = QLabel(
+            "Set every item in every storage container to the specified quantity."
+        )
         fill_desc.setObjectName("StatCardDesc")
         fill_text.addWidget(fill_desc)
         fill_row.addLayout(fill_text)
@@ -261,12 +270,20 @@ class GlobalsTab(QWidget):
 
     def load(self, save: SaveFile) -> None:
         self._save = save
-        for w in (self._credits_card.spin, self._prestige_card.spin, self._sandbox_check):
+        for w in (
+            self._credits_card.spin,
+            self._prestige_card.spin,
+            self._sandbox_check,
+        ):
             w.blockSignals(True)
         self._credits_card.spin.setValue(save.get_credits())
         self._prestige_card.spin.setValue(save.get_prestige())
         self._sandbox_check.setChecked(save.get_sandbox())
-        for w in (self._credits_card.spin, self._prestige_card.spin, self._sandbox_check):
+        for w in (
+            self._credits_card.spin,
+            self._prestige_card.spin,
+            self._sandbox_check,
+        ):
             w.blockSignals(False)
 
         # Update info labels
@@ -280,12 +297,20 @@ class GlobalsTab(QWidget):
 
     def clear(self) -> None:
         self._save = None
-        for w in (self._credits_card.spin, self._prestige_card.spin, self._sandbox_check):
+        for w in (
+            self._credits_card.spin,
+            self._prestige_card.spin,
+            self._sandbox_check,
+        ):
             w.blockSignals(True)
         self._credits_card.spin.setValue(0)
         self._prestige_card.spin.setValue(0)
         self._sandbox_check.setChecked(False)
-        for w in (self._credits_card.spin, self._prestige_card.spin, self._sandbox_check):
+        for w in (
+            self._credits_card.spin,
+            self._prestige_card.spin,
+            self._sandbox_check,
+        ):
             w.blockSignals(False)
         for lbl in self._info_labels.values():
             lbl.setText("—")
@@ -327,5 +352,3 @@ class GlobalsTab(QWidget):
         qty = self._fill_qty_spin.value()
         n = self._save.fill_all_storage(qty)
         self.status_message.emit(f"Set {n} storage items to {qty:,} (unsaved.).")
-
-
