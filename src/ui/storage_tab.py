@@ -119,15 +119,21 @@ class StorageTab(QWidget):
         )
         self._items_table.verticalHeader().setVisible(False)
         self._items_table.verticalHeader().setDefaultSectionSize(42)
+        self._items_table.itemSelectionChanged.connect(
+            lambda: self._remove_btn.setEnabled(
+                bool(self._items_table.selectedItems())
+            )
+        )
         rv.addWidget(self._items_table)
 
         # Toolbar: remove
         qty_row = QHBoxLayout()
         qty_row.setSpacing(8)
-        remove_btn = QPushButton("Remove Selected")
-        remove_btn.setObjectName("DangerButton")
-        remove_btn.clicked.connect(self._remove_item)
-        qty_row.addWidget(remove_btn)
+        self._remove_btn = QPushButton("Remove Selected")
+        self._remove_btn.setObjectName("DangerButton")
+        self._remove_btn.setEnabled(False)
+        self._remove_btn.clicked.connect(self._remove_item)
+        qty_row.addWidget(self._remove_btn)
         qty_row.addStretch()
         rv.addLayout(qty_row)
 
@@ -145,7 +151,7 @@ class StorageTab(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         for name, item_id in sorted((v, k) for k, v in STORAGE_IDS.items()):
-            self._add_item_combo.addItem(f"{name}  [{item_id}]", item_id)
+            self._add_item_combo.addItem(name, item_id)
         add_row.addWidget(self._add_item_combo)
 
         self._add_qty_spin = QSpinBox()
@@ -224,7 +230,10 @@ class StorageTab(QWidget):
         self._container_info.setText(
             f"{len(containers)} containers  •  {total} item types"
         )
-        self._set_right_enabled(False)
+        if containers:
+            self._container_list.setCurrentRow(0)
+        else:
+            self._set_right_enabled(False)
 
     def _on_container_selected(self, row: int) -> None:
         if row < 0:

@@ -218,15 +218,11 @@ class CrewTab(QWidget):
         self._last_name_edit = QLineEdit()
         self._last_name_edit.setPlaceholderText("Last name")
         self._last_name_edit.setObjectName("NameEdit")
+        self._first_name_edit.editingFinished.connect(self._rename_character)
+        self._last_name_edit.editingFinished.connect(self._rename_character)
         name_edit_row.addWidget(self._first_name_edit)
         name_edit_row.addWidget(self._last_name_edit)
         name_col.addLayout(name_edit_row)
-
-        rename_btn = QPushButton("Rename")
-        rename_btn.setObjectName("InlineButton")
-        rename_btn.setFixedWidth(90)
-        rename_btn.clicked.connect(self._rename_character)
-        name_col.addWidget(rename_btn)
 
         header_layout.addLayout(name_col)
         rv.addWidget(header_card)
@@ -468,8 +464,11 @@ class CrewTab(QWidget):
             self._add_crew_item(char)
         self._crew_list.blockSignals(False)
         self._crew_count.setText(str(len(crew)))
-        self._clear_character_panels()
-        self._set_right_enabled(False)
+        if crew:
+            self._crew_list.setCurrentRow(0)
+        else:
+            self._clear_character_panels()
+            self._set_right_enabled(False)
 
     def _on_crew_selected(self, row: int) -> None:
         if row < 0:

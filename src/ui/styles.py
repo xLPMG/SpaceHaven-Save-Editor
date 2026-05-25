@@ -90,12 +90,12 @@ def apply_theme(app: QApplication) -> None:
         }
         QLabel#FileLabel {
             color: #3BBECE;
-            font-size: 12px;
+            font-size: 13px;
             letter-spacing: 0.3px;
         }
         QLabel#UnsavedBadge {
             color: #FDBF00;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             padding: 2px 9px;
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -159,7 +159,7 @@ def apply_theme(app: QApplication) -> None:
             border: none;
             border-left: 3px solid transparent;
             border-radius: 0;
-            color: #1E5060;
+            color: #2D7A94;
             text-align: left;
             padding: 12px 16px;
             font-size: 13px;
@@ -179,14 +179,14 @@ def apply_theme(app: QApplication) -> None:
         }
 
         QLabel#InfoKey {
-            color: #1A4A58;
-            font-size: 10px;
+            color: #2D7A94;
+            font-size: 12px;
             font-weight: bold;
             letter-spacing: 1.2px;
         }
         QLabel#InfoValue {
             color: #00D8F0;
-            font-size: 12px;
+            font-size: 13px;
             font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
         }
         QScrollArea#GlobalsScroll {
@@ -235,12 +235,12 @@ def apply_theme(app: QApplication) -> None:
             letter-spacing: 1px;
         }
         QLabel#WelcomeTip {
-            color: #1A4A58;
-            font-size: 12px;
+            color: #2D7A94;
+            font-size: 13px;
         }
         QLabel#WelcomeAuthor {
-            color: #1A4A58;
-            font-size: 12px;
+            color: #2D7A94;
+            font-size: 13px;
         }
         QLabel#DropArrow {
             color: #00D8F0;
@@ -252,8 +252,8 @@ def apply_theme(app: QApplication) -> None:
             font-weight: 600;
         }
         QLabel#DropHint {
-            color: #1E5060;
-            font-size: 12px;
+            color: #2D7A94;
+            font-size: 13px;
         }
         QPushButton#BrowseButton {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -301,8 +301,8 @@ def apply_theme(app: QApplication) -> None:
             letter-spacing: 0.3px;
         }
         QLabel#StatCardDesc {
-            color: #1A4A58;
-            font-size: 11px;
+            color: #2D7A94;
+            font-size: 12px;
         }
         QSpinBox#StatCardSpin {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -356,8 +356,8 @@ def apply_theme(app: QApplication) -> None:
             border-right: 1px solid rgba(0,216,240,0.15);
         }
         QLabel#PanelSectionLabel {
-            color: #1A4A58;
-            font-size: 10px;
+            color: #2D7A94;
+            font-size: 12px;
             font-weight: bold;
             letter-spacing: 1.2px;
         }
@@ -365,7 +365,7 @@ def apply_theme(app: QApplication) -> None:
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 rgba(0,216,240,0.18), stop:1 rgba(0,216,240,0.08));
             color: #00D8F0;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             padding: 2px 10px;
             border: 1px solid rgba(0,216,240,0.32);
@@ -467,6 +467,26 @@ def apply_theme(app: QApplication) -> None:
             color: #1A4A58;
             border-color: rgba(4,217,18,0.06);
         }
+        QPushButton#CompleteAllButton {
+            background: transparent;
+            color: #04D912;
+            border: 1px solid rgba(4,217,18,0.4);
+            border-radius: 7px;
+            padding: 5px 16px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        QPushButton#CompleteAllButton:hover {
+            background: rgba(4,217,18,0.08);
+            border-color: rgba(4,217,18,0.65);
+        }
+        QPushButton#CompleteAllButton:pressed {
+            background: rgba(4,217,18,0.14);
+        }
+        QPushButton#CompleteAllButton:disabled {
+            color: #1A4A58;
+            border-color: rgba(4,217,18,0.06);
+        }
 
         QLineEdit#FilterEdit {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -514,11 +534,11 @@ def apply_theme(app: QApplication) -> None:
         }
         QPushButton#FilterButton {
             background: transparent;
-            color: #1A4A58;
+            color: #2D7A94;
             border: 1px solid rgba(0,216,240,0.15);
             border-radius: 6px;
             padding: 4px 12px;
-            font-size: 11px;
+            font-size: 12px;
             letter-spacing: 0.3px;
         }
         QPushButton#FilterButton:hover {
@@ -642,12 +662,12 @@ def apply_theme(app: QApplication) -> None:
         QHeaderView::section {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #0A1A1E, stop:1 #060E10);
-            color: #1A4A58;
+            color: #2D7A94;
             border: none;
             border-right: 1px solid rgba(0,216,240,0.08);
             border-bottom: 1px solid rgba(0,216,240,0.2);
             padding: 7px 10px;
-            font-size: 10px;
+            font-size: 12px;
             font-weight: bold;
             letter-spacing: 1px;
         }
@@ -659,7 +679,7 @@ def apply_theme(app: QApplication) -> None:
             margin-top: 14px;
             padding-top: 14px;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 12px;
             letter-spacing: 0.8px;
         }
         QGroupBox::title {

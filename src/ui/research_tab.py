@@ -244,7 +244,7 @@ class ResearchTab(QWidget):
         btn_row.addWidget(self._complete_sel_btn)
 
         self._complete_all_btn = QPushButton("Complete All")
-        self._complete_all_btn.setObjectName("CompleteButton")
+        self._complete_all_btn.setObjectName("CompleteAllButton")
         self._complete_all_btn.setEnabled(False)
         self._complete_all_btn.clicked.connect(self._complete_all)
         btn_row.addWidget(self._complete_all_btn)

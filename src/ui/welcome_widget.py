@@ -221,7 +221,7 @@ class DropZone(QFrame):
 
         layout.addSpacing(8)
 
-        self._browse_btn = QPushButton("Browse for file…")
+        self._browse_btn = QPushButton("Browse files...")
         self._browse_btn.setObjectName("BrowseButton")
         self._browse_btn.setFixedWidth(200)
         self._browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)

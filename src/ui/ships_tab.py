@@ -140,13 +140,8 @@ class ShipsTab(QWidget):
         self._name_edit = QLineEdit()
         self._name_edit.setObjectName("NameEdit")
         self._name_edit.setPlaceholderText("Ship name…")
+        self._name_edit.editingFinished.connect(self._rename_ship)
         name_layout.addRow("Name:", self._name_edit)
-
-        rename_btn = QPushButton("Rename")
-        rename_btn.setObjectName("InlineButton")
-        rename_btn.setFixedWidth(100)
-        rename_btn.clicked.connect(self._rename_ship)
-        name_layout.addRow("", rename_btn)
 
         dv.addWidget(name_group)
 
