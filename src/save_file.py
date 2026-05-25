@@ -70,6 +70,7 @@ class Relationship:
     friendship: int
     attraction: int
     compatibility: int
+    element: object = field(repr=False, default=None)
 
 
 @dataclass
@@ -539,6 +540,7 @@ class SaveFile:
                     friendship=friendship,
                     attraction=attraction,
                     compatibility=compatibility,
+                    element=l_el,
                 )
             )
 
@@ -555,6 +557,21 @@ class SaveFile:
         attr.points = points
         if attr.element is not None:
             attr.element.set("points", str(points))
+
+    def set_friendship(self, rel: "Relationship", value: int) -> None:
+        rel.friendship = value
+        if rel.element is not None:
+            rel.element.set("friendship", str(value))
+
+    def set_attraction(self, rel: "Relationship", value: int) -> None:
+        rel.attraction = value
+        if rel.element is not None:
+            rel.element.set("attraction", str(value))
+
+    def set_compatibility(self, rel: "Relationship", value: int) -> None:
+        rel.compatibility = value
+        if rel.element is not None:
+            rel.element.set("compatibility", str(value))
 
     def set_skill_level(self, skill: Skill, level: int) -> None:
         skill.level = level

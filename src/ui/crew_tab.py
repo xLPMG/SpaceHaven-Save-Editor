@@ -288,9 +288,15 @@ class CrewTab(QWidget):
         info.setObjectName("StatCardDesc")
         layout.addWidget(info)
 
-        self._attr_table = QTableWidget(0, 2)
-        self._attr_table.setHorizontalHeaderLabels(["Attribute", "Points"])
-        self._attr_table.horizontalHeader().setStretchLastSection(True)
+        self._attr_table = QTableWidget(0, 3)
+        self._attr_table.setHorizontalHeaderLabels(["Attribute", "", "Points"])
+        self._attr_table.horizontalHeader().setStretchLastSection(False)
+        self._attr_table.horizontalHeader().setSectionResizeMode(
+            0, self._attr_table.horizontalHeader().ResizeMode.ResizeToContents
+        )
+        self._attr_table.horizontalHeader().setSectionResizeMode(
+            1, self._attr_table.horizontalHeader().ResizeMode.Stretch
+        )
         self._attr_table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows
         )
@@ -306,15 +312,14 @@ class CrewTab(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(4)
 
-        info = QLabel("Edit skill levels and max natural levels.")
-        info.setObjectName("StatCardDesc")
-        layout.addWidget(info)
-
-        self._skills_table = QTableWidget(0, 3)
-        self._skills_table.setHorizontalHeaderLabels(["Skill", "Level", "Max Level"])
+        self._skills_table = QTableWidget(0, 4)
+        self._skills_table.setHorizontalHeaderLabels(["Skill", "", "Level", "Max Level"])
         self._skills_table.horizontalHeader().setStretchLastSection(False)
         self._skills_table.horizontalHeader().setSectionResizeMode(
-            0, self._skills_table.horizontalHeader().ResizeMode.Stretch
+            0, self._skills_table.horizontalHeader().ResizeMode.ResizeToContents
+        )
+        self._skills_table.horizontalHeader().setSectionResizeMode(
+            1, self._skills_table.horizontalHeader().ResizeMode.Stretch
         )
         self._skills_table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows
@@ -405,6 +410,7 @@ class CrewTab(QWidget):
         )
         self._rel_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._rel_table.verticalHeader().setVisible(False)
+        self._rel_table.verticalHeader().setDefaultSectionSize(42)
         layout.addWidget(self._rel_table)
         return w
 
@@ -526,19 +532,39 @@ class CrewTab(QWidget):
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             name_item.setData(Qt.ItemDataRole.UserRole, attr)
             self._attr_table.setItem(row, 0, name_item)
+
+            pip_lbl = self._skill_pip_label(attr.points, 10)
+            self._attr_table.setCellWidget(row, 1, pip_lbl)
+
             spin = QSpinBox()
-            spin.setRange(0, 20)
+            spin.setRange(0, 10)
             spin.setValue(attr.points)
             spin.valueChanged.connect(
-                lambda v, a=attr: self._on_attribute_changed(a, v)
+                lambda v, a=attr, pl=pip_lbl: (
+                    self._on_attribute_changed(a, v),
+                    pl.setText(
+                        "<span style='color:#00D8F0;'>" + "●" * v + "</span>"
+                        + "<span style='color:#1E3A40;'>" + "○" * (10 - v) + "</span>"
+                    ),
+                )
             )
-            self._attr_table.setCellWidget(row, 1, spin)
+            self._attr_table.setCellWidget(row, 2, spin)
 
     def _on_attribute_changed(self, attr, value: int) -> None:
         if self._save is None:
             return
         self._save.set_attribute(attr, value)
         self.status_message.emit("Attributes applied (unsaved).")
+
+    @staticmethod
+    def _skill_pip_label(level: int, max_level: int) -> QLabel:
+        filled = "<span style='color:#00D8F0;'>" + "●" * level + "</span>"
+        empty = "<span style='color:#1E3A40;'>" + "○" * (max_level - level) + "</span>"
+        lbl = QLabel(filled + empty)
+        lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        lbl.setStyleSheet("padding-left: 6px; letter-spacing: 1px;")
+        lbl.setTextFormat(Qt.TextFormat.RichText)
+        return lbl
 
     def _populate_skills(self, char: Character) -> None:
         self._skills_table.setRowCount(0)
@@ -550,27 +576,38 @@ class CrewTab(QWidget):
             name_item.setData(Qt.ItemDataRole.UserRole, skill)
             self._skills_table.setItem(row, 0, name_item)
 
+            pip_lbl = self._skill_pip_label(skill.level, skill.max_level)
+            self._skills_table.setCellWidget(row, 1, pip_lbl)
+
             level_spin = QSpinBox()
             level_spin.setRange(0, skill.max_level)
             level_spin.setValue(skill.level)
-            self._skills_table.setCellWidget(row, 1, level_spin)
+            self._skills_table.setCellWidget(row, 2, level_spin)
 
             max_spin = QSpinBox()
             max_spin.setRange(skill.level, 20)
             max_spin.setValue(skill.max_level)
-            self._skills_table.setCellWidget(row, 2, max_spin)
+            self._skills_table.setCellWidget(row, 3, max_spin)
 
             # Cross-link: level's max tracks max_spin; max's min tracks level_spin
             level_spin.valueChanged.connect(
-                lambda v, ms=max_spin, sk=skill: (
+                lambda v, ms=max_spin, sk=skill, pl=pip_lbl: (
                     ms.setMinimum(v),
                     self._on_skill_level_changed(sk, v),
+                    pl.setText(
+                        "<span style='color:#00D8F0;'>" + "●" * v + "</span>"
+                        + "<span style='color:#1E3A40;'>" + "○" * (ms.value() - v) + "</span>"
+                    ),
                 )
             )
             max_spin.valueChanged.connect(
-                lambda v, ls=level_spin, sk=skill: (
+                lambda v, ls=level_spin, sk=skill, pl=pip_lbl: (
                     ls.setMaximum(v),
                     self._on_skill_max_changed(sk, v),
+                    pl.setText(
+                        "<span style='color:#00D8F0;'>" + "●" * ls.value() + "</span>"
+                        + "<span style='color:#1E3A40;'>" + "○" * (v - ls.value()) + "</span>"
+                    ),
                 )
             )
 
@@ -606,9 +643,20 @@ class CrewTab(QWidget):
             row = self._rel_table.rowCount()
             self._rel_table.insertRow(row)
             self._rel_table.setItem(row, 0, QTableWidgetItem(rel.target_name))
-            self._rel_table.setItem(row, 1, QTableWidgetItem(str(rel.friendship)))
-            self._rel_table.setItem(row, 2, QTableWidgetItem(str(rel.attraction)))
-            self._rel_table.setItem(row, 3, QTableWidgetItem(str(rel.compatibility)))
+
+            for col, value, setter in [
+                (1, rel.friendship, self._save.set_friendship if self._save else None),
+                (2, rel.attraction, self._save.set_attraction if self._save else None),
+                (3, rel.compatibility, self._save.set_compatibility if self._save else None),
+            ]:
+                edit = QLineEdit(str(value))
+                edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                edit.editingFinished.connect(
+                    lambda e=edit, r=rel, s=setter: (
+                        s(r, int(e.text())) if s and e.text().lstrip("-").isdigit() else None
+                    ) or self.status_message.emit("Relationships applied (unsaved).")
+                )
+                self._rel_table.setCellWidget(row, col, edit)
 
     # ------------------------------------------------------------------
     # Apply changes

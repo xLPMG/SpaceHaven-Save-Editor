@@ -87,7 +87,7 @@ class _TechDelegate(QStyledItemDelegate):
             else self._TEXT_MAIN
         )
         font = painter.font()
-        font.setPointSize(10)
+        font.setPointSize(13)
         painter.setFont(font)
         painter.setPen(text_color)
         name_rect = QRect(r.x() + 16, r.y(), r.width() - 158, r.height())
@@ -123,7 +123,7 @@ class _TechDelegate(QStyledItemDelegate):
         painter.drawRoundedRect(badge_rect, 4, 4)
 
         bf = painter.font()
-        bf.setPointSize(8)
+        bf.setPointSize(10)
         bf.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 1.0)
         painter.setFont(bf)
         painter.setPen(badge_fg)
