@@ -570,18 +570,16 @@ def apply_theme(app: QApplication) -> None:
             border-color: rgba(0,216,240,0.75);
         }
         QSpinBox::up-button {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #0F2428, stop:1 #0A1A1E);
+            background: transparent;
             border: none;
-            border-radius: 0 4px 0 0;
+            border-radius: 0 7px 0 0;
             width: 20px;
             image: url(src/ui/icons/plus.svg);
         }
         QSpinBox::down-button {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #0A1A1E, stop:1 #0F2428);
+            background: transparent;
             border: none;
-            border-radius: 0 0 4px 0;
+            border-radius: 0 0 7px 0;
             width: 20px;
             image: url(src/ui/icons/minus.svg);
         }

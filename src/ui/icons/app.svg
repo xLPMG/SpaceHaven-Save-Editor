@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Space background -->
-  <circle cx="32" cy="32" r="32" fill="#040B0F"/>
-  <circle cx="32" cy="32" r="30.5" fill="none" stroke="#00D8F0" stroke-width="0.9" opacity="0.4"/>
+  <!-- Background -->
+  <rect width="64" height="64" fill="#040B0F"/>
 
   <!-- Stars -->
   <circle cx="10" cy="13" r="1"   fill="#DDF0F5" opacity="0.55"/>

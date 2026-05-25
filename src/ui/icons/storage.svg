@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
   <!-- 3-D box / package -->
   <path d="M10 2L2 6v8l8 4 8-4V6L10 2z" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M2 6l8 4 8-4" stroke="#3BBECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M2 6l8 4 8-4" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   <line x1="10" y1="10" x2="10" y2="18" stroke="#3BBECE" stroke-width="1.5" stroke-linecap="round"/>
 </svg>

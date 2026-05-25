@@ -1,11 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-  <!-- Stylised spacecraft viewed from above -->
-  <path d="M10 2c3.3 0 6 3 6 8H4c0-5 2.7-8 6-8z" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linejoin="round"/>
-  <rect x="6" y="10" width="8" height="3.5" rx="1" fill="none" stroke="#3BBECE" stroke-width="1.5"/>
-  <!-- Left thruster fin -->
-  <path d="M6 13c-1.8 0-2.5 1.5-2.5 3h4.5" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Right thruster fin -->
-  <path d="M14 13c1.8 0 2.5 1.5 2.5 3H12" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Cockpit dome -->
-  <circle cx="10" cy="7" r="1.5" fill="#3BBECE"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <g fill="none" stroke="#3BBECE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    
+    <!-- Nose / cockpit -->
+    <path d="M12 3 L15 7 H9 Z"/>
+    
+    <!-- Main body -->
+    <rect x="9" y="7" width="6" height="8" rx="1"/>
+    
+    <!-- Cargo segmentation -->
+    <line x1="9" y1="10" x2="15" y2="10"/>
+    <line x1="9" y1="13" x2="15" y2="13"/>
+    
+    <!-- Side fins -->
+    <path d="M9 11 L6.5 13.5 L9 13"/>
+    <path d="M15 11 L17.5 13.5 L15 13"/>
+    
+    <!-- Engine block -->
+    <rect x="10" y="15" width="4" height="3" rx="0.8"/>
+    
+    <!-- Exhaust hint -->
+    <line x1="11" y1="18.5" x2="11" y2="20"/>
+    <line x1="13" y1="18.5" x2="13" y2="20"/>
+    
+  </g>
 </svg>

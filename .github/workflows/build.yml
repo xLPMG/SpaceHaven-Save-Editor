@@ -21,10 +21,12 @@ jobs:
             artifact: SpaceHaven-Save-Editor-windows
             dist_path: "dist/SpaceHaven Save Editor/"
             icon_path: "assets/app.ico"
+            data_sep: ";"
           - os: macos-latest
             artifact: SpaceHaven-Save-Editor-macos
             dist_path: "_stage"
             icon_path: "assets/app.icns"
+            data_sep: ":"
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -63,6 +65,7 @@ jobs:
           --exclude-module PySide6.QtHelp
           --exclude-module PySide6.QtSvgWidgets
           --exclude-module pygments
+          --add-data "src/ui/icons${{ matrix.data_sep }}src/ui/icons"
           main.py
 
       - name: Stage macOS artifact
