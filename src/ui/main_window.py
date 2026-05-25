@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtGui import QAction, QDragEnterEvent, QDropEvent, QKeySequence
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt
+from PySide6.QtGui import QAction, QColor, QDragEnterEvent, QDropEvent, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFileDialog,
@@ -26,6 +27,50 @@ from src.ui.research_tab import ResearchTab
 from src.ui.ships_tab import ShipsTab
 from src.ui.storage_tab import StorageTab
 from src.ui.welcome_widget import WelcomeWidget
+
+
+# ── Animated sidebar active-indicator ──────────────────────────────────────
+
+class _SidebarIndicator(QWidget):
+    """A glowing bar that slides smoothly to the active nav button."""
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setFixedWidth(parent.width() if parent else 168)
+
+        self._anim = QPropertyAnimation(self, b"geometry")
+        self._anim.setDuration(220)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+    def slide_to(self, rect: QRect) -> None:
+        if self.geometry() == rect:
+            return
+        self._anim.stop()
+        self._anim.setStartValue(self.geometry())
+        self._anim.setEndValue(rect)
+        self._anim.start()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        if self.height() == 0:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Gradient fade from left (bright) to right (transparent)
+        from PySide6.QtGui import QLinearGradient
+        grad = QLinearGradient(0, 0, self.width(), 0)
+        grad.setColorAt(0.0, QColor(0, 216, 240, 45))
+        grad.setColorAt(0.6, QColor(0, 216, 240, 18))
+        grad.setColorAt(1.0, QColor(0, 216, 240, 0))
+        painter.fillRect(self.rect(), grad)
+
+        # Bright left edge accent
+        painter.fillRect(0, 0, 3, self.height(), QColor(0, 216, 240, 230))
+        painter.end()
+
+
 
 
 class MainWindow(QMainWindow):
@@ -145,7 +190,7 @@ class MainWindow(QMainWindow):
         sidebar.setFixedWidth(168)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(10, 20, 10, 20)
+        layout.setContentsMargins(0, 20, 0, 20)
         layout.setSpacing(2)
 
         self._nav_group = QButtonGroup(self)
@@ -159,16 +204,22 @@ class MainWindow(QMainWindow):
             ("Research", 4),
         ]
 
+        self._nav_buttons: list[QPushButton] = []
         for label, page_idx in nav_items:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setObjectName("NavButton")
-            btn.clicked.connect(lambda _, p=page_idx: self._content_stack.setCurrentIndex(p))
+            btn.clicked.connect(lambda _, p=page_idx: self._nav_to(p))
             self._nav_group.addButton(btn, page_idx)
             layout.addWidget(btn)
+            self._nav_buttons.append(btn)
 
         self._nav_group.button(0).setChecked(True)
         layout.addStretch()
+
+        # Animated indicator overlaid on the sidebar
+        self._nav_indicator = _SidebarIndicator(sidebar)
+        self._nav_indicator.raise_()
 
         # Right border separator
         sep = QFrame()
@@ -182,7 +233,32 @@ class MainWindow(QMainWindow):
         row.setSpacing(0)
         row.addWidget(sidebar)
         row.addWidget(sep)
+
+        # Position indicator on first button after layout is settled
+        sidebar.resizeEvent = lambda e, s=sidebar: self._on_sidebar_resize(e, s)  # type: ignore[attr-defined]
         return container
+
+    def _on_sidebar_resize(self, event, sidebar: QWidget) -> None:
+        QWidget.resizeEvent(sidebar, event)
+        self._update_indicator(animated=False)
+
+    def _nav_to(self, page_idx: int) -> None:
+        self._content_stack.setCurrentIndex(page_idx)
+        self._update_indicator(animated=True)
+
+    def _update_indicator(self, *, animated: bool = True) -> None:
+        checked = self._nav_group.checkedButton()
+        if checked is None or not hasattr(self, "_nav_indicator"):
+            return
+        # Map button rect to sidebar coords (indicator's parent)
+        btn_rect = checked.geometry()
+        target = QRect(0, btn_rect.y(), self._nav_indicator.parent().width(), btn_rect.height())
+        if animated:
+            self._nav_indicator.slide_to(target)
+        else:
+            self._nav_indicator.setGeometry(target)
+
+
 
     def _build_file_bar(self) -> QWidget:
         bar = QWidget()
