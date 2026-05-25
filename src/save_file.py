@@ -179,6 +179,8 @@ class SaveFile:
 
     def backup(self) -> Path:
         """Create a timestamped backup next to the save file."""
+        if self.path is None:
+            raise ValueError("No file loaded; cannot create backup.")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = self.path.parent / f"game.backup.{ts}"
         shutil.copy2(str(self.path), str(backup_path))
@@ -340,19 +342,29 @@ class SaveFile:
     def add_storage_item(
         self, container: StorageContainer, item_id: int, quantity: int
     ) -> StorageItem | None:
-        """Add or stack an item. Returns the StorageItem (new or updated), or None if only stacked."""
+        """Add or stack an item. Returns the new StorageItem, or None if stacked onto an existing one."""
         inv = container.inv_element
-        # Check if item already exists
+        # Check if item already exists in XML
         for s_el in inv.findall("s"):
             if s_el.get("elementaryId") == str(item_id):
                 existing = int(s_el.get("inStorage", "0"))
-                s_el.set("inStorage", str(existing + quantity))
-                # Update in-memory list
+                new_qty = existing + quantity
+                s_el.set("inStorage", str(new_qty))
+                # Update in-memory list if the item was already surfaced
                 for item in container.items:
                     if item.item_id == item_id:
-                        item.quantity = existing + quantity
+                        item.quantity = new_qty
                         return None  # stacked onto existing
-                return None
+                # Item existed in XML with qty=0 (filtered during parse) – surface it now
+                surfaced = StorageItem(
+                    item_id=item_id,
+                    name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
+                    quantity=new_qty,
+                    element=s_el,
+                )
+                container.items.append(surfaced)
+                container.items.sort(key=lambda i: i.name)
+                return surfaced
         # New item
         new_el = etree.SubElement(inv, "s")
         new_el.set("elementaryId", str(item_id))
@@ -623,6 +635,7 @@ class SaveFile:
         c_el.set("entId", str(new_id))
         c_el.set("name", first_name)
         c_el.set("lname", last_name)
+        c_el.set("cid", str(ship.sid))
 
         # Default stats at full health
         props = etree.SubElement(c_el, "props")
@@ -647,6 +660,8 @@ class SaveFile:
             s.set("sk", str(skill_id))
             s.set("level", "0")
             s.set("mxn", "10")
+            s.set("exp", "0")
+            s.set("expd", "0")
 
         etree.SubElement(pers, "traits")
         etree.SubElement(pers, "conditions")
@@ -835,8 +850,12 @@ class SaveFile:
     # ------------------------------------------------------------------
 
     def _next_master_id(self) -> int:
-        """Return a new unique ID from masterData.idCounter and advance it,
-        falling back to max-ship-SID + 1 if the element is absent."""
+        """Return a new unique ID from masterData.idCounter and advance it.
+
+        Falls back to scanning the document for the highest existing entity ID
+        (entId attributes + ship SIDs) when masterData is absent, so new IDs
+        never collide with any entity already present in the tree.
+        """
         md = self._root.find("masterData")
         if md is not None:
             try:
@@ -845,7 +864,17 @@ class SaveFile:
                 return current + 1
             except ValueError:
                 pass
-        return max((s.sid for s in self.ships), default=0) + 1
+        # No masterData: derive a collision-free ID from the whole document.
+        max_ent = max(
+            (
+                int(el.get("entId"))
+                for el in self._root.iter()
+                if el.get("entId") is not None and el.get("entId").lstrip("-").isdigit()
+            ),
+            default=0,
+        )
+        max_sid = max((s.sid for s in self.ships), default=0)
+        return max(max_ent, max_sid) + 1
 
     _REMAP_REF_ATTRS = frozenset(
         {"bedLink", "targetId", "owner", "link", "doorLink", "controllerId"}
@@ -938,11 +967,9 @@ class SaveFile:
                 s.get("done", "false") == "true" for s in stages
             )
             in_progress = (not done) and any(
-                any(
-                    int(bd.get(attr, "0")) > 0
-                    for attr in ("level1", "level2", "level3")
-                    for bd in [s.find("blocksDone")]
-                    if bd is not None
+                (
+                    (bd := s.find("blocksDone")) is not None
+                    and any(int(bd.get(a, "0")) > 0 for a in ("level1", "level2", "level3"))
                 )
                 for s in stages
             )

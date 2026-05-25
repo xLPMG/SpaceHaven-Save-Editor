@@ -732,3 +732,206 @@ class TestSaveAndBackup:
 
         backup_path = sf.backup()
         assert backup_path.name.startswith("game.backup.")
+
+    def test_backup_no_path_raises(self):
+        """backup() must raise ValueError when no file has been loaded."""
+        sf = SaveFile()
+        with pytest.raises(ValueError, match="No file loaded"):
+            sf.backup()
+
+
+# ---------------------------------------------------------------------------
+# Relationship setters
+# ---------------------------------------------------------------------------
+
+class TestRelationshipMutations:
+    def setup_method(self):
+        self.sf = _make_save_file(MINIMAL_XML)
+        self.jarvis = next(c for c in self.sf.characters if c.first_name == "Jarvis")
+        self.rel = self.jarvis.relationships[0]
+
+    def test_set_friendship(self):
+        self.sf.set_friendship(self.rel, 80)
+        assert self.rel.friendship == 80
+        assert self.rel.element.get("friendship") == "80"
+
+    def test_set_friendship_negative(self):
+        self.sf.set_friendship(self.rel, -50)
+        assert self.rel.friendship == -50
+        assert self.rel.element.get("friendship") == "-50"
+
+    def test_set_attraction(self):
+        self.sf.set_attraction(self.rel, 30)
+        assert self.rel.attraction == 30
+        assert self.rel.element.get("attraction") == "30"
+
+    def test_set_compatibility(self):
+        self.sf.set_compatibility(self.rel, 99)
+        assert self.rel.compatibility == 99
+        assert self.rel.element.get("compatibility") == "99"
+
+    def test_relationship_target_name_preserved_after_mutation(self):
+        original_name = self.rel.target_name
+        self.sf.set_friendship(self.rel, 0)
+        assert self.rel.target_name == original_name
+
+
+# ---------------------------------------------------------------------------
+# add_character / remove_character
+# ---------------------------------------------------------------------------
+
+class TestAddRemoveCharacter:
+    def setup_method(self):
+        self.sf = _make_save_file(MINIMAL_XML)
+        self.ship = self.sf.ships[0]
+
+    def test_add_character_increases_count(self):
+        before = len(self.sf.characters)
+        self.sf.add_character(self.ship, "New", "Crew")
+        assert len(self.sf.characters) == before + 1
+
+    def test_add_character_name(self):
+        char = self.sf.add_character(self.ship, "Alan", "Shepard")
+        assert char.first_name == "Alan"
+        assert char.last_name == "Shepard"
+        assert char.full_name == "Alan Shepard"
+
+    def test_add_character_gets_unique_id(self):
+        ids_before = {c.ent_id for c in self.sf.characters}
+        char = self.sf.add_character(self.ship, "Unique", "")
+        assert char.ent_id not in ids_before
+
+    def test_add_character_has_cid_attribute(self):
+        char = self.sf.add_character(self.ship, "Test", "Cid")
+        assert char.element.get("cid") == str(self.ship.sid)
+
+    def test_add_character_has_all_stats(self):
+        char = self.sf.add_character(self.ship, "Stats", "Check")
+        stat_tags = {s.tag for s in char.stats}
+        assert stat_tags == set(self.sf.STAT_TAGS)
+
+    def test_add_character_stats_default_to_100(self):
+        char = self.sf.add_character(self.ship, "Healthy", "")
+        for stat in char.stats:
+            assert stat.value == 100
+
+    def test_add_character_has_skills(self):
+        char = self.sf.add_character(self.ship, "Skilled", "")
+        assert len(char.skills) > 0
+
+    def test_add_character_skill_elements_have_exp_attributes(self):
+        char = self.sf.add_character(self.ship, "Exp", "Check")
+        skills_el = char.pers_element.find("skills")
+        for s_el in skills_el.findall("s"):
+            assert s_el.get("exp") is not None, "skill element missing 'exp' attribute"
+            assert s_el.get("expd") is not None, "skill element missing 'expd' attribute"
+
+    def test_add_character_has_attributes(self):
+        char = self.sf.add_character(self.ship, "Attr", "Check")
+        assert len(char.attributes) > 0
+
+    def test_add_character_in_xml(self):
+        char = self.sf.add_character(self.ship, "Xml", "Check")
+        chars_el = self.ship.element.find("characters")
+        ent_ids = [el.get("entId") for el in chars_el.findall("c")]
+        assert str(char.ent_id) in ent_ids
+
+    def test_add_character_ship_sid_set(self):
+        char = self.sf.add_character(self.ship, "Ship", "Ref")
+        assert char.ship_sid == self.ship.sid
+
+    def test_remove_character_decreases_count(self):
+        char = self.sf.characters[0]
+        before = len(self.sf.characters)
+        self.sf.remove_character(char)
+        assert len(self.sf.characters) == before - 1
+
+    def test_remove_character_not_in_list(self):
+        char = self.sf.characters[0]
+        self.sf.remove_character(char)
+        assert char not in self.sf.characters
+
+    def test_remove_character_removes_xml_element(self):
+        char = self.sf.characters[0]
+        parent = char.element.getparent()
+        self.sf.remove_character(char)
+        assert char.element not in parent
+
+    def test_remove_then_add_character(self):
+        """Remove a character and add a fresh one; no duplicate IDs."""
+        removed = self.sf.characters[0]
+        self.sf.remove_character(removed)
+        new_char = self.sf.add_character(self.ship, "Phoenix", "")
+        assert new_char.ent_id != removed.ent_id
+        assert new_char in self.sf.characters
+
+
+# ---------------------------------------------------------------------------
+# Storage edge cases
+# ---------------------------------------------------------------------------
+
+class TestStorageEdgeCases:
+    """Covers scenarios not exercised by TestStorageMutations."""
+
+    def _xml_with_zero_qty_item(self) -> bytes:
+        """Same as MINIMAL_XML but the Water item has inStorage='0'."""
+        return MINIMAL_XML.replace(
+            'elementaryId="16" inStorage="50"',
+            'elementaryId="16" inStorage="0"',
+        ).encode()
+
+    def test_zero_qty_item_not_in_memory_on_parse(self):
+        sf = _make_save_file(self._xml_with_zero_qty_item())
+        ship = sf.ships[0]
+        containers = sf.get_storage_containers(ship)
+        item_ids = {i.item_id for i in containers[0].items}
+        assert 16 not in item_ids  # was zero, should be filtered
+
+    def test_add_item_surfaces_zero_qty_xml_entry(self):
+        """Adding to an item that exists in XML with qty=0 must surface it in memory."""
+        sf = _make_save_file(self._xml_with_zero_qty_item())
+        ship = sf.ships[0]
+        container = sf.get_storage_containers(ship)[0]
+        result = sf.add_storage_item(container, 16, 25)
+        # The item must now appear in the in-memory list
+        assert result is not None
+        assert any(i.item_id == 16 for i in container.items)
+        water = next(i for i in container.items if i.item_id == 16)
+        assert water.quantity == 25  # 0 + 25
+
+    def test_add_item_surfaces_zero_qty_xml_element(self):
+        """The XML element for a previously-zero item must be updated."""
+        sf = _make_save_file(self._xml_with_zero_qty_item())
+        ship = sf.ships[0]
+        container = sf.get_storage_containers(ship)[0]
+        result = sf.add_storage_item(container, 16, 10)
+        assert result is not None
+        assert result.element.get("inStorage") == "10"
+
+    def test_set_storage_quantity_to_zero(self):
+        """set_storage_quantity(0) must update both in-memory and XML."""
+        sf = _make_save_file(MINIMAL_XML)
+        ship = sf.ships[0]
+        container = sf.get_storage_containers(ship)[0]
+        item = next(i for i in container.items if i.item_id == 16)
+        sf.set_storage_quantity(item, 0)
+        assert item.quantity == 0
+        assert item.element.get("inStorage") == "0"
+
+    def test_missing_setter_no_crash_set_credits(self):
+        """set_credits silently does nothing when playerBank is absent."""
+        sf = _make_save_file(b"<game mode='Normal' seed='0'/>")
+        sf.set_credits(9999)  # must not raise
+        assert sf.get_credits() == 0
+
+    def test_missing_setter_no_crash_set_prestige(self):
+        """set_prestige silently does nothing when questLines is absent."""
+        sf = _make_save_file(b"<game mode='Normal' seed='0'/>")
+        sf.set_prestige(100)  # must not raise
+        assert sf.get_prestige() == 0
+
+    def test_missing_setter_no_crash_set_sandbox(self):
+        """set_sandbox silently does nothing when settings is absent."""
+        sf = _make_save_file(b"<game mode='Normal' seed='0'/>")
+        sf.set_sandbox(True)  # must not raise
+        assert sf.get_sandbox() is False
