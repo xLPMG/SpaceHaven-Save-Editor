@@ -152,10 +152,8 @@ class WelcomeWidget(QWidget):
         # Tip row
         tip_row = QHBoxLayout()
         tip_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tip_icon = QLabel("💡")
-        tip_icon.setObjectName("WelcomeTip")
-        tip_row.addWidget(tip_icon)
-        tip_text = QLabel("Always create a backup before editing your save file.")
+        tip_text = QLabel("<b>Tip:</b> Always create a backup before editing your save file.")
+        tip_text.setTextFormat(Qt.TextFormat.RichText)
         tip_text.setObjectName("WelcomeTip")
         tip_row.addWidget(tip_text)
         root.addLayout(tip_row)
