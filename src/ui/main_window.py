@@ -15,6 +15,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QDialog,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -37,6 +38,56 @@ from src.ui.storage_tab import StorageTab
 from src.ui.welcome_widget import WelcomeWidget
 
 # ── Animated sidebar active-indicator ──────────────────────────────────────
+
+
+# ── Themed confirm dialog ──────────────────────────────────────────────────
+
+class _ConfirmDialog(QDialog):
+    """A minimal dark-themed confirmation dialog."""
+
+    def __init__(self, title: str, message: str, confirm_text: str = "Proceed", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setModal(True)
+        self.setFixedWidth(400)
+        self._accepted = False
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 24, 28, 20)
+        layout.setSpacing(16)
+
+        # Icon + message row
+        row = QHBoxLayout()
+        row.setSpacing(16)
+
+        icon_lbl = QLabel("⚠")
+        icon_lbl.setStyleSheet("color: #FDBF00; font-size: 28px; background: transparent;")
+        icon_lbl.setFixedWidth(36)
+        row.addWidget(icon_lbl, alignment=Qt.AlignmentFlag.AlignTop)
+
+        msg_lbl = QLabel(message)
+        msg_lbl.setWordWrap(True)
+        msg_lbl.setStyleSheet("color: #DDF0F5; font-size: 13px; background: transparent;")
+        row.addWidget(msg_lbl)
+        layout.addLayout(row)
+
+        # Button row
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+        btn_row.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setFixedWidth(100)
+        cancel_btn.clicked.connect(self.reject)
+        btn_row.addWidget(cancel_btn)
+
+        confirm_btn = QPushButton(confirm_text)
+        confirm_btn.setObjectName("DangerButton")
+        confirm_btn.setFixedWidth(120)
+        confirm_btn.clicked.connect(self.accept)
+        btn_row.addWidget(confirm_btn)
+
+        layout.addLayout(btn_row)
 
 
 class _SidebarIndicator(QWidget):
@@ -352,14 +403,13 @@ class MainWindow(QMainWindow):
 
     def _load_file(self, path: str) -> None:
         if self._unsaved:
-            reply = QMessageBox.question(
-                self,
+            dlg = _ConfirmDialog(
                 "Unsaved Changes",
                 "You have unsaved changes. Open a new file anyway?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
+                "Open anyway",
+                self,
             )
-            if reply != QMessageBox.StandardButton.Yes:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
                 return
 
         save = SaveFile()
@@ -389,14 +439,13 @@ class MainWindow(QMainWindow):
 
     def _open_file(self) -> None:
         if self._unsaved:
-            reply = QMessageBox.question(
-                self,
+            dlg = _ConfirmDialog(
                 "Unsaved Changes",
                 "You have unsaved changes. Open a new file anyway?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
+                "Open anyway",
+                self,
             )
-            if reply != QMessageBox.StandardButton.Yes:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
                 return
 
         path, _ = QFileDialog.getOpenFileName(
@@ -411,14 +460,13 @@ class MainWindow(QMainWindow):
 
     def _close_file(self) -> None:
         if self._unsaved:
-            reply = QMessageBox.question(
-                self,
+            dlg = _ConfirmDialog(
                 "Unsaved Changes",
                 "You have unsaved changes. Close file anyway?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
+                "Close anyway",
+                self,
             )
-            if reply != QMessageBox.StandardButton.Yes:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
                 return
         self._save = None
         self._globals_tab.clear()
@@ -497,14 +545,13 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:  # noqa: N802
         if self._unsaved:
-            reply = QMessageBox.question(
-                self,
+            dlg = _ConfirmDialog(
                 "Unsaved Changes",
                 "You have unsaved changes. Quit anyway?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
+                "Quit anyway",
+                self,
             )
-            if reply != QMessageBox.StandardButton.Yes:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
                 event.ignore()
                 return
         event.accept()
