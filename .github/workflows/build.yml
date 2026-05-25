@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: build–${{ matrix.os }}
     strategy:
       matrix:
         include:
@@ -17,7 +18,7 @@ jobs:
             icon_path: "assets/app.ico"
           - os: macos-latest
             artifact: SpaceHaven-Save-Editor-macos
-            dist_path: "dist"
+            dist_path: "_stage"
             icon_path: "assets/app.icns"
     runs-on: ${{ matrix.os }}
 
@@ -59,9 +60,16 @@ jobs:
           --exclude-module pygments
           main.py
 
-      - name: Zip app bundle (macOS)
+      - name: Stage macOS artifact
         if: runner.os == 'macOS'
-        run: cd dist && zip -r "SpaceHaven Save Editor.zip" "SpaceHaven Save Editor.app"
+        run: |
+          # Remove the raw folder (bc .app contains everything)
+          rm -rf "dist/SpaceHaven Save Editor"
+          # Strip Qt translations to trim file size
+          find "dist/SpaceHaven Save Editor.app" -name "qt_*.qm" -delete
+          # Move the .app into a clean staging dir
+          mkdir _stage
+          mv "dist/SpaceHaven Save Editor.app" _stage/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
