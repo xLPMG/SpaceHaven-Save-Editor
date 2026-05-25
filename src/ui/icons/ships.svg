@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  <!-- Stylised spacecraft viewed from above -->
+  <path d="M10 2c3.3 0 6 3 6 8H4c0-5 2.7-8 6-8z" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="6" y="10" width="8" height="3.5" rx="1" fill="none" stroke="#3BBECE" stroke-width="1.5"/>
+  <!-- Left thruster fin -->
+  <path d="M6 13c-1.8 0-2.5 1.5-2.5 3h4.5" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right thruster fin -->
+  <path d="M14 13c1.8 0 2.5 1.5 2.5 3H12" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Cockpit dome -->
+  <circle cx="10" cy="7" r="1.5" fill="#3BBECE"/>
+</svg>

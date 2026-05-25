@@ -21,7 +21,6 @@ env/
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon?
 ._*
 .Spotlight-V100
 .Trashes
@@ -40,3 +39,6 @@ Icon?
 # App-specific: never commit save files or backups
 game
 *.bak
+
+# Generated build assets (icons produced by scripts/make_ic*.py)
+assets/

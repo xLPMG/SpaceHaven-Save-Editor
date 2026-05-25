@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  <!-- Floppy-disk save icon -->
+  <path d="M3 4a1 1 0 011-1h9.5L17 6.5V16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Label slot at top -->
+  <rect x="6" y="3" width="5.5" height="4" rx="0.5" fill="none" stroke="#3BBECE" stroke-width="1.5"/>
+  <!-- Disk surface / data area -->
+  <rect x="5" y="11" width="10" height="5" rx="1" fill="none" stroke="#3BBECE" stroke-width="1.5"/>
+</svg>
