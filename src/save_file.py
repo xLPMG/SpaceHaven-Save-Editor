@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+import random
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -663,6 +665,149 @@ class SaveFile:
         ship.name = name
         if ship.element is not None:
             ship.element.set("sname", name)
+
+    def add_ship(self, source_ship: Ship, name: str) -> Ship:
+        """Clone *source_ship*, give it a new SID and *name*, clear its crew,
+        remap internal entity IDs to avoid conflicts, register it in the player
+        fleet, and return the new Ship object."""
+        new_ship_el = copy.deepcopy(source_ship.element)
+
+        # Derive a new unique SID from masterData.idCounter (same source the
+        # game uses), falling back to max-existing-SID + 1.
+        new_sid = self._next_master_id()
+        new_ship_el.set("sid", str(new_sid))
+        new_ship_el.set("sname", name)
+
+        # Clear characters to avoid duplicate entity IDs in the roster
+        chars_el = new_ship_el.find("characters")
+        if chars_el is not None:
+            new_ship_el.remove(chars_el)
+        etree.SubElement(new_ship_el, "characters")
+
+        # Remap all entity IDs inside the cloned ship so they are globally
+        # unique (mirrors what the reference editor does).
+        self._remap_entity_ids(new_ship_el)
+
+        # Place the clone at a unique sector position so it never overlaps an
+        # existing ship, even when multiple ships are cloned from the same source.
+        # Arrange clones in a 5-column grid relative to the source ship so the
+        # displacement stays bounded (max ~5×width wide, grows downward by ~height
+        # per row) regardless of how many ships are added.
+        try:
+            ship_width = int(new_ship_el.get("sx", "0"))
+            ship_height = int(new_ship_el.get("sy", "0"))
+            ox = int(new_ship_el.get("ox", "0"))
+            oy = int(new_ship_el.get("oy", "0"))
+            n = len(self.ships)  # count before this ship is appended
+            col = n % 5
+            row = n // 5
+            new_ship_el.set("ox", str(ox + (col + 1) * (ship_width + 200)))
+            new_ship_el.set("oy", str(oy + row * (ship_height + 200)))
+        except ValueError:
+            pass
+
+        # Append to <ships>
+        ships_el = self._root.find("ships")
+        if ships_el is None:
+            ships_el = etree.SubElement(self._root, "ships")
+        ships_el.append(new_ship_el)
+
+        # Register in the player fleet so the game recognises the ship
+        self._add_fleet_reference(new_sid, name, source_ship.sx, source_ship.sy)
+
+        new_ship = Ship(
+            sid=new_sid,
+            name=name,
+            sx=source_ship.sx,
+            sy=source_ship.sy,
+            element=new_ship_el,
+        )
+        self.ships.append(new_ship)
+        self.ships.sort(key=lambda s: s.name)
+        return new_ship
+
+    # ------------------------------------------------------------------
+    # Helpers for add_ship
+    # ------------------------------------------------------------------
+
+    def _next_master_id(self) -> int:
+        """Return a new unique ID from masterData.idCounter and advance it,
+        falling back to max-ship-SID + 1 if the element is absent."""
+        md = self._root.find("masterData")
+        if md is not None:
+            try:
+                current = int(md.get("idCounter", "0"))
+                md.set("idCounter", str(current + 1))
+                return current + 1
+            except ValueError:
+                pass
+        return max((s.sid for s in self.ships), default=0) + 1
+
+    _REMAP_REF_ATTRS = frozenset(
+        {"bedLink", "targetId", "owner", "link", "doorLink", "controllerId"}
+    )
+
+    def _remap_entity_ids(self, ship_el: etree._Element) -> None:
+        """Reassign every entId inside *ship_el* to a fresh globally-unique ID
+        (from masterData.idCounter) and patch all cross-reference attributes."""
+        md = self._root.find("masterData")
+        if md is None:
+            return
+        try:
+            id_counter = int(md.get("idCounter", "0"))
+        except ValueError:
+            return
+
+        id_map: dict[str, str] = {}
+
+        # First pass – assign new IDs
+        for el in ship_el.iter():
+            old = el.get("entId")
+            if old:
+                id_counter += 1
+                new_id = str(id_counter)
+                id_map[old] = new_id
+                el.set("entId", new_id)
+
+        # Second pass – patch references that point to remapped IDs
+        for el in ship_el.iter():
+            for attr in self._REMAP_REF_ATTRS:
+                val = el.get(attr)
+                if val and val in id_map:
+                    el.set(attr, id_map[val])
+
+        md.set("idCounter", str(id_counter))
+
+    def _add_fleet_reference(self, sid: int, name: str, sx: int, sy: int) -> None:
+        """Insert a <l createdShipId=...> entry in the player fleet."""
+        for f_el in self._root.iter("f"):
+            if f_el.get("isPlayer") == "true":
+                cs_el = f_el.find("createdShips")
+                if cs_el is None:
+                    cs_el = etree.SubElement(f_el, "createdShips")
+                l_el = etree.SubElement(cs_el, "l")
+                l_el.set("seed", str(random.getrandbits(63)))
+                l_el.set("createdShipId", str(sid))
+                l_el.set("created", "true")
+                l_el.set("station", "false")
+                l_el.set("shipDamagedNoFTL", "false")
+                l_el.set("crew", "0")
+                l_el.set("cryoCrew", "0")
+                l_el.set("monsters", "0")
+                l_el.set("bigMonsters", "0")
+                l_el.set("hives", "0")
+                l_el.set("infesters", "0")
+                l_el.set("flybots", "0")
+                l_el.set("walkers", "0")
+                l_el.set("roboBase", "0")
+                l_el.set("derelict", "false")
+                l_el.set("addLoot", "false")
+                l_el.set("inHyper", "false")
+                l_el.set("sx", str(sx))
+                l_el.set("sy", str(sy))
+                l_el.set("shn", name)
+                l_el.set("idle", "-1")
+                return
 
     # ------------------------------------------------------------------
     # Research

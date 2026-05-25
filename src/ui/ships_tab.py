@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -13,7 +16,9 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -56,6 +61,12 @@ class ShipsTab(QWidget):
         self._ship_list.setObjectName("CrewList")
         self._ship_list.currentRowChanged.connect(self._on_ship_selected)
         lv.addWidget(self._ship_list)
+
+        add_ship_btn = QPushButton("+ Add Ship")
+        add_ship_btn.setObjectName("InlineButton")
+        add_ship_btn.clicked.connect(self._add_ship)
+        lv.addWidget(add_ship_btn)
+
         root.addWidget(left)
 
         # ── Right panel: ship details ────────────────────────────────
@@ -112,10 +123,42 @@ class ShipsTab(QWidget):
         self._info_pos.setObjectName("InfoValue")
         info_layout.addRow(QLabel("Sector position:"), self._info_pos)
 
+        self._info_size = QLabel("—")
+        self._info_size.setObjectName("InfoValue")
+        info_layout.addRow(QLabel("Grid size (WxH):" ), self._info_size)
+
         for lbl in info_group.findChildren(QLabel):
             lbl.setObjectName(lbl.objectName() or "InfoKey")
 
         dv.addWidget(info_group)
+
+        # Resize
+        resize_group = QGroupBox("Resize Ship")
+        resize_layout = QFormLayout(resize_group)
+        resize_layout.setContentsMargins(16, 20, 16, 16)
+        resize_layout.setSpacing(10)
+
+        self._width_spin = QSpinBox()
+        self._width_spin.setRange(1, 10)
+        self._width_spin.setSuffix(" squares")
+        resize_layout.addRow("Width:", self._width_spin)
+
+        self._height_spin = QSpinBox()
+        self._height_spin.setRange(1, 10)
+        self._height_spin.setSuffix(" squares")
+        resize_layout.addRow("Height:", self._height_spin)
+
+        resize_note = QLabel("1 square ≈ 28 units • max 8×8")
+        resize_note.setObjectName("StatCardDesc")
+        resize_layout.addRow(resize_note)
+
+        resize_btn = QPushButton("Apply Size")
+        resize_btn.setObjectName("InlineButton")
+        resize_btn.setFixedWidth(100)
+        resize_btn.clicked.connect(self._resize_ship)
+        resize_layout.addRow("", resize_btn)
+
+        dv.addWidget(resize_group)
         dv.addStretch()
         rv.addWidget(self._detail_widget)
         rv.addStretch()
@@ -173,6 +216,11 @@ class ShipsTab(QWidget):
         crew_count = sum(1 for c in self._save.characters if c.ship_sid == ship.sid)
         self._info_crew.setText(str(crew_count))
         self._info_pos.setText(f"({ship.sx}, {ship.sy})")
+        w_sq = max(1, round(ship.sx / 28))
+        h_sq = max(1, round(ship.sy / 28))
+        self._info_size.setText(f"{w_sq} × {h_sq}")
+        self._width_spin.setValue(w_sq)
+        self._height_spin.setValue(h_sq)
 
     def _rename_ship(self) -> None:
         if self._save is None or self._current_ship is None:
@@ -188,3 +236,93 @@ class ShipsTab(QWidget):
                 item.setText(name)
                 break
         self.status_message.emit(f'Ship renamed to "{name}" (unsaved).')
+
+    def _resize_ship(self) -> None:
+        if self._save is None or self._current_ship is None:
+            return
+        w_sq = self._width_spin.value()
+        h_sq = self._height_spin.value()
+        new_sx = w_sq * 28
+        new_sy = h_sq * 28
+        ship = self._current_ship
+        ship.sx = new_sx
+        ship.sy = new_sy
+        if ship.element is not None:
+            ship.element.set("sx", str(new_sx))
+            ship.element.set("sy", str(new_sy))
+        self._info_size.setText(f"{w_sq} × {h_sq}")
+        self.status_message.emit(
+            f'Ship "{ship.name}" resized to {w_sq}×{h_sq} squares (unsaved).'
+        )
+
+    def _add_ship(self) -> None:
+        if self._save is None or not self._save.ships:
+            QMessageBox.warning(self, "No Save", "Open a save file first.")
+            return
+
+        # ── Dialog ──────────────────────────────────────────────────
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Add New Ship")
+        dlg.setMinimumWidth(360)
+        form = QFormLayout(dlg)
+        form.setContentsMargins(16, 16, 16, 16)
+        form.setSpacing(12)
+
+        name_edit = QLineEdit()
+        name_edit.setPlaceholderText("e.g. HSS PROMETHEUS")
+        form.addRow("New ship name:", name_edit)
+
+        clone_combo = QComboBox()
+        for ship in self._save.ships:
+            clone_combo.addItem(ship.name, ship)
+        form.addRow("Clone layout from:", clone_combo)
+
+        note = QLabel(
+            "The new ship will be an identical copy of the chosen ship's\n"
+            "layout and inventory, placed at the same sector position.\n"
+            "Crew will not be copied."
+        )
+        note.setObjectName("StatCardDesc")
+        note.setWordWrap(True)
+        form.addRow(note)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        form.addRow(buttons)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        new_name = name_edit.text().strip()
+        if not new_name:
+            QMessageBox.warning(self, "Invalid Name", "Ship name cannot be empty.")
+            return
+
+        source_ship = clone_combo.currentData()
+
+        # ── Create the ship ─────────────────────────────────────────
+        try:
+            new_ship = self._save.add_ship(source_ship, new_name)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Error", f"Failed to add ship:\n{exc}")
+            return
+
+        # ── Update the list ─────────────────────────────────────────
+        item = QListWidgetItem(new_ship.name)
+        item.setData(Qt.ItemDataRole.UserRole, new_ship)
+        # Insert in sorted position
+        inserted = False
+        for i in range(self._ship_list.count()):
+            if self._ship_list.item(i).text() > new_ship.name:
+                self._ship_list.insertItem(i, item)
+                inserted = True
+                break
+        if not inserted:
+            self._ship_list.addItem(item)
+
+        self._ship_list.setCurrentItem(item)
+        self.status_message.emit(f'Ship "{new_name}" added (unsaved).')
+
