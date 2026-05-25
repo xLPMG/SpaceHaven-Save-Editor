@@ -66,6 +66,7 @@ jobs:
           --exclude-module PySide6.QtSvgWidgets
           --exclude-module pygments
           --add-data "src/ui/icons${{ matrix.data_sep }}src/ui/icons"
+          --add-data "src/ui/fonts${{ matrix.data_sep }}src/ui/fonts"
           main.py
 
       - name: Stage macOS artifact

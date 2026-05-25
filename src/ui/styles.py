@@ -40,7 +40,7 @@ def apply_theme(app: QApplication) -> None:
         QMainWindow, QDialog, QWidget {
             background-color: #060D0F;
             font-size: 13px;
-            font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+            font-family: "D-DIN", "Inter", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
         }
 
         QMenuBar {
