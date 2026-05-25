@@ -7,8 +7,13 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    name: Test
+    uses: ./.github/workflows/tests.yml
+
   build:
     name: build–${{ matrix.os }}
+    needs: test
     strategy:
       matrix:
         include:
