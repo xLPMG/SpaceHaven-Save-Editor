@@ -247,34 +247,36 @@ class StorageTab(QWidget):
         self._filter_edit.clear()
         self._items_table.setRowCount(0)
         for storage_item in container.items:
-            row = self._items_table.rowCount()
-            self._items_table.insertRow(row)
+            self._insert_item_row(storage_item)
 
-            name_cell = QTableWidgetItem(storage_item.name)
-            name_cell.setFlags(name_cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            name_cell.setData(Qt.ItemDataRole.UserRole, storage_item)
-            self._items_table.setItem(row, 0, name_cell)
+    def _insert_item_row(self, storage_item: StorageItem) -> int:
+        """Append one row for storage_item and return its row index."""
+        row = self._items_table.rowCount()
+        self._items_table.insertRow(row)
 
-            qty_spin = QSpinBox()
-            qty_spin.setRange(1, 1_000_000)
-            qty_spin.setValue(storage_item.quantity)
-            qty_spin.valueChanged.connect(self._apply_quantities)
-            self._items_table.setCellWidget(row, 1, qty_spin)
+        name_cell = QTableWidgetItem(storage_item.name)
+        name_cell.setFlags(name_cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        name_cell.setData(Qt.ItemDataRole.UserRole, storage_item)
+        self._items_table.setItem(row, 0, name_cell)
+
+        qty_spin = QSpinBox()
+        qty_spin.setRange(1, 1_000_000)
+        qty_spin.setValue(storage_item.quantity)
+        qty_spin.valueChanged.connect(
+            lambda v, item=storage_item: self._on_quantity_changed(item, v)
+        )
+        self._items_table.setCellWidget(row, 1, qty_spin)
+        return row
+
+    def _on_quantity_changed(self, item: StorageItem, value: int) -> None:
+        if self._save is None:
+            return
+        self._save.set_storage_quantity(item, value)
+        self.status_message.emit("Quantities applied (unsaved).")
 
     # ------------------------------------------------------------------
     # Apply / Add / Remove
     # ------------------------------------------------------------------
-
-    def _apply_quantities(self) -> None:
-        if self._save is None or self._current_container is None:
-            return
-        for row in range(self._items_table.rowCount()):
-            storage_item: StorageItem = self._items_table.item(row, 0).data(
-                Qt.ItemDataRole.UserRole
-            )
-            spin: QSpinBox = self._items_table.cellWidget(row, 1)
-            self._save.set_storage_quantity(storage_item, spin.value())
-        self.status_message.emit("Quantities applied (unsaved).")
 
     def _add_item(self) -> None:
         if self._save is None or self._current_container is None:
@@ -284,8 +286,27 @@ class StorageTab(QWidget):
         if item_id is None:
             QMessageBox.warning(self, "Add Item", "Please select a valid item.")
             return
-        self._save.add_storage_item(self._current_container, item_id, qty)
-        self._populate_items(self._current_container)
+        new_item = self._save.add_storage_item(self._current_container, item_id, qty)
+        if new_item is not None:
+            # Genuinely new item — find its sorted position and insert one row
+            idx = self._current_container.items.index(new_item)
+            # Rebuild from idx onward is cheaper, but the list is sorted so we
+            # can just do a full repopulate only when the order changed; since
+            # add_storage_item re-sorts, rebuild is the safest single-path.
+            self._populate_items(self._current_container)
+        else:
+            # Item was stacked — update the existing spinbox in-place
+            for row in range(self._items_table.rowCount()):
+                cell = self._items_table.item(row, 0)
+                if cell is None:
+                    continue
+                si: StorageItem = cell.data(Qt.ItemDataRole.UserRole)
+                if si.item_id == item_id:
+                    spin: QSpinBox = self._items_table.cellWidget(row, 1)
+                    spin.blockSignals(True)
+                    spin.setValue(si.quantity)
+                    spin.blockSignals(False)
+                    break
         self.status_message.emit(
             f"Added {qty}x {STORAGE_IDS.get(item_id, str(item_id))} (unsaved)."
         )

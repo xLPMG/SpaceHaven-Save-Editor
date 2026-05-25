@@ -225,7 +225,6 @@ class CrewTab(QWidget):
             spin = QSpinBox()
             spin.setRange(0, 100)
             spin.setFixedWidth(80)
-            spin.valueChanged.connect(self._apply_stats)
             self._stats_spins[tag] = spin
             self._stats_form.addRow(f"{tag}:", spin)
         layout.addLayout(self._stats_form)
@@ -450,11 +449,27 @@ class CrewTab(QWidget):
         self._populate_relationships(char)
 
     def _populate_stats(self, char: Character) -> None:
-        stat_map = {s.tag: s.value for s in char.stats}
+        stat_map = {s.tag: s for s in char.stats}
         for tag, spin in self._stats_spins.items():
             spin.blockSignals(True)
-            spin.setValue(stat_map.get(tag, 0))
+            stat = stat_map.get(tag)
+            spin.setValue(stat.value if stat else 0)
             spin.blockSignals(False)
+            # Reconnect to the specific Stat object for this character
+            try:
+                spin.valueChanged.disconnect()
+            except RuntimeError:
+                pass
+            if stat is not None:
+                spin.valueChanged.connect(
+                    lambda v, s=stat: self._on_stat_changed(s, v)
+                )
+
+    def _on_stat_changed(self, stat, value: int) -> None:
+        if self._save is None:
+            return
+        self._save.set_stat(stat, value)
+        self.status_message.emit("Stats applied (unsaved).")
 
     def _populate_attributes(self, char: Character) -> None:
         self._attr_table.setRowCount(0)
@@ -468,8 +483,16 @@ class CrewTab(QWidget):
             spin = QSpinBox()
             spin.setRange(0, 20)
             spin.setValue(attr.points)
-            spin.valueChanged.connect(self._apply_attributes)
+            spin.valueChanged.connect(
+                lambda v, a=attr: self._on_attribute_changed(a, v)
+            )
             self._attr_table.setCellWidget(row, 1, spin)
+
+    def _on_attribute_changed(self, attr, value: int) -> None:
+        if self._save is None:
+            return
+        self._save.set_attribute(attr, value)
+        self.status_message.emit("Attributes applied (unsaved).")
 
     def _populate_skills(self, char: Character) -> None:
         self._skills_table.setRowCount(0)
@@ -484,14 +507,30 @@ class CrewTab(QWidget):
             level_spin = QSpinBox()
             level_spin.setRange(0, 20)
             level_spin.setValue(skill.level)
-            level_spin.valueChanged.connect(self._apply_skills)
+            level_spin.valueChanged.connect(
+                lambda v, sk=skill: self._on_skill_level_changed(sk, v)
+            )
             self._skills_table.setCellWidget(row, 1, level_spin)
 
             max_spin = QSpinBox()
             max_spin.setRange(0, 20)
             max_spin.setValue(skill.max_level)
-            max_spin.valueChanged.connect(self._apply_skills)
+            max_spin.valueChanged.connect(
+                lambda v, sk=skill: self._on_skill_max_changed(sk, v)
+            )
             self._skills_table.setCellWidget(row, 2, max_spin)
+
+    def _on_skill_level_changed(self, skill, value: int) -> None:
+        if self._save is None:
+            return
+        self._save.set_skill_level(skill, value)
+        self.status_message.emit("Skills applied (unsaved).")
+
+    def _on_skill_max_changed(self, skill, value: int) -> None:
+        if self._save is None:
+            return
+        self._save.set_skill_max(skill, value)
+        self.status_message.emit("Skills applied (unsaved.).")
 
     def _populate_traits(self, char: Character) -> None:
         self._traits_list.clear()
@@ -555,35 +594,6 @@ class CrewTab(QWidget):
                 item.setText(self._current_char.full_name)
                 break
         self.status_message.emit("Character renamed (unsaved).")
-
-    def _apply_stats(self) -> None:
-        if self._save is None or self._current_char is None:
-            return
-        stat_map = {s.tag: s for s in self._current_char.stats}
-        for tag, spin in self._stats_spins.items():
-            if tag in stat_map:
-                self._save.set_stat(stat_map[tag], spin.value())
-        self.status_message.emit("Stats applied (unsaved).")
-
-    def _apply_attributes(self) -> None:
-        if self._save is None or self._current_char is None:
-            return
-        for row in range(self._attr_table.rowCount()):
-            attr = self._attr_table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-            spin: QSpinBox = self._attr_table.cellWidget(row, 1)
-            self._save.set_attribute(attr, spin.value())
-        self.status_message.emit("Attributes applied (unsaved).")
-
-    def _apply_skills(self) -> None:
-        if self._save is None or self._current_char is None:
-            return
-        for row in range(self._skills_table.rowCount()):
-            skill = self._skills_table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-            level_spin: QSpinBox = self._skills_table.cellWidget(row, 1)
-            max_spin: QSpinBox = self._skills_table.cellWidget(row, 2)
-            self._save.set_skill_level(skill, level_spin.value())
-            self._save.set_skill_max(skill, max_spin.value())
-        self.status_message.emit("Skills applied (unsaved).")
 
     def _add_trait(self) -> None:
         if self._save is None or self._current_char is None:

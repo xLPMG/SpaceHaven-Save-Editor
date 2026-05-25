@@ -11,6 +11,7 @@ from PySide6.QtGui import (
     QDragEnterEvent,
     QDropEvent,
     QKeySequence,
+    QLinearGradient,
     QPainter,
 )
 from PySide6.QtWidgets import (
@@ -36,9 +37,6 @@ from src.ui.research_tab import ResearchTab
 from src.ui.ships_tab import ShipsTab
 from src.ui.storage_tab import StorageTab
 from src.ui.welcome_widget import WelcomeWidget
-
-# ── Animated sidebar active-indicator ──────────────────────────────────────
-
 
 # ── Themed confirm dialog ──────────────────────────────────────────────────
 
@@ -118,8 +116,6 @@ class _SidebarIndicator(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Gradient fade from left (bright) to right (transparent)
-        from PySide6.QtGui import QLinearGradient
-
         grad = QLinearGradient(0, 0, self.width(), 0)
         grad.setColorAt(0.0, QColor(0, 216, 240, 45))
         grad.setColorAt(0.6, QColor(0, 216, 240, 18))

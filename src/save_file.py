@@ -141,6 +141,7 @@ class SaveFile:
         self.ships: list[Ship] = []
         self.characters: list[Character] = []
         self.research: list[ResearchEntry] = []
+        self._containers_cache: dict[int, list[StorageContainer]] = {}
 
     # ------------------------------------------------------------------
     # Load / Save
@@ -157,6 +158,7 @@ class SaveFile:
                 "Not a valid Space Haven save file (root element must be <game>)."
             )
 
+        self._containers_cache.clear()
         self._parse_ships()
         self._parse_characters()
         self._parse_research()
@@ -278,6 +280,8 @@ class SaveFile:
 
     def get_storage_containers(self, ship: Ship) -> list[StorageContainer]:
         """Return all storage containers (feat elements with eatAllowed + inv) for a ship."""
+        if ship.sid in self._containers_cache:
+            return self._containers_cache[ship.sid]
         containers: list[StorageContainer] = []
         idx = 0
         for feat in ship.element.iter("feat"):
@@ -327,11 +331,13 @@ class SaveFile:
                 )
             )
             idx += 1
+        self._containers_cache[ship.sid] = containers
         return containers
 
     def add_storage_item(
         self, container: StorageContainer, item_id: int, quantity: int
-    ) -> None:
+    ) -> StorageItem | None:
+        """Add or stack an item. Returns the StorageItem (new or updated), or None if only stacked."""
         inv = container.inv_element
         # Check if item already exists
         for s_el in inv.findall("s"):
@@ -342,23 +348,23 @@ class SaveFile:
                 for item in container.items:
                     if item.item_id == item_id:
                         item.quantity = existing + quantity
-                        return
-                return
+                        return None  # stacked onto existing
+                return None
         # New item
         new_el = etree.SubElement(inv, "s")
         new_el.set("elementaryId", str(item_id))
         new_el.set("inStorage", str(quantity))
         new_el.set("onTheWayIn", "0")
         new_el.set("onTheWayOut", "0")
-        container.items.append(
-            StorageItem(
-                item_id=item_id,
-                name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
-                quantity=quantity,
-                element=new_el,
-            )
+        new_item = StorageItem(
+            item_id=item_id,
+            name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
+            quantity=quantity,
+            element=new_el,
         )
+        container.items.append(new_item)
         container.items.sort(key=lambda i: i.name)
+        return new_item
 
     def remove_storage_item(
         self, container: StorageContainer, item: StorageItem
@@ -367,7 +373,8 @@ class SaveFile:
             parent = item.element.getparent()
             if parent is not None:
                 parent.remove(item.element)
-        container.items.remove(item)
+        if item in container.items:
+            container.items.remove(item)
 
     def set_storage_quantity(self, item: StorageItem, quantity: int) -> None:
         item.quantity = quantity
