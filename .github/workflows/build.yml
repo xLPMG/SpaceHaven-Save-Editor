@@ -2,6 +2,9 @@ name: Build
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -14,7 +17,7 @@ jobs:
             icon_path: "assets/app.ico"
           - os: macos-latest
             artifact: SpaceHaven-Save-Editor-macos
-            dist_path: "dist/SpaceHaven Save Editor.app"
+            dist_path: "dist/SpaceHaven Save Editor.zip"
             icon_path: "assets/app.icns"
     runs-on: ${{ matrix.os }}
 
@@ -40,8 +43,12 @@ jobs:
       - name: Build
         run: pyinstaller --windowed --name "SpaceHaven Save Editor" --icon=${{ matrix.icon_path }} main.py
 
+      - name: Zip app bundle (macOS)
+        if: runner.os == 'macOS'
+        run: cd dist && zip -r "SpaceHaven Save Editor.zip" "SpaceHaven Save Editor.app"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ matrix.artifact }}${{ github.ref_type == 'tag' && format('-{0}', github.ref_name) || '' }}
           path: ${{ matrix.dist_path }}
