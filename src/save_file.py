@@ -1,16 +1,10 @@
-"""
-save_file.py – Parses and writes Space Haven 'game' save files.
-
-The save file is XML.  We use lxml so the output stays close to the original
-(attribute order preserved, no unwanted namespace declarations injected).
-"""
+"""Parses and writes Space Haven 'game' save files (XML via lxml)."""
 from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from lxml import etree
 
@@ -25,7 +19,7 @@ from src.game_data import (
 
 
 # ---------------------------------------------------------------------------
-# Data-model classes (plain Python – no Qt dependency)
+# Data-model classes
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -139,9 +133,9 @@ class SaveFile:
     STAT_TAGS = ("Health", "Food", "Rest", "Comfort", "Mood", "Oxygen", "Temperature")
 
     def __init__(self) -> None:
-        self._tree: Optional[etree._ElementTree] = None
-        self._root: Optional[etree._Element] = None
-        self.path: Optional[Path] = None
+        self._tree: etree._ElementTree | None = None
+        self._root: etree._Element | None = None
+        self.path: Path | None = None
         self.ships: list[Ship] = []
         self.characters: list[Character] = []
         self.research: list[ResearchEntry] = []

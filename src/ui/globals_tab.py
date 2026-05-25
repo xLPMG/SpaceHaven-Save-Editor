@@ -203,21 +203,21 @@ class GlobalsTab(QWidget):
             "Heal All Crew",
             "Set every stat (health, food, rest…) to 100 for all crew members.",
             "Heal All",
-            self._qa_heal_all,
+            self._heal_all_crew,
         ))
         qa_layout.addWidget(_sep())
         qa_layout.addLayout(_action_row(
             "Max All Skills",
             "Set all crew skills to level 20 and max natural level 20.",
             "Max Skills",
-            self._qa_max_skills,
+            self._max_all_skills,
         ))
         qa_layout.addWidget(_sep())
         qa_layout.addLayout(_action_row(
             "Clear All Conditions",
             "Remove every active condition from all crew (injuries, moods, etc.).",
             "Clear Conditions",
-            self._qa_clear_conditions,
+            self._clear_all_conditions,
         ))
         qa_layout.addWidget(_sep())
 
@@ -241,22 +241,19 @@ class GlobalsTab(QWidget):
         fill_btn = QPushButton("Fill Storage")
         fill_btn.setObjectName("InlineButton")
         fill_btn.setFixedWidth(140)
-        fill_btn.clicked.connect(self._qa_fill_storage)
+        fill_btn.clicked.connect(self._fill_all_storage)
         fill_row.addWidget(fill_btn)
         qa_layout.addLayout(fill_row)
 
         root.addWidget(qa_group)
 
-        # Wire auto-apply
-        self._credits_card.spin.valueChanged.connect(self._apply)
-        self._prestige_card.spin.valueChanged.connect(self._apply)
-        self._sandbox_check.stateChanged.connect(self._apply)
+        self._credits_card.spin.valueChanged.connect(self._apply_changes)
+        self._prestige_card.spin.valueChanged.connect(self._apply_changes)
+        self._sandbox_check.stateChanged.connect(self._apply_changes)
 
-        self._set_enabled(False)
+        self._set_controls_enabled(False)
 
-    # ------------------------------------------------------------------
-
-    def _set_enabled(self, enabled: bool) -> None:
+    def _set_controls_enabled(self, enabled: bool) -> None:
         self._credits_card.spin.setEnabled(enabled)
         self._prestige_card.spin.setEnabled(enabled)
         self._sandbox_check.setEnabled(enabled)
@@ -279,7 +276,7 @@ class GlobalsTab(QWidget):
         self._info_labels["crew"].setText(str(len(save.characters)))
         self._info_labels["path"].setText(str(save.path) if save.path else "—")
 
-        self._set_enabled(True)
+        self._set_controls_enabled(True)
 
     def clear(self) -> None:
         self._save = None
@@ -292,9 +289,9 @@ class GlobalsTab(QWidget):
             w.blockSignals(False)
         for lbl in self._info_labels.values():
             lbl.setText("—")
-        self._set_enabled(False)
+        self._set_controls_enabled(False)
 
-    def _apply(self, _=None) -> None:
+    def _apply_changes(self, _=None) -> None:
         if self._save is None:
             return
         self._save.set_credits(self._credits_card.spin.value())
@@ -306,29 +303,29 @@ class GlobalsTab(QWidget):
     # Quick actions
     # ------------------------------------------------------------------
 
-    def _qa_heal_all(self) -> None:
+    def _heal_all_crew(self) -> None:
         if self._save is None:
             return
         n = self._save.heal_all_crew()
         self.status_message.emit(f"Healed {n} crew members (unsaved).")
 
-    def _qa_max_skills(self) -> None:
+    def _max_all_skills(self) -> None:
         if self._save is None:
             return
         n = self._save.max_all_skills()
         self.status_message.emit(f"Maxed {n} skills across all crew (unsaved).")
 
-    def _qa_clear_conditions(self) -> None:
+    def _clear_all_conditions(self) -> None:
         if self._save is None:
             return
         n = self._save.clear_all_conditions()
         self.status_message.emit(f"Cleared conditions from {n} crew members (unsaved).")
 
-    def _qa_fill_storage(self) -> None:
+    def _fill_all_storage(self) -> None:
         if self._save is None:
             return
         qty = self._fill_qty_spin.value()
         n = self._save.fill_all_storage(qty)
-        self.status_message.emit(f"Set {n} storage items to {qty:,} (unsaved).")
+        self.status_message.emit(f"Set {n} storage items to {qty:,} (unsaved.).")
 
 

@@ -161,12 +161,12 @@ class ResearchTab(QWidget):
         counts_row = QHBoxLayout()
         counts_row.setSpacing(0)
 
-        self._lbl_done     = self._stat_label("0", "COMPLETE",    "#04D912")
-        self._lbl_progress = self._stat_label("0", "IN PROGRESS", "#FF8800")
-        self._lbl_remain   = self._stat_label("0", "REMAINING",   "#3BBECE")
-        self._lbl_total    = self._stat_label("0", "TOTAL",       "#1A4A58")
+        self._count_done,     w_done     = self._make_stat_widget("0", "COMPLETE",    "#04D912")
+        self._count_progress, w_progress = self._make_stat_widget("0", "IN PROGRESS", "#FF8800")
+        self._count_remain,   w_remain   = self._make_stat_widget("0", "REMAINING",   "#3BBECE")
+        self._count_total,    w_total    = self._make_stat_widget("0", "TOTAL",       "#1A4A58")
 
-        for w in (self._lbl_done, self._lbl_progress, self._lbl_remain, self._lbl_total):
+        for w in (w_done, w_progress, w_remain, w_total):
             counts_row.addWidget(w)
             counts_row.addStretch(1)
         counts_row.addStretch(-1)
@@ -234,24 +234,20 @@ class ResearchTab(QWidget):
         root.addLayout(btn_row)
 
     @staticmethod
-    def _stat_label(number: str, caption: str, color: str) -> QWidget:
-        """Vertical stack: big number on top, small caption below."""
+    def _make_stat_widget(number: str, caption: str, color: str) -> tuple[QLabel, QWidget]:
+        """Return (num_label, container_widget) for the stats banner."""
         w = QWidget()
         w.setStyleSheet("background-color: transparent;")
         v = QVBoxLayout(w)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(1)
         num_lbl = QLabel(number)
-        num_lbl.setObjectName("StatNumber")
         num_lbl.setStyleSheet(f"color: {color}; font-size: 18px; font-weight: bold;")
         cap_lbl = QLabel(caption)
-        cap_lbl.setObjectName("StatCaption")
         cap_lbl.setStyleSheet("color: #1A4A58; font-size: 9px; letter-spacing: 1px;")
         v.addWidget(num_lbl)
         v.addWidget(cap_lbl)
-        # Store refs for updating
-        w.setProperty("_num_lbl", num_lbl)
-        return w
+        return num_lbl, w
 
     # ------------------------------------------------------------------
     # Load / Clear
@@ -293,30 +289,21 @@ class ResearchTab(QWidget):
                 continue
             if self._active_filter == "todo" and (entry.done or entry.in_progress):
                 continue
-            item = QListWidgetItem()  # text drawn by delegate
+            item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, entry)
             self._list.addItem(item)
         self._list.blockSignals(False)
         self._on_selection_changed()
-        self._update_banner_from_entries()
-
-    def _update_banner_from_entries(self) -> None:
         total = len(self._all_entries)
         done  = sum(1 for e in self._all_entries if e.done)
         prog  = sum(1 for e in self._all_entries if e.in_progress)
-        rem   = total - done - prog
-        self._update_banner(total, done, prog, rem)
+        self._update_banner(total, done, prog, total - done - prog)
 
     def _update_banner(self, total: int, done: int, prog: int, rem: int) -> None:
-        def _set(w: QWidget, val: int) -> None:
-            lbl: QLabel = w.property("_num_lbl")
-            if lbl:
-                lbl.setText(str(val))
-
-        _set(self._lbl_done, done)
-        _set(self._lbl_progress, prog)
-        _set(self._lbl_remain, rem)
-        _set(self._lbl_total, total)
+        self._count_done.setText(str(done))
+        self._count_progress.setText(str(prog))
+        self._count_remain.setText(str(rem))
+        self._count_total.setText(str(total))
         self._progress_bar.setRange(0, max(total, 1))
         self._progress_bar.setValue(done)
 

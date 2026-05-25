@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import Character, SaveFile, Ship, Skill, Trait
 
+from src.save_file import Condition
 from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
 
 # Palette of muted accent colors for avatar circles
@@ -201,7 +202,7 @@ class CrewTab(QWidget):
             "Edit current stat values (0–100). Changes apply to the in-memory XML."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #1A4A58; font-size: 11px;")
+        info.setObjectName("StatCardDesc")
         layout.addWidget(info)
 
         self._stats_form = QFormLayout()
@@ -226,7 +227,7 @@ class CrewTab(QWidget):
         layout.setSpacing(4)
 
         info = QLabel("Attribute points (typically 0–10).")
-        info.setStyleSheet("color: #1A4A58; font-size: 11px;")
+        info.setObjectName("StatCardDesc")
         layout.addWidget(info)
 
         self._attr_table = QTableWidget(0, 2)
@@ -247,7 +248,7 @@ class CrewTab(QWidget):
         layout.setSpacing(4)
 
         info = QLabel("Edit skill levels and max natural levels.")
-        info.setStyleSheet("color: #1A4A58; font-size: 11px;")
+        info.setObjectName("StatCardDesc")
         layout.addWidget(info)
 
         self._skills_table = QTableWidget(0, 3)
@@ -506,7 +507,6 @@ class CrewTab(QWidget):
             self._rel_table.setItem(row, 3, QTableWidgetItem(str(rel.compatibility)))
 
     # ------------------------------------------------------------------
-    # ------------------------------------------------------------------
     # Apply changes
     # ------------------------------------------------------------------
 
@@ -516,7 +516,6 @@ class CrewTab(QWidget):
         selected = self._conditions_list.currentItem()
         if selected is None:
             return
-        from src.save_file import Condition
         cond: Condition = selected.data(Qt.ItemDataRole.UserRole)
         self._save.remove_condition(self._current_char, cond)
         self._conditions_list.takeItem(self._conditions_list.row(selected))

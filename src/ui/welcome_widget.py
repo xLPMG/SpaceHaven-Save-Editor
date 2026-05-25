@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 
 
 class DropZone(QFrame):
-    """Dashed-border drop area that accepts file drops."""
+    """Area that accepts file drops."""
 
     file_dropped = Signal(str)
 
@@ -27,7 +27,7 @@ class DropZone(QFrame):
         self.setObjectName("DropZone")
         self._hovered = False
         self._build_ui()
-        self._refresh_style()
+        self._update_drop_style()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -74,7 +74,7 @@ class DropZone(QFrame):
     def browse_button(self) -> QPushButton:
         return self._browse_btn
 
-    def _refresh_style(self) -> None:
+    def _update_drop_style(self) -> None:
         if self._hovered:
             border = "#00D8F0"
             bg = "rgba(0,216,240,0.06)"
@@ -97,17 +97,17 @@ class DropZone(QFrame):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
             self._hovered = True
-            self._refresh_style()
+            self._update_drop_style()
         else:
             event.ignore()
 
     def dragLeaveEvent(self, event) -> None:
         self._hovered = False
-        self._refresh_style()
+        self._update_drop_style()
 
     def dropEvent(self, event: QDropEvent) -> None:
         self._hovered = False
-        self._refresh_style()
+        self._update_drop_style()
         urls = event.mimeData().urls()
         if urls:
             self.file_dropped.emit(urls[0].toLocalFile())

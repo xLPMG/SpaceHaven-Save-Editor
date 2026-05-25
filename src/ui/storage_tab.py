@@ -142,16 +142,7 @@ class StorageTab(QWidget):
         self._add_item_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        # Populate sorted by name
-        for name, item_id in sorted(STORAGE_IDS.items(), key=lambda x: x[1]):
-            self._add_item_combo.addItem(f"{name} ({item_id})", item_id)
-        # Sort combo entries by display text
-        model = self._add_item_combo.model()
-        # Re-populate sorted by display name
-        self._add_item_combo.clear()
-        for name in sorted(STORAGE_IDS.values()):
-            # Find id for this name (reverse lookup)
-            item_id = next(k for k, v in STORAGE_IDS.items() if v == name)
+        for name, item_id in sorted((v, k) for k, v in STORAGE_IDS.items()):
             self._add_item_combo.addItem(f"{name}  [{item_id}]", item_id)
         add_row.addWidget(self._add_item_combo)
 
