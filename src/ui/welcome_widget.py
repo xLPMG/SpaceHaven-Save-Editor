@@ -355,6 +355,20 @@ class WelcomeWidget(QWidget):
         tip_text.setObjectName("WelcomeTip")
         root.addWidget(tip_text)
 
+        root.addSpacing(16)
+
+        from PySide6.QtWidgets import QApplication
+        version = QApplication.applicationVersion()
+        author_text = QLabel(
+            f'v{version} &nbsp;·&nbsp; '
+            '<a href="https://github.com/xLPMG" style="color:#00D8F0;">xLPMG</a>'
+        )
+        author_text.setTextFormat(Qt.TextFormat.RichText)
+        author_text.setOpenExternalLinks(True)
+        author_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        author_text.setObjectName("WelcomeAuthor")
+        root.addWidget(author_text)
+
         self._overlay = overlay
 
     def resizeEvent(self, event) -> None:  # noqa: N802

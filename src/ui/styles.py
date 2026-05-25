@@ -238,6 +238,10 @@ def apply_theme(app: QApplication) -> None:
             color: #1A4A58;
             font-size: 12px;
         }
+        QLabel#WelcomeAuthor {
+            color: #1A4A58;
+            font-size: 12px;
+        }
         QLabel#DropArrow {
             color: #00D8F0;
             font-size: 36px;

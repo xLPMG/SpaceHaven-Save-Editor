@@ -11,9 +11,11 @@ jobs:
           - os: windows-latest
             artifact: SpaceHaven-Save-Editor-windows
             dist_path: "dist/SpaceHaven Save Editor/"
+            icon_path: "assets/app.ico"
           - os: macos-latest
             artifact: SpaceHaven-Save-Editor-macos
             dist_path: "dist/SpaceHaven Save Editor.app"
+            icon_path: "assets/app.icns"
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -26,8 +28,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt pyinstaller
 
+      - name: Install Pillow (Windows – ICO generation)
+        if: runner.os == 'Windows'
+        run: pip install Pillow
+
+      - name: Generate app icons
+        run: python scripts/make_icons.py
+        env:
+          QT_QPA_PLATFORM: offscreen
+
       - name: Build
-        run: pyinstaller --windowed --name "SpaceHaven Save Editor" main.py
+        run: pyinstaller --windowed --name "SpaceHaven Save Editor" --icon=${{ matrix.icon_path }} main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

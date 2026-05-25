@@ -554,12 +554,15 @@ class MainWindow(QMainWindow):
         self._close_action.setEnabled(loaded)
 
     def _show_about(self) -> None:
+        from PySide6.QtWidgets import QApplication
+        version = QApplication.applicationVersion()
         QMessageBox.about(
             self,
             "About Space Haven Save Editor",
-            "<b>Space Haven Save Editor</b><br>"
+            f"<b>Space Haven Save Editor</b> v{version}<br>"
             "A cross-platform save game editor for Space Haven.<br><br>"
-            "Built with Python and PySide6.",
+            "Built with Python and PySide6.<br><br>"
+            'Author: <a href=\"https://github.com/xLPMG\">xLPMG</a>',
         )
 
     def closeEvent(self, event) -> None:  # noqa: N802

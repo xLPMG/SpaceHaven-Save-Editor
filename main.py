@@ -2,17 +2,22 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from src.ui.main_window import MainWindow
 from src.ui.styles import apply_theme
+
+_ICONS_DIR = Path(__file__).parent / "src" / "ui" / "icons"
 
 
 def main() -> None:
     app = QApplication(sys.argv)
     app.setApplicationName("Space Haven Save Editor")
     app.setApplicationVersion("1.0.0")
+    app.setWindowIcon(QIcon(str(_ICONS_DIR / "app.svg")))
     apply_theme(app)
     window = MainWindow()
     window.show()
