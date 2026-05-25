@@ -594,6 +594,71 @@ class SaveFile:
         if trait in char.traits:
             char.traits.remove(trait)
 
+    def add_character(self, ship: Ship, first_name: str, last_name: str) -> Character:
+        """Create a new crew member on *ship* with default stats and return it."""
+        new_id = self._next_master_id()
+
+        chars_el = ship.element.find("characters")
+        if chars_el is None:
+            chars_el = etree.SubElement(ship.element, "characters")
+
+        c_el = etree.SubElement(chars_el, "c")
+        c_el.set("entId", str(new_id))
+        c_el.set("name", first_name)
+        c_el.set("lname", last_name)
+
+        # Default stats at full health
+        props = etree.SubElement(c_el, "props")
+        for tag in self.STAT_TAGS:
+            el = etree.SubElement(props, tag)
+            el.set("v", "100")
+
+        # Personality/skills container
+        pers = etree.SubElement(c_el, "pers")
+
+        # Default attributes (mid-range)
+        attr_el = etree.SubElement(pers, "attr")
+        for attr_id in ATTRIBUTE_IDS:
+            a = etree.SubElement(attr_el, "a")
+            a.set("id", str(attr_id))
+            a.set("points", "5")
+
+        # Default skills (level 0, max 10)
+        skills_el = etree.SubElement(pers, "skills")
+        for skill_id in SKILL_IDS:
+            s = etree.SubElement(skills_el, "s")
+            s.set("sk", str(skill_id))
+            s.set("level", "0")
+            s.set("mxn", "10")
+
+        etree.SubElement(pers, "traits")
+        etree.SubElement(pers, "conditions")
+        sociality = etree.SubElement(pers, "sociality")
+        etree.SubElement(sociality, "relationships")
+
+        char = Character(
+            ent_id=new_id,
+            first_name=first_name,
+            last_name=last_name,
+            ship_sid=ship.sid,
+            element=c_el,
+            pers_element=pers,
+        )
+        self._parse_char_stats(c_el, char)
+        self._parse_char_attributes(pers, char)
+        self._parse_char_skills(pers, char)
+        self.characters.append(char)
+        return char
+
+    def remove_character(self, char: Character) -> None:
+        """Remove *char* from its ship and from the in-memory character list."""
+        if char.element is not None:
+            parent = char.element.getparent()
+            if parent is not None:
+                parent.remove(char.element)
+        if char in self.characters:
+            self.characters.remove(char)
+
     def rename_character(self, char: Character, first: str, last: str) -> None:
         char.first_name = first
         char.last_name = last
@@ -665,6 +730,28 @@ class SaveFile:
         ship.name = name
         if ship.element is not None:
             ship.element.set("sname", name)
+
+    def remove_ship(self, ship: Ship) -> None:
+        """Remove *ship*, its crew, and its fleet reference from the XML."""
+        # Drop in-memory characters for this ship
+        self.characters = [c for c in self.characters if c.ship_sid != ship.sid]
+        self._containers_cache.pop(ship.sid, None)
+        # Remove the <ship> element
+        if ship.element is not None:
+            parent = ship.element.getparent()
+            if parent is not None:
+                parent.remove(ship.element)
+        # Remove the fleet reference
+        for f_el in self._root.iter("f"):
+            if f_el.get("isPlayer") == "true":
+                cs_el = f_el.find("createdShips")
+                if cs_el is not None:
+                    for l_el in cs_el.findall("l"):
+                        if l_el.get("createdShipId") == str(ship.sid):
+                            cs_el.remove(l_el)
+                            break
+        if ship in self.ships:
+            self.ships.remove(ship)
 
     def add_ship(self, source_ship: Ship, name: str) -> Ship:
         """Clone *source_ship*, give it a new SID and *name*, clear its crew,

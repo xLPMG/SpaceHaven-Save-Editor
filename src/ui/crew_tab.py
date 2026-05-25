@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QEvent, QRect, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -20,6 +22,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QSplitter,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QTabWidget,
     QTableWidget,
     QTableWidgetItem,
@@ -32,6 +36,47 @@ if TYPE_CHECKING:
 
 from src.save_file import Condition
 from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
+
+class _CrewRemoveDelegate(QStyledItemDelegate):
+    """Paints a ✕ glyph on the right of each crew entry and emits
+    *remove_requested(row)* when it is clicked."""
+
+    remove_requested = Signal(int)
+    _BTN_W = 22
+
+    def paint(self, painter, option, index) -> None:
+        # Shrink the text rect so it doesn't overlap the ✕ glyph
+        text_opt = QStyleOptionViewItem(option)
+        text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W, 0)
+        super().paint(painter, text_opt, index)
+
+        btn_rect = QRect(
+            option.rect.right() - self._BTN_W,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        painter.save()
+        painter.setPen(QColor("#f38ba8"))
+        f = QFont(painter.font())
+        f.setPointSize(10)
+        painter.setFont(f)
+        painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
+        painter.restore()
+
+    def editorEvent(self, event, model, option, index) -> bool:
+        if event.type() == QEvent.Type.MouseButtonRelease:
+            btn_rect = QRect(
+                option.rect.right() - self._BTN_W,
+                option.rect.top(),
+                self._BTN_W,
+                option.rect.height(),
+            )
+            if btn_rect.contains(event.position().toPoint()):
+                self.remove_requested.emit(index.row())
+                return True
+        return super().editorEvent(event, model, option, index)
+
 
 # Palette of muted accent colors for avatar circles
 _AVATAR_COLORS = [
@@ -134,7 +179,15 @@ class CrewTab(QWidget):
             QAbstractItemView.SelectionMode.SingleSelection
         )
         self._crew_list.currentRowChanged.connect(self._on_crew_selected)
+        self._crew_delegate = _CrewRemoveDelegate(self._crew_list)
+        self._crew_delegate.remove_requested.connect(self._on_remove_requested)
+        self._crew_list.setItemDelegate(self._crew_delegate)
         lv.addWidget(self._crew_list)
+
+        add_crew_btn = QPushButton("+ Add Member")
+        add_crew_btn.setObjectName("InlineButton")
+        add_crew_btn.clicked.connect(self._add_crew_member)
+        lv.addWidget(add_crew_btn)
 
         splitter.addWidget(left)
 
@@ -202,13 +255,6 @@ class CrewTab(QWidget):
         layout = QVBoxLayout(w)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(4)
-
-        info = QLabel(
-            "Edit current stat values (0–100). Changes apply to the in-memory XML."
-        )
-        info.setWordWrap(True)
-        info.setObjectName("StatCardDesc")
-        layout.addWidget(info)
 
         self._stats_form = QFormLayout()
         self._stats_form.setSpacing(6)
@@ -412,9 +458,7 @@ class CrewTab(QWidget):
         self._crew_list.blockSignals(True)
         self._crew_list.clear()
         for char in crew:
-            item = QListWidgetItem(char.full_name)
-            item.setData(Qt.ItemDataRole.UserRole, char)
-            self._crew_list.addItem(item)
+            self._add_crew_item(char)
         self._crew_list.blockSignals(False)
         self._crew_count.setText(str(len(crew)))
         self._clear_character_panels()
@@ -596,7 +640,7 @@ class CrewTab(QWidget):
             QMessageBox.warning(self, "Rename", "First name cannot be empty.")
             return
         self._save.rename_character(self._current_char, first, last)
-        # Refresh crew list item label
+        # Refresh crew list item text
         for i in range(self._crew_list.count()):
             item = self._crew_list.item(i)
             if item.data(Qt.ItemDataRole.UserRole) is self._current_char:
@@ -635,6 +679,23 @@ class CrewTab(QWidget):
     # Helpers
     # ------------------------------------------------------------------
 
+    def _add_crew_item(self, char: Character, row: int | None = None) -> QListWidgetItem:
+        """Create a crew list entry (the delegate draws the ✕ glyph)."""
+        item = QListWidgetItem(char.full_name)
+        item.setData(Qt.ItemDataRole.UserRole, char)
+        if row is None:
+            self._crew_list.addItem(item)
+        else:
+            self._crew_list.insertItem(row, item)
+        return item
+
+    def _on_remove_requested(self, row: int) -> None:
+        item = self._crew_list.item(row)
+        if item is None:
+            return
+        char: Character = item.data(Qt.ItemDataRole.UserRole)
+        self._remove_crew_member_by_char(char)
+
     def _clear_character_panels(self) -> None:
         self._avatar.set_character("", "")
         self._first_name_edit.clear()
@@ -651,3 +712,72 @@ class CrewTab(QWidget):
         self._first_name_edit.setEnabled(enabled)
         self._last_name_edit.setEnabled(enabled)
         self._tabs.setEnabled(enabled)
+
+    # ------------------------------------------------------------------
+    # Add / Remove crew members
+    # ------------------------------------------------------------------
+
+    def _add_crew_member(self) -> None:
+        if self._save is None or self._current_ship is None:
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Add Crew Member")
+        dlg_layout = QVBoxLayout(dlg)
+        dlg_layout.setSpacing(10)
+        dlg_layout.setContentsMargins(16, 16, 16, 16)
+
+        form = QFormLayout()
+        first_edit = QLineEdit()
+        first_edit.setPlaceholderText("First name")
+        last_edit = QLineEdit()
+        last_edit.setPlaceholderText("Last name")
+        form.addRow("First name:", first_edit)
+        form.addRow("Last name:", last_edit)
+        dlg_layout.addLayout(form)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        dlg_layout.addWidget(buttons)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        first = first_edit.text().strip()
+        last = last_edit.text().strip()
+        if not first:
+            QMessageBox.warning(self, "Add Crew Member", "First name cannot be empty.")
+            return
+
+        char = self._save.add_character(self._current_ship, first, last)
+        # Insert in sorted position
+        crew = [c for c in self._save.characters if c.ship_sid == self._current_ship.sid]
+        crew.sort(key=lambda c: c.full_name)
+        idx = crew.index(char)
+        self._add_crew_item(char, row=idx)
+        self._crew_count.setText(str(self._crew_list.count()))
+        self._crew_list.setCurrentRow(idx)
+        self.status_message.emit(f"Crew member '{char.full_name}' added (unsaved).")
+
+    def _remove_crew_member_by_char(self, char: Character) -> None:
+        """Remove a crew member (called from the ✕ button on each list row)."""
+        if self._save is None:
+            return
+        target_row = -1
+        for i in range(self._crew_list.count()):
+            if self._crew_list.item(i).data(Qt.ItemDataRole.UserRole) is char:
+                target_row = i
+                break
+        if target_row == -1:
+            return
+        self._save.remove_character(char)
+        self._crew_list.takeItem(target_row)
+        self._crew_count.setText(str(self._crew_list.count()))
+        if self._current_char is char:
+            self._current_char = None
+            self._clear_character_panels()
+            self._set_right_enabled(False)
+        self.status_message.emit(f"'{char.full_name}' removed (unsaved).")

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QEvent, QRect, Signal
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -19,12 +20,53 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QVBoxLayout,
     QWidget,
 )
 
 if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship
+
+
+class _ShipRemoveDelegate(QStyledItemDelegate):
+    """Paints a ✕ glyph on the right of each ship list entry and emits
+    *remove_requested(row)* when it is clicked."""
+
+    remove_requested = Signal(int)
+    _BTN_W = 22
+
+    def paint(self, painter, option, index) -> None:
+        text_opt = QStyleOptionViewItem(option)
+        text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W, 0)
+        super().paint(painter, text_opt, index)
+        btn_rect = QRect(
+            option.rect.right() - self._BTN_W,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        painter.save()
+        painter.setPen(QColor("#f38ba8"))
+        f = QFont(painter.font())
+        f.setPointSize(10)
+        painter.setFont(f)
+        painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
+        painter.restore()
+
+    def editorEvent(self, event, model, option, index) -> bool:
+        if event.type() == QEvent.Type.MouseButtonRelease:
+            btn_rect = QRect(
+                option.rect.right() - self._BTN_W,
+                option.rect.top(),
+                self._BTN_W,
+                option.rect.height(),
+            )
+            if btn_rect.contains(event.position().toPoint()):
+                self.remove_requested.emit(index.row())
+                return True
+        return super().editorEvent(event, model, option, index)
 
 
 class ShipsTab(QWidget):
@@ -60,6 +102,9 @@ class ShipsTab(QWidget):
         self._ship_list = QListWidget()
         self._ship_list.setObjectName("CrewList")
         self._ship_list.currentRowChanged.connect(self._on_ship_selected)
+        self._ship_delegate = _ShipRemoveDelegate(self._ship_list)
+        self._ship_delegate.remove_requested.connect(self._on_ship_remove_requested)
+        self._ship_list.setItemDelegate(self._ship_delegate)
         lv.addWidget(self._ship_list)
 
         add_ship_btn = QPushButton("+ Add Ship")
@@ -221,6 +266,24 @@ class ShipsTab(QWidget):
         self._info_size.setText(f"{w_sq} × {h_sq}")
         self._width_spin.setValue(w_sq)
         self._height_spin.setValue(h_sq)
+
+    def _on_ship_remove_requested(self, row: int) -> None:
+        if self._save is None:
+            return
+        item = self._ship_list.item(row)
+        if item is None:
+            return
+        ship = item.data(Qt.ItemDataRole.UserRole)
+        if len(self._save.ships) <= 1:
+            QMessageBox.warning(self, "Remove Ship", "Cannot remove the last ship.")
+            return
+        self._save.remove_ship(ship)
+        self._ship_list.takeItem(row)
+        if self._current_ship is ship:
+            self._current_ship = None
+            self._detail_widget.setVisible(False)
+            self._placeholder.setVisible(True)
+        self.status_message.emit(f'Ship "{ship.name}" removed (unsaved).')
 
     def _rename_ship(self) -> None:
         if self._save is None or self._current_ship is None:
