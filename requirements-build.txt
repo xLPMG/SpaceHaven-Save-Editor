@@ -1,0 +1,6 @@
+# Runtime-only dependencies for PyInstaller builds.
+# Excludes dev/test packages (pytest, Pygments, etc.) and the heavy
+# PySide6_Addons wheel (QtWebEngine, QtMultimedia, Qt3D, …).
+lxml
+PySide6-Essentials
+shiboken6
