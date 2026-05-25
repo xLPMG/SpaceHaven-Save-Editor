@@ -1,15 +1,16 @@
-"""Generate assets/app.ico from app.svg (Windows CI).
+"""Generate assets/app.icns from app.svg (macOS CI).
 
 Usage:
-    python scripts/make_ico.py
+    python scripts/make_icns.py
 
 Requires:
     PySide6
-    Pillow
+    iconutil
 """
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -41,33 +42,35 @@ def render(size: int, path: str | Path) -> None:
     image.save(str(path))
 
 
-# ── Windows – .ico via Pillow ──────────────────────────────────────────────
+# ── macOS – .icns via iconutil ─────────────────────────────────────────────
 
-def make_ico() -> None:
-    try:
-        from PIL import Image  # noqa: PLC0415
-    except ImportError:
-        print("Pillow is required: pip install Pillow", file=sys.stderr)
-        sys.exit(1)
+_ICONSET_SPECS: list[tuple[int, str]] = [
+    (16,   "icon_16x16.png"),
+    (32,   "icon_16x16@2x.png"),
+    (32,   "icon_32x32.png"),
+    (64,   "icon_32x32@2x.png"),
+    (128,  "icon_128x128.png"),
+    (256,  "icon_128x128@2x.png"),
+    (256,  "icon_256x256.png"),
+    (512,  "icon_256x256@2x.png"),
+    (512,  "icon_512x512.png"),
+    (1024, "icon_512x512@2x.png"),
+]
 
-    out = ASSETS / "app.ico"
-    sizes = [16, 24, 32, 48, 64, 128, 256]
 
+def make_icns() -> None:
+    out = ASSETS / "app.icns"
     with tempfile.TemporaryDirectory() as tmp:
-        pil_images: list[Image.Image] = []
-        for size in sizes:
-            png = Path(tmp) / f"icon_{size}.png"
-            render(size, png)
-            pil_images.append(Image.open(png).copy())
-
-        pil_images[0].save(
-            str(out),
-            format="ICO",
-            sizes=[(s, s) for s in sizes],
-            append_images=pil_images[1:],
+        iconset = Path(tmp) / "app.iconset"
+        iconset.mkdir()
+        for size, name in _ICONSET_SPECS:
+            render(size, iconset / name)
+        subprocess.run(
+            ["iconutil", "-c", "icns", str(iconset), "-o", str(out)],
+            check=True,
         )
     print(f"Created {out}")
 
 
 if __name__ == "__main__":
-    make_ico()
+    make_icns()
