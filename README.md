@@ -10,7 +10,29 @@ A desktop save file editor for [Space Haven](https://bugbyte.fi/spacehaven/), th
 - **Research** – view the state of every technology and mark any of them as complete
 - **Globals** – change game-wide values such as credits
 
-## Setup
+## Download
+
+Pre-built binaries are available on the [Releases](../../releases) page. Download the zip for your platform and extract it.
+
+| Platform | File | Requirement |
+|---|---|---|
+| macOS | `SpaceHaven-Save-Editor-macos.zip` | Apple Silicon (M1 or later) |
+| Windows | `SpaceHaven-Save-Editor-windows.zip` | Windows 10/11, x64 |
+
+The macOS build runs on Apple Silicon only. Intel Mac users need to run from source (see below).
+
+**macOS Gatekeeper warning**
+
+Because the app is not notarized, macOS will block it on first launch with a message saying the developer cannot be verified. To allow it:
+
+1. Try to open the app — it will be blocked.
+2. Open **System Settings → Privacy & Security** and scroll down.
+3. You should see a message about the blocked app. Click **Open Anyway**.
+4. Confirm in the dialog that follows.
+
+You only need to do this once.
+
+## Setup (from source)
 
 **Prerequisites:** Python 3.9+
 
