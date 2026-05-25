@@ -334,6 +334,20 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(18, 0, 18, 0)
         layout.setSpacing(8)
 
+        self._close_file_btn = QPushButton("✕  Close File")
+        self._close_file_btn.setObjectName("FileBarButton")
+        self._close_file_btn.setToolTip("Close file and return to welcome screen")
+        self._close_file_btn.clicked.connect(self._close_file)
+        layout.addWidget(self._close_file_btn)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setFixedHeight(22)
+        sep.setObjectName("FileBarSep")
+        layout.addWidget(sep)
+
+        layout.addSpacing(4)
+
         self._file_label = QLabel("No file loaded")
         self._file_label.setObjectName("FileLabel")
         self._file_label.setSizePolicy(

@@ -138,6 +138,10 @@ def apply_theme(app: QApplication) -> None:
             border-color: rgba(0,216,240,0.6);
             color: #00D8F0;
         }
+        QFrame#FileBarSep {
+            color: rgba(0,216,240,0.25);
+            max-width: 1px;
+        }
 
         QWidget#Sidebar {
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
