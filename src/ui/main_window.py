@@ -4,16 +4,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QSize, Qt
 from PySide6.QtGui import (
     QAction,
     QColor,
     QDragEnterEvent,
     QDropEvent,
+    QIcon,
     QKeySequence,
     QLinearGradient,
     QPainter,
 )
+
+_ICONS_DIR = Path(__file__).parent / "icons"
+
+
+def _icon(name: str) -> QIcon:
+    """Load an SVG icon from the icons directory; returns empty QIcon if missing."""
+    path = _ICONS_DIR / f"{name}.svg"
+    return QIcon(str(path)) if path.exists() else QIcon()
 from PySide6.QtWidgets import (
     QButtonGroup,
     QDialog,
@@ -133,6 +142,7 @@ class MainWindow(QMainWindow):
         self._save: SaveFile | None = None
         self._unsaved = False
         self.setWindowTitle("Space Haven Save Editor")
+        self.setWindowIcon(_icon("app"))
         self.resize(1200, 780)
         self.setAcceptDrops(True)
         self._build_menu()
@@ -251,18 +261,20 @@ class MainWindow(QMainWindow):
         self._nav_group.setExclusive(True)
 
         nav_items = [
-            ("Overview", 0),
-            ("Crew", 1),
-            ("Storage", 2),
-            ("Ships", 3),
-            ("Research", 4),
+            ("Overview", 0, "overview"),
+            ("Crew", 1, "crew"),
+            ("Storage", 2, "storage"),
+            ("Ships", 3, "ships"),
+            ("Research", 4, "research"),
         ]
 
         self._nav_buttons: list[QPushButton] = []
-        for label, page_idx in nav_items:
+        for label, page_idx, icon_name in nav_items:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setObjectName("NavButton")
+            btn.setIcon(_icon(icon_name))
+            btn.setIconSize(QSize(17, 17))
             btn.clicked.connect(lambda _, p=page_idx: self._nav_to(p))
             self._nav_group.addButton(btn, page_idx)
             layout.addWidget(btn)
@@ -339,17 +351,23 @@ class MainWindow(QMainWindow):
 
         self._backup_btn = QPushButton("Backup")
         self._backup_btn.setObjectName("FileBarButton")
+        self._backup_btn.setIcon(_icon("backup"))
+        self._backup_btn.setIconSize(QSize(15, 15))
         self._backup_btn.setToolTip("Create a backup of the current save file")
         self._backup_btn.clicked.connect(self._create_backup)
         layout.addWidget(self._backup_btn)
 
         self._save_as_btn = QPushButton("Save As…")
         self._save_as_btn.setObjectName("FileBarButton")
+        self._save_as_btn.setIcon(_icon("save"))
+        self._save_as_btn.setIconSize(QSize(15, 15))
         self._save_as_btn.clicked.connect(self._save_file_as)
         layout.addWidget(self._save_as_btn)
 
         self._save_btn = QPushButton("Save")
         self._save_btn.setObjectName("SaveButton")
+        self._save_btn.setIcon(_icon("save"))
+        self._save_btn.setIconSize(QSize(15, 15))
         self._save_btn.clicked.connect(self._save_file)
         layout.addWidget(self._save_btn)
 
