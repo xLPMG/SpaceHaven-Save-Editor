@@ -178,12 +178,12 @@ class SaveFile:
         dest_dir = dest.parent
         fd, tmp_path = tempfile.mkstemp(dir=dest_dir, prefix=".tmp_save_")
         try:
-            with open(fd, "w", encoding="utf-8") as fh:
+            with open(fd, "wb") as fh:
                 self._tree.write(
                     fh,
                     pretty_print=True,
                     xml_declaration=False,
-                    encoding="unicode",
+                    encoding="utf-8",
                 )
             shutil.move(tmp_path, str(dest))
         except Exception:
@@ -700,6 +700,38 @@ class SaveFile:
         self.characters.append(char)
         return char
 
+    def clone_character(self, source: Character, ship: Ship, first_name: str, last_name: str) -> Character:
+        """Deep-copy *source* onto *ship* with a new entity ID and *first_name*/*last_name*."""
+        new_id = self._next_master_id()
+        new_el = copy.deepcopy(source.element)
+        new_el.set("entId", str(new_id))
+        new_el.set("name", first_name)
+        new_el.set("lname", last_name)
+        new_el.set("cid", str(ship.sid))
+
+        chars_el = ship.element.find("characters")
+        if chars_el is None:
+            chars_el = etree.SubElement(ship.element, "characters")
+        chars_el.append(new_el)
+
+        pers_el = new_el.find("pers")
+        char = Character(
+            ent_id=new_id,
+            first_name=first_name,
+            last_name=last_name,
+            ship_sid=ship.sid,
+            element=new_el,
+            pers_element=pers_el,
+        )
+        self._parse_char_stats(new_el, char)
+        if pers_el is not None:
+            self._parse_char_attributes(pers_el, char)
+            self._parse_char_skills(pers_el, char)
+            self._parse_char_traits(pers_el, char)
+            self._parse_char_conditions(pers_el, char)
+        self.characters.append(char)
+        return char
+
     def remove_character(self, char: Character) -> None:
         """Remove *char* from its ship and from the in-memory character list."""
         if char.element is not None:
@@ -825,21 +857,20 @@ class SaveFile:
         # unique (mirrors what the reference editor does).
         self._remap_entity_ids(new_ship_el)
 
-        # Place the clone at a unique sector position so it never overlaps an
-        # existing ship, even when multiple ships are cloned from the same source.
-        # Arrange clones in a 5-column grid relative to the source ship so the
-        # displacement stays bounded (max ~5×width wide, grows downward by ~height
-        # per row) regardless of how many ships are added.
+        # Place the clone well clear of all existing ships in the sector.
+        # Ship sx/sy are in tile units (~56 for a 2×2 ship) while sector
+        # coordinates ox/oy are in the thousands, so use a large fixed gap.
         try:
-            ship_width = int(new_ship_el.get("sx", "0"))
-            ship_height = int(new_ship_el.get("sy", "0"))
-            ox = int(new_ship_el.get("ox", "0"))
-            oy = int(new_ship_el.get("oy", "0"))
-            n = len(self.ships)  # count before this ship is appended
-            col = n % 5
-            row = n // 5
-            new_ship_el.set("ox", str(ox + (col + 1) * (ship_width + 200)))
-            new_ship_el.set("oy", str(oy + row * (ship_height + 200)))
+            source_oy = int(new_ship_el.get("oy", "0"))
+            all_ox = [
+                int(s.element.get("ox", "0"))
+                for s in self.ships
+                if s.element is not None
+            ]
+            max_ox = max(all_ox) if all_ox else 0
+            SECTOR_GAP = 5000  # puts the clone in a clearly different region
+            new_ship_el.set("ox", str(max_ox + SECTOR_GAP * (len(self.ships))))
+            new_ship_el.set("oy", str(source_oy))
         except ValueError:
             pass
 
@@ -1013,13 +1044,6 @@ class SaveFile:
             return
         for stage_el in stage_states.findall("l"):
             stage_el.set("done", "true")
-            bd = stage_el.find("blocksDone")
-            if bd is None:
-                bd = etree.SubElement(stage_el, "blocksDone")
-            # Set high values so the game treats it as complete
-            bd.set("level1", "9999")
-            bd.set("level2", "9999")
-            bd.set("level3", "9999")
         entry.done = True
         entry.in_progress = False
 

@@ -7,9 +7,6 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt, QEvent, QRect, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
-    QComboBox,
-    QDialog,
-    QDialogButtonBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -19,9 +16,9 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
-    QSpinBox,
     QStyledItemDelegate,
     QStyleOptionViewItem,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -30,43 +27,86 @@ if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship
 
 
-class _ShipRemoveDelegate(QStyledItemDelegate):
-    """Paints a ✕ glyph on the right of each ship list entry and emits
-    *remove_requested(row)* when it is clicked."""
+class _ShipDelegate(QStyledItemDelegate):
+    """Paints clone (⧉) and remove (✕) action glyphs on the right of each
+    ship list entry and emits the corresponding signal when clicked."""
 
     remove_requested = Signal(int)
-    _BTN_W = 22
+    clone_requested = Signal(int)
+    _BTN_W = 24  # width per action button
 
     def paint(self, painter, option, index) -> None:
         text_opt = QStyleOptionViewItem(option)
-        text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W, 0)
+        text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W * 2, 0)
         super().paint(painter, text_opt, index)
-        btn_rect = QRect(
+
+        clone_rect = QRect(
+            option.rect.right() - self._BTN_W * 2,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        remove_rect = QRect(
             option.rect.right() - self._BTN_W,
             option.rect.top(),
             self._BTN_W,
             option.rect.height(),
         )
+
         painter.save()
-        painter.setPen(QColor("#f38ba8"))
         f = QFont(painter.font())
-        f.setPointSize(10)
+        f.setPointSize(13)
         painter.setFont(f)
-        painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
+        painter.setPen(QColor("#89dceb"))
+        painter.drawText(clone_rect, Qt.AlignmentFlag.AlignCenter, "\u29c9")
+        painter.setPen(QColor("#f38ba8"))
+        painter.drawText(remove_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
         painter.restore()
 
     def editorEvent(self, event, model, option, index) -> bool:
         if event.type() == QEvent.Type.MouseButtonRelease:
-            btn_rect = QRect(
+            pos = event.position().toPoint()
+            clone_rect = QRect(
+                option.rect.right() - self._BTN_W * 2,
+                option.rect.top(),
+                self._BTN_W,
+                option.rect.height(),
+            )
+            remove_rect = QRect(
                 option.rect.right() - self._BTN_W,
                 option.rect.top(),
                 self._BTN_W,
                 option.rect.height(),
             )
-            if btn_rect.contains(event.position().toPoint()):
+            if clone_rect.contains(pos):
+                self.clone_requested.emit(index.row())
+                return True
+            if remove_rect.contains(pos):
                 self.remove_requested.emit(index.row())
                 return True
         return super().editorEvent(event, model, option, index)
+
+    def helpEvent(self, event, view, option, index) -> bool:
+        pos = event.pos()
+        clone_rect = QRect(
+            option.rect.right() - self._BTN_W * 2,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        remove_rect = QRect(
+            option.rect.right() - self._BTN_W,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        if clone_rect.contains(pos):
+            QToolTip.showText(event.globalPos(), "Duplicate ship", view)
+            return True
+        if remove_rect.contains(pos):
+            QToolTip.showText(event.globalPos(), "Remove ship", view)
+            return True
+        return super().helpEvent(event, view, option, index)
 
 
 class ShipsTab(QWidget):
@@ -90,7 +130,7 @@ class ShipsTab(QWidget):
         # ── Left panel: ship list ────────────────────────────────────
         left = QWidget()
         left.setObjectName("CrewLeftPanel")
-        left.setFixedWidth(200)
+        left.setFixedWidth(240)
         lv = QVBoxLayout(left)
         lv.setContentsMargins(10, 14, 10, 14)
         lv.setSpacing(8)
@@ -102,15 +142,11 @@ class ShipsTab(QWidget):
         self._ship_list = QListWidget()
         self._ship_list.setObjectName("CrewList")
         self._ship_list.currentRowChanged.connect(self._on_ship_selected)
-        self._ship_delegate = _ShipRemoveDelegate(self._ship_list)
+        self._ship_delegate = _ShipDelegate(self._ship_list)
         self._ship_delegate.remove_requested.connect(self._on_ship_remove_requested)
+        self._ship_delegate.clone_requested.connect(self._clone_ship)
         self._ship_list.setItemDelegate(self._ship_delegate)
         lv.addWidget(self._ship_list)
-
-        add_ship_btn = QPushButton("+ Add Ship")
-        add_ship_btn.setObjectName("InlineButton")
-        add_ship_btn.clicked.connect(self._add_ship)
-        lv.addWidget(add_ship_btn)
 
         root.addWidget(left)
 
@@ -172,33 +208,6 @@ class ShipsTab(QWidget):
 
         dv.addWidget(info_group)
 
-        # Resize
-        resize_group = QGroupBox("Resize Ship")
-        resize_layout = QFormLayout(resize_group)
-        resize_layout.setContentsMargins(16, 20, 16, 16)
-        resize_layout.setSpacing(10)
-
-        self._width_spin = QSpinBox()
-        self._width_spin.setRange(1, 8)
-        self._width_spin.setSuffix(" squares")
-        resize_layout.addRow("Width:", self._width_spin)
-
-        self._height_spin = QSpinBox()
-        self._height_spin.setRange(1, 8)
-        self._height_spin.setSuffix(" squares")
-        resize_layout.addRow("Height:", self._height_spin)
-
-        resize_note = QLabel("1 square ≈ 28 units • max 8×8")
-        resize_note.setObjectName("StatCardDesc")
-        resize_layout.addRow(resize_note)
-
-        resize_btn = QPushButton("Apply Size")
-        resize_btn.setObjectName("InlineButton")
-        resize_btn.setFixedWidth(100)
-        resize_btn.clicked.connect(self._resize_ship)
-        resize_layout.addRow("", resize_btn)
-
-        dv.addWidget(resize_group)
         dv.addStretch()
         rv.addWidget(self._detail_widget)
         rv.addStretch()
@@ -259,8 +268,6 @@ class ShipsTab(QWidget):
         w_sq = max(1, round(ship.sx / 28))
         h_sq = max(1, round(ship.sy / 28))
         self._info_size.setText(f"{w_sq} × {h_sq}")
-        self._width_spin.setValue(w_sq)
-        self._height_spin.setValue(h_sq)
 
     def _on_ship_remove_requested(self, row: int) -> None:
         if self._save is None:
@@ -295,92 +302,36 @@ class ShipsTab(QWidget):
                 break
         self.status_message.emit(f'Ship renamed to "{name}" (unsaved).')
 
-    def _resize_ship(self) -> None:
-        if self._save is None or self._current_ship is None:
+    def _unique_copy_name(self, base_name: str) -> str:
+        """Return a collision-free clone name based on *base_name*."""
+        existing = {self._ship_list.item(i).text() for i in range(self._ship_list.count())}
+        candidate = f"{base_name} - Copy"
+        if candidate not in existing:
+            return candidate
+        n = 2
+        while True:
+            candidate = f"{base_name} - Copy {n}"
+            if candidate not in existing:
+                return candidate
+            n += 1
+
+    def _clone_ship(self, row: int) -> None:
+        if self._save is None:
             return
-        w_sq = self._width_spin.value()
-        h_sq = self._height_spin.value()
-        new_sx = w_sq * 28
-        new_sy = h_sq * 28
-        ship = self._current_ship
-        ship.sx = new_sx
-        ship.sy = new_sy
-        if ship.element is not None:
-            ship.element.set("sx", str(new_sx))
-            ship.element.set("sy", str(new_sy))
-        self._info_size.setText(f"{w_sq} × {h_sq}")
-        self.status_message.emit(
-            f'Ship "{ship.name}" resized to {w_sq}×{h_sq} squares (unsaved).'
-        )
-
-    def _add_ship(self) -> None:
-        if self._save is None or not self._save.ships:
-            QMessageBox.warning(self, "No Save", "Open a save file first.")
+        item = self._ship_list.item(row)
+        if item is None:
             return
-
-        # ── Dialog ──────────────────────────────────────────────────
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Add New Ship")
-        dlg.setMinimumWidth(360)
-        form = QFormLayout(dlg)
-        form.setContentsMargins(16, 16, 16, 16)
-        form.setSpacing(12)
-
-        name_edit = QLineEdit()
-        name_edit.setPlaceholderText("e.g. HSS PROMETHEUS")
-        form.addRow("New ship name:", name_edit)
-
-        clone_combo = QComboBox()
-        for ship in self._save.ships:
-            clone_combo.addItem(ship.name, ship)
-        form.addRow("Clone layout from:", clone_combo)
-
-        note = QLabel(
-            "The new ship will be an identical copy of the chosen ship's\n"
-            "layout and inventory, placed at the same sector position.\n"
-            "Crew will not be copied."
-        )
-        note.setObjectName("StatCardDesc")
-        note.setWordWrap(True)
-        form.addRow(note)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(dlg.accept)
-        buttons.rejected.connect(dlg.reject)
-        form.addRow(buttons)
-
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        new_name = name_edit.text().strip()
-        if not new_name:
-            QMessageBox.warning(self, "Invalid Name", "Ship name cannot be empty.")
-            return
-
-        source_ship = clone_combo.currentData()
-
-        # ── Create the ship ─────────────────────────────────────────
+        source = item.data(Qt.ItemDataRole.UserRole)
+        new_name = self._unique_copy_name(source.name)
         try:
-            new_ship = self._save.add_ship(source_ship, new_name)
+            new_ship = self._save.add_ship(source, new_name)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Error", f"Failed to add ship:\n{exc}")
+            QMessageBox.critical(self, "Error", f"Failed to clone ship:\n{exc}")
             return
-
-        # ── Update the list ─────────────────────────────────────────
-        item = QListWidgetItem(new_ship.name)
-        item.setData(Qt.ItemDataRole.UserRole, new_ship)
-        # Insert in sorted position
-        inserted = False
-        for i in range(self._ship_list.count()):
-            if self._ship_list.item(i).text() > new_ship.name:
-                self._ship_list.insertItem(i, item)
-                inserted = True
-                break
-        if not inserted:
-            self._ship_list.addItem(item)
-
-        self._ship_list.setCurrentItem(item)
-        self.status_message.emit(f'Ship "{new_name}" added (unsaved).')
+        new_item = QListWidgetItem(new_ship.name)
+        new_item.setData(Qt.ItemDataRole.UserRole, new_ship)
+        self._ship_list.addItem(new_item)
+        self._ship_list.setCurrentItem(new_item)
+        self._ship_list.updateGeometry()
+        self.status_message.emit(f'Ship "{new_name}" cloned (unsaved).')
 

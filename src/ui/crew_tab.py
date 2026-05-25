@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -37,45 +38,85 @@ if TYPE_CHECKING:
 from src.save_file import Condition
 from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
 
-class _CrewRemoveDelegate(QStyledItemDelegate):
-    """Paints a ✕ glyph on the right of each crew entry and emits
-    *remove_requested(row)* when it is clicked."""
+class _CrewDelegate(QStyledItemDelegate):
+    """Paints clone (⧉) and remove (✕) action glyphs on the right of each
+    crew entry and emits the corresponding signal when clicked."""
 
     remove_requested = Signal(int)
-    _BTN_W = 22
+    clone_requested = Signal(int)
+    _BTN_W = 24
 
     def paint(self, painter, option, index) -> None:
-        # Shrink the text rect so it doesn't overlap the ✕ glyph
         text_opt = QStyleOptionViewItem(option)
-        text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W, 0)
+        text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W * 2, 0)
         super().paint(painter, text_opt, index)
 
-        btn_rect = QRect(
+        clone_rect = QRect(
+            option.rect.right() - self._BTN_W * 2,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        remove_rect = QRect(
             option.rect.right() - self._BTN_W,
             option.rect.top(),
             self._BTN_W,
             option.rect.height(),
         )
         painter.save()
-        painter.setPen(QColor("#f38ba8"))
         f = QFont(painter.font())
-        f.setPointSize(10)
+        f.setPointSize(13)
         painter.setFont(f)
-        painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
+        painter.setPen(QColor("#89dceb"))
+        painter.drawText(clone_rect, Qt.AlignmentFlag.AlignCenter, "\u29c9")
+        painter.setPen(QColor("#f38ba8"))
+        painter.drawText(remove_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
         painter.restore()
 
     def editorEvent(self, event, model, option, index) -> bool:
         if event.type() == QEvent.Type.MouseButtonRelease:
-            btn_rect = QRect(
+            pos = event.position().toPoint()
+            clone_rect = QRect(
+                option.rect.right() - self._BTN_W * 2,
+                option.rect.top(),
+                self._BTN_W,
+                option.rect.height(),
+            )
+            remove_rect = QRect(
                 option.rect.right() - self._BTN_W,
                 option.rect.top(),
                 self._BTN_W,
                 option.rect.height(),
             )
-            if btn_rect.contains(event.position().toPoint()):
+            if clone_rect.contains(pos):
+                self.clone_requested.emit(index.row())
+                return True
+            if remove_rect.contains(pos):
                 self.remove_requested.emit(index.row())
                 return True
         return super().editorEvent(event, model, option, index)
+
+    def helpEvent(self, event, view, option, index) -> bool:
+        pos = event.pos()
+        clone_rect = QRect(
+            option.rect.right() - self._BTN_W * 2,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        remove_rect = QRect(
+            option.rect.right() - self._BTN_W,
+            option.rect.top(),
+            self._BTN_W,
+            option.rect.height(),
+        )
+        if clone_rect.contains(pos):
+            QToolTip.showText(event.globalPos(), "Duplicate crew member", view)
+            return True
+        if remove_rect.contains(pos):
+            QToolTip.showText(event.globalPos(), "Remove crew member", view)
+            return True
+        return super().helpEvent(event, view, option, index)
 
 
 # Palette of muted accent colors for avatar circles
@@ -179,8 +220,9 @@ class CrewTab(QWidget):
             QAbstractItemView.SelectionMode.SingleSelection
         )
         self._crew_list.currentRowChanged.connect(self._on_crew_selected)
-        self._crew_delegate = _CrewRemoveDelegate(self._crew_list)
+        self._crew_delegate = _CrewDelegate(self._crew_list)
         self._crew_delegate.remove_requested.connect(self._on_remove_requested)
+        self._crew_delegate.clone_requested.connect(self._clone_crew_member)
         self._crew_list.setItemDelegate(self._crew_delegate)
         lv.addWidget(self._crew_list)
 
@@ -579,13 +621,13 @@ class CrewTab(QWidget):
             self._skills_table.setCellWidget(row, 1, pip_lbl)
 
             level_spin = QSpinBox()
-            level_spin.setRange(0, skill.max_level)
-            level_spin.setValue(skill.level)
+            level_spin.setRange(0, min(10, skill.max_level))
+            level_spin.setValue(min(10, skill.level))
             self._skills_table.setCellWidget(row, 2, level_spin)
 
             max_spin = QSpinBox()
-            max_spin.setRange(skill.level, 20)
-            max_spin.setValue(skill.max_level)
+            max_spin.setRange(min(10, skill.level), 10)
+            max_spin.setValue(min(10, skill.max_level))
             self._skills_table.setCellWidget(row, 3, max_spin)
 
             # Cross-link: level's max tracks max_spin; max's min tracks level_spin
@@ -835,3 +877,41 @@ class CrewTab(QWidget):
             self._clear_character_panels()
             self._set_right_enabled(False)
         self.status_message.emit(f"'{char.full_name}' removed (unsaved).")
+
+    def _unique_crew_name(self, first_name: str, last_name: str) -> tuple[str, str]:
+        """Return a collision-free (first, last) name based on the source."""
+        existing = set()
+        for i in range(self._crew_list.count()):
+            item = self._crew_list.item(i)
+            if item:
+                existing.add(item.text())
+        candidate_first = f"{first_name} - Copy"
+        if f"{candidate_first} {last_name}".strip() not in existing:
+            return candidate_first, last_name
+        n = 2
+        while True:
+            candidate_first = f"{first_name} - Copy {n}"
+            if f"{candidate_first} {last_name}".strip() not in existing:
+                return candidate_first, last_name
+            n += 1
+
+    def _clone_crew_member(self, row: int) -> None:
+        if self._save is None or self._current_ship is None:
+            return
+        item = self._crew_list.item(row)
+        if item is None:
+            return
+        source: Character = item.data(Qt.ItemDataRole.UserRole)
+        new_first, new_last = self._unique_crew_name(source.first_name, source.last_name)
+        try:
+            char = self._save.clone_character(source, self._current_ship, new_first, new_last)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Error", f"Failed to clone crew member:\n{exc}")
+            return
+        crew = [c for c in self._save.characters if c.ship_sid == self._current_ship.sid]
+        crew.sort(key=lambda c: c.full_name)
+        idx = crew.index(char)
+        self._add_crew_item(char, row=idx)
+        self._crew_count.setText(str(self._crew_list.count()))
+        self._crew_list.setCurrentRow(idx)
+        self.status_message.emit(f"'{char.full_name}' cloned (unsaved).")
