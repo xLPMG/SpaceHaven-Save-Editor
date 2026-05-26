@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import SaveFile
 
-from src.game_data import TIMELINE_EVENT_NAMES
+from src.game_data import TECH_IDS, TIMELINE_EVENT_NAMES
 
 _ICONS_DIR = Path(__file__).parent / "icons"
 
@@ -212,8 +212,11 @@ class UniverseTab(QWidget):
                 event_item.setIcon(_icon(icon_name))
             self._timeline_table.setItem(row, 1, event_item)
 
-            # Detail column
-            self._timeline_table.setItem(row, 2, _ro_item(ev.text))
+            # Detail column: resolve IDs to names where possible
+            detail = ev.text
+            if ev.event_type == 8 and detail.isdigit():
+                detail = TECH_IDS.get(int(detail), detail)
+            self._timeline_table.setItem(row, 2, _ro_item(detail))
 
         self._timeline_table.resizeColumnsToContents()
         row_h = self._timeline_table.rowHeight(0) if events else 28
