@@ -184,7 +184,9 @@ class GlobalsTab(QWidget):
         qa_layout.setContentsMargins(16, 16, 16, 16)
         qa_layout.setSpacing(10)
 
-        def _action_row(label: str, desc: str, btn_text: str, slot) -> QHBoxLayout:
+        def _action_row(
+            label: str, desc: str, btn_text: str, slot
+        ) -> tuple[QHBoxLayout, QPushButton]:
             row = QHBoxLayout()
             row.setSpacing(12)
             text_col = QVBoxLayout()
@@ -202,34 +204,33 @@ class GlobalsTab(QWidget):
             btn.setFixedWidth(140)
             btn.clicked.connect(slot)
             row.addWidget(btn)
-            return row
+            return row, btn
 
-        qa_layout.addLayout(
-            _action_row(
-                "Heal All Crew",
-                "Set every stat (health, food, rest…) to 100 for all crew members.",
-                "Heal All",
-                self._heal_all_crew,
-            )
+        heal_row, self._heal_btn = _action_row(
+            "Heal All Crew",
+            "Set every stat (health, food, rest…) to 100 for all crew members.",
+            "Heal All",
+            self._heal_all_crew,
         )
+        qa_layout.addLayout(heal_row)
         qa_layout.addWidget(_sep())
-        qa_layout.addLayout(
-            _action_row(
-                "Max All Skills",
-                "Set all crew skills to level 20 and max natural level 20.",
-                "Max Skills",
-                self._max_all_skills,
-            )
+
+        skills_row, self._skills_btn = _action_row(
+            "Max All Skills",
+            "Set all crew skills to level 20 and max natural level 20.",
+            "Max Skills",
+            self._max_all_skills,
         )
+        qa_layout.addLayout(skills_row)
         qa_layout.addWidget(_sep())
-        qa_layout.addLayout(
-            _action_row(
-                "Clear All Conditions",
-                "Remove every active condition from all crew (injuries, moods, etc.).",
-                "Clear Conditions",
-                self._clear_all_conditions,
-            )
+
+        conditions_row, self._conditions_btn = _action_row(
+            "Clear All Conditions",
+            "Remove every active condition from all crew (injuries, moods, etc.).",
+            "Clear Conditions",
+            self._clear_all_conditions,
         )
+        qa_layout.addLayout(conditions_row)
         qa_layout.addWidget(_sep())
 
         fill_row = QHBoxLayout()
@@ -271,6 +272,9 @@ class GlobalsTab(QWidget):
         self._credits_card.spin.setEnabled(enabled)
         self._prestige_card.spin.setEnabled(enabled)
         self._sandbox_check.setEnabled(enabled)
+        self._heal_btn.setEnabled(enabled)
+        self._skills_btn.setEnabled(enabled)
+        self._conditions_btn.setEnabled(enabled)
         self._fill_qty_spin.setEnabled(enabled)
         self._fill_btn.setEnabled(enabled)
 

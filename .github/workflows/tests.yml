@@ -25,7 +25,7 @@ jobs:
         run: pip install -r requirements-build.txt && pip install pytest pytest-qt
 
       - name: Run unit tests
-        run: python -m pytest tests/ --ignore=tests/ui/ -v
+        run: python -m pytest tests/ --ignore=tests/ui/ -p no:qt -v
 
       - name: Run UI tests
         run: python -m pytest tests/ui/ -v

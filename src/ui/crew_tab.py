@@ -312,7 +312,9 @@ class CrewTab(QWidget):
             spin = QSpinBox()
             spin.setRange(0, 200)  # game allows values > 100 (e.g. buffed health)
             spin.setFixedWidth(80)
-            spin.valueChanged.connect(lambda v, t=tag: self._on_stat_changed_by_tag(t, v))
+            spin.valueChanged.connect(
+                lambda v, t=tag: self._on_stat_changed_by_tag(t, v)
+            )
             self._stats_spins[tag] = spin
             self._stats_form.addRow(f"{tag}:", spin)
         layout.addLayout(self._stats_form)
@@ -753,7 +755,10 @@ class CrewTab(QWidget):
         # Find, re-label, and re-sort the crew list item
         old_row = -1
         for i in range(self._crew_list.count()):
-            if self._crew_list.item(i).data(Qt.ItemDataRole.UserRole) is self._current_char:
+            if (
+                self._crew_list.item(i).data(Qt.ItemDataRole.UserRole)
+                is self._current_char
+            ):
                 old_row = i
                 break
         if old_row != -1:

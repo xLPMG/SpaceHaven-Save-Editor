@@ -12,7 +12,6 @@ from PySide6.QtWidgets import QDialog, QLineEdit, QSpinBox
 from src.save_file import SaveFile
 from src.ui.crew_tab import CrewTab, _pip_html, _AvatarLabel
 
-
 # ---------------------------------------------------------------------------
 # SaveFile fixture helpers  (shared with test_save_file.py pattern)
 # ---------------------------------------------------------------------------
@@ -200,6 +199,7 @@ def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _crew_names(tab: CrewTab) -> list[str]:
     """Return the visible crew list item texts in order."""
     return [tab._crew_list.item(i).text() for i in range(tab._crew_list.count())]
@@ -208,6 +208,7 @@ def _crew_names(tab: CrewTab) -> list[str]:
 # ===========================================================================
 # _pip_html
 # ===========================================================================
+
 
 class TestPipHtml:
     def test_full_bar(self):
@@ -234,6 +235,7 @@ class TestPipHtml:
 # ===========================================================================
 # _AvatarLabel
 # ===========================================================================
+
 
 class TestAvatarLabel:
     def test_initials_from_names(self, qtbot):
@@ -278,6 +280,7 @@ class TestAvatarLabel:
 # ===========================================================================
 # CrewTab – load / clear
 # ===========================================================================
+
 
 class TestCrewTabLoad:
     def test_ship_combo_populated(self, qtbot):
@@ -367,6 +370,7 @@ class TestCrewTabLoad:
 # CrewTab – character selection
 # ===========================================================================
 
+
 class TestCrewTabSelection:
     def test_selecting_crew_member_updates_name_fields(self, qtbot):
         tab = CrewTab()
@@ -429,6 +433,7 @@ class TestCrewTabSelection:
 # ===========================================================================
 # CrewTab – rename character
 # ===========================================================================
+
 
 class TestRenameCharacter:
     def test_rename_updates_crew_list_item(self, qtbot):
@@ -537,6 +542,7 @@ class TestRenameCharacter:
 # CrewTab – remove crew member
 # ===========================================================================
 
+
 class TestRemoveCrewMember:
     def test_remove_decrements_count(self, qtbot):
         tab = CrewTab()
@@ -584,6 +590,7 @@ class TestRemoveCrewMember:
 # CrewTab – skill clamping on load
 # ===========================================================================
 
+
 class TestSkillClamping:
     def test_over_max_skill_is_clamped_on_view(self, qtbot):
         tab = CrewTab()
@@ -611,6 +618,7 @@ class TestSkillClamping:
 # CrewTab – attribute clamping on load
 # ===========================================================================
 
+
 class TestAttributeClamping:
     def test_over_max_attr_is_clamped_on_view(self, qtbot):
         tab = CrewTab()
@@ -634,6 +642,7 @@ class TestAttributeClamping:
 # ===========================================================================
 # CrewTab – conditions
 # ===========================================================================
+
 
 class TestConditions:
     def test_remove_condition(self, qtbot):
@@ -679,6 +688,7 @@ class TestConditions:
 # CrewTab – _unique_crew_name (static, no Qt needed)
 # ===========================================================================
 
+
 class TestUniqueCrewName:
     def test_no_collision(self):
         first, last = CrewTab._unique_crew_name("Alice", "Smith", set())
@@ -705,6 +715,7 @@ class TestUniqueCrewName:
 # ===========================================================================
 # Stats – edit / save-back
 # ===========================================================================
+
 
 class TestStatEditing:
     def test_stat_spin_persists_to_model(self, qtbot):
@@ -747,6 +758,7 @@ class TestStatEditing:
 # Attributes – edit / save-back
 # ===========================================================================
 
+
 class TestAttributeEditing:
     def test_attribute_spin_persists_to_model(self, qtbot):
         tab = CrewTab()
@@ -763,7 +775,7 @@ class TestAttributeEditing:
         qtbot.addWidget(tab)
         tab.load(_make_save())
         tab._crew_list.setCurrentRow(0)
-        lbl = tab._attr_table.cellWidget(0, 1)   # pip label (col 1)
+        lbl = tab._attr_table.cellWidget(0, 1)  # pip label (col 1)
         spin = tab._attr_table.cellWidget(0, 2)  # points spin (col 2)
         spin.setValue(0)
         assert "●" not in lbl.text()
@@ -783,6 +795,7 @@ class TestAttributeEditing:
 # ===========================================================================
 # Skills – edit / save-back
 # ===========================================================================
+
 
 class TestSkillEditing:
     def test_skill_level_spin_persists_to_model(self, qtbot):
@@ -841,6 +854,7 @@ class TestSkillEditing:
 # Traits – add / remove
 # ===========================================================================
 
+
 class TestTraitEditing:
     @staticmethod
     def _select_trait(tab: CrewTab, trait_id: int) -> None:
@@ -854,7 +868,7 @@ class TestTraitEditing:
         qtbot.addWidget(tab)
         tab.load(_make_save())
         tab._crew_list.setCurrentRow(0)  # Alice has 1 trait (Confident 1046)
-        self._select_trait(tab, 191)     # Hero – not yet present
+        self._select_trait(tab, 191)  # Hero – not yet present
         tab._add_trait()
         assert tab._traits_list.count() == 2
 
@@ -939,6 +953,7 @@ class TestTraitEditing:
 # Relationships – edit / save-back
 # ===========================================================================
 
+
 class TestRelationshipEditing:
     def test_friendship_edit_persists_to_model(self, qtbot):
         tab = CrewTab()
@@ -1010,6 +1025,7 @@ class TestRelationshipEditing:
 # ===========================================================================
 # Clone crew member
 # ===========================================================================
+
 
 class TestCloneCrewMember:
     def test_clone_adds_to_list(self, qtbot):
@@ -1086,6 +1102,7 @@ class TestCloneCrewMember:
 # Delegate signals – clone ⧉ and remove ✕ icons
 # ===========================================================================
 
+
 class TestDelegateSignals:
     def test_remove_signal_removes_member(self, qtbot):
         tab = CrewTab()
@@ -1124,10 +1141,12 @@ class TestDelegateSignals:
 # Add crew member (dialog path)
 # ===========================================================================
 
+
 class TestAddCrewMember:
     @staticmethod
     def _accept_dialog(first: str, last: str = ""):
         """Return a monkeypatch-compatible exec replacement that fills in names."""
+
         def _exec(dlg_self):
             for edit in dlg_self.findChildren(QLineEdit):
                 if edit.placeholderText() == "First name":
@@ -1135,6 +1154,7 @@ class TestAddCrewMember:
                 elif edit.placeholderText() == "Last name":
                     edit.setText(last)
             return QDialog.DialogCode.Accepted
+
         return _exec
 
     def test_add_member_increases_count(self, qtbot, monkeypatch):
