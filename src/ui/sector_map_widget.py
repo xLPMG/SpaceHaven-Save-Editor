@@ -53,7 +53,7 @@ class SectorMapWidget(QWidget):
     def load(self, save: SaveFile) -> None:
         """Load ships from the game file (current sector)."""
         self._save = save
-        self._ships = save.ships  # All ships from game file are in current sector
+        self._ships = [s for s in save.ships if s.in_game_file]
         self._sector_sx = save.sector_sx
         self._sector_sy = save.sector_sy
 
