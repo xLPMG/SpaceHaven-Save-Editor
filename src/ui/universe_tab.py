@@ -206,13 +206,10 @@ class UniverseTab(QWidget):
         self._sector_map.load(save)
 
     def _on_ship_moved(self, ship, new_ox: int, new_oy: int) -> None:
-        """Handle ship moved event - update save data."""
-        if self._save:
-            ship.ox = new_ox
-            ship.oy = new_oy
-            if ship.element is not None:
-                ship.element.set("ox", str(new_ox))
-                ship.element.set("oy", str(new_oy))
+        """Handle ship moved signal - persist the new position to the XML tree."""
+        if self._save and ship.element is not None:
+            ship.element.set("ox", str(new_ox))
+            ship.element.set("oy", str(new_oy))
             self.status_message.emit(f"Moved {ship.name} to ox={new_ox}, oy={new_oy}")
 
     def _populate_sectors(self, save: SaveFile) -> None:
