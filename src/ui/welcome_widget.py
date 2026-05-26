@@ -210,9 +210,7 @@ class DropZone(QFrame):
         layout.addWidget(title)
 
         hint = QLabel(
-            "Drop your Space Haven <b>save folder</b> or the <b>game</b> file here. "
-            "The save folder is the one named <b>save</b> inside your chosen save slot, "
-            "or drop the slot folder itself and the editor will find it automatically."
+            "The save folder is located inside the <b>savegames</b> folder in your Space Haven data directory. You may drop either the entire save folder, the folder inside named 'save' or the 'game' file inside the 'save' folder."
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hint.setWordWrap(True)
