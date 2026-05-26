@@ -49,9 +49,6 @@ def _icon(name: str) -> QIcon:
     return QIcon(str(path)) if path.exists() else QIcon()
 
 
-# Themed confirm dialog
-
-
 class _ConfirmDialog(QDialog):
     """A minimal dark-themed confirmation dialog."""
 
@@ -262,6 +259,7 @@ class MainWindow(QMainWindow):
         self._storage_tab.status_message.connect(self._mark_unsaved)
         self._ships_tab.status_message.connect(self._mark_unsaved)
         self._research_tab.status_message.connect(self._mark_unsaved)
+        self._universe_tab.status_message.connect(self._mark_unsaved)
 
         body_layout.addWidget(self._content_stack)
         ev.addWidget(body)
@@ -320,13 +318,15 @@ class MainWindow(QMainWindow):
         row.addWidget(sidebar)
         row.addWidget(sep)
 
+        def _resize_handler(event):
+            QWidget.resizeEvent(sidebar, event)
+            self._update_indicator(animated=False)
+
         # Position indicator on first button after layout is settled
-        sidebar.resizeEvent = lambda e, s=sidebar: self._on_sidebar_resize(e, s)  # type: ignore[attr-defined]
+        sidebar.resizeEvent = _resize_handler  # type: ignore[attr-defined]
         return container
 
-    def _on_sidebar_resize(self, event, sidebar: QWidget) -> None:
-        QWidget.resizeEvent(sidebar, event)
-        self._update_indicator(animated=False)
+
 
     def _nav_to(self, page_idx: int) -> None:
         self._content_stack.setCurrentIndex(page_idx)
@@ -336,11 +336,12 @@ class MainWindow(QMainWindow):
         checked = self._nav_group.checkedButton()
         if checked is None or not hasattr(self, "_nav_indicator"):
             return
+        parent = self._nav_indicator.parent()
+        if parent is None:
+            return
         # Map button rect to sidebar coords (indicator's parent)
         btn_rect = checked.geometry()
-        target = QRect(
-            0, btn_rect.y(), self._nav_indicator.parent().width(), btn_rect.height()
-        )
+        target = QRect(0, btn_rect.y(), parent.width(), btn_rect.height())
         if animated:
             self._nav_indicator.slide_to(target)
         else:
@@ -555,10 +556,13 @@ class MainWindow(QMainWindow):
     def _save_file_as(self) -> None:
         if self._save is None:
             return
+        default_dir = Path.home()
+        if self._save.path and self._save.path.parent:
+            default_dir = self._save.path.parent
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Save As",
-            str(self._save.path.parent if self._save.path else Path.home()),
+            str(default_dir),
             "Space Haven Save (game);;All Files (*)",
         )
         if not path:
