@@ -6,7 +6,7 @@ import math
 import random
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, Qt, QTimer, Signal
+from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QDragEnterEvent,
@@ -17,9 +17,11 @@ from PySide6.QtGui import (
     QPen,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QFrame,
     QLabel,
+    QMenu,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -143,8 +145,6 @@ class _TitleLabel(QWidget):
         self.setMinimumHeight(80)
 
     def sizeHint(self):  # noqa: N802
-        from PySide6.QtCore import QSize
-
         return QSize(600, 80)
 
     def paintEvent(self, event) -> None:  # noqa: N802
@@ -358,7 +358,6 @@ class WelcomeWidget(QWidget):
 
         root.addSpacing(16)
 
-        from PySide6.QtWidgets import QApplication
         version = QApplication.applicationVersion()
         author_text = QLabel(
             f'v{version} &nbsp;·&nbsp; '
@@ -378,7 +377,6 @@ class WelcomeWidget(QWidget):
         super().resizeEvent(event)
 
     def _browse(self) -> None:
-        from PySide6.QtWidgets import QMenu
         menu = QMenu(self)
         folder_act = menu.addAction("Open Save Folder…")
         file_act = menu.addAction("Open game File…")

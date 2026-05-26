@@ -482,7 +482,7 @@ class CrewTab(QWidget):
         self._ship_combo.clear()
         self._ship_combo.blockSignals(False)
         self._crew_list.clear()
-        self._crew_count.setText("Crew: 0")
+        self._crew_count.setText("0")
         self._clear_character_panels()
         self._set_right_enabled(False)
 
@@ -663,6 +663,7 @@ class CrewTab(QWidget):
             return
         self._save.set_skill_max(skill, value)
         self.status_message.emit("Skills applied (unsaved).")
+
     def _populate_traits(self, char: Character) -> None:
         self._traits_list.clear()
         for trait in sorted(char.traits, key=lambda t: t.name):

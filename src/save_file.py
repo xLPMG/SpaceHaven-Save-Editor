@@ -249,8 +249,10 @@ class SaveFile:
         self._parse_sectors()
         self._parse_timeline()
 
-        # Re-parse characters now that external ships are loaded
-        self._parse_characters()
+        # Re-parse characters now that external ships are loaded (includes
+        # characters from ships/ sub-folder that were absent on first parse)
+        if any(not s.in_game_file for s in self.ships):
+            self._parse_characters()
 
     # ------------------------------------------------------------------
     # Supplementary parsers (folder-only)
@@ -413,11 +415,17 @@ class SaveFile:
             raise ValueError("No save path specified.")
         self._write_tree(self._tree, dest)
 
-        # Write external ship files (only when doing an in-place save, not Save As)
-        if path is None:
-            for ship in self.ships:
-                if not ship.in_game_file and ship.external_tree is not None and ship.external_path is not None:
+        # Write external ship files for both in-place saves and Save As
+        for ship in self.ships:
+            if not ship.in_game_file and ship.external_tree is not None and ship.external_path is not None:
+                if path is None:
+                    # In-place save: write back to original locations
                     self._write_tree(ship.external_tree, ship.external_path)
+                else:
+                    # Save As: copy external ship files next to the new game file
+                    new_ships_dir = dest.parent / "ships"
+                    new_ships_dir.mkdir(exist_ok=True)
+                    self._write_tree(ship.external_tree, new_ships_dir / ship.external_path.name)
 
     @staticmethod
     def _write_tree(tree: etree._ElementTree, dest: Path) -> None:
@@ -459,9 +467,13 @@ class SaveFile:
     # ------------------------------------------------------------------
 
     def get_game_mode(self) -> str:
+        if self._root is None:
+            return "Normal"
         return self._root.get("mode", "Normal")
 
     def get_seed(self) -> str:
+        if self._root is None:
+            return "0"
         return self._root.get("seed", "0")
 
     def get_credits(self) -> int:
@@ -1146,7 +1158,7 @@ class SaveFile:
             ]
             max_ox = max(all_ox) if all_ox else 0
             SECTOR_GAP = 5000  # puts the clone in a clearly different region
-            new_ship_el.set("ox", str(max_ox + SECTOR_GAP * (len(self.ships))))
+            new_ship_el.set("ox", str(max_ox + SECTOR_GAP))
             new_ship_el.set("oy", str(source_oy))
         except ValueError:
             pass
