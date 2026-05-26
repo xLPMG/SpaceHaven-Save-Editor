@@ -22,6 +22,23 @@ MAP_LEGEND: list[tuple[QColor, str]] = [
     (MAP_COLOR_INTERIOR, "Interior"),
 ]
 
+# Crew tab colours
+CREW_AVATAR_COLORS: list[str] = [
+    "#89b4fa",
+    "#a6e3a1",
+    "#fab387",
+    "#f38ba8",
+    "#cba6f7",
+    "#94e2d5",
+    "#f9e2af",
+    "#89dceb",
+]
+CREW_AVATAR_TEXT_COLOR = QColor("#1e1e2e")
+CREW_CLONE_COLOR = QColor("#89dceb")
+CREW_REMOVE_COLOR = QColor("#f38ba8")
+PIP_FILLED_COLOR = "#00D8F0"
+PIP_EMPTY_COLOR = "#1E3A40"
+
 
 def apply_theme(app: QApplication) -> None:
     app.setStyle("Fusion")

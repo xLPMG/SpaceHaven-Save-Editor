@@ -10,7 +10,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    env:
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v6
 
@@ -21,7 +22,10 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install lxml pytest # requirements.txt is pretty large
+        run: pip install -r requirements-build.txt && pip install pytest pytest-qt
 
-      - name: Run tests
-        run: python -m pytest tests/ -v
+      - name: Run unit tests
+        run: python -m pytest tests/ --ignore=tests/ui/ -v
+
+      - name: Run UI tests
+        run: python -m pytest tests/ui/ -v

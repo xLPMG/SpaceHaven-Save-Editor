@@ -33,44 +33,52 @@ from PySide6.QtWidgets import (
 )
 
 if TYPE_CHECKING:
-    from src.save_file import Character, SaveFile, Ship, Skill, Trait
+    from src.save_file import Character, SaveFile, Ship, Trait
 
 from src.save_file import Condition
 from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
+from src.ui.styles import (
+    CREW_AVATAR_COLORS,
+    CREW_AVATAR_TEXT_COLOR,
+    CREW_CLONE_COLOR,
+    CREW_REMOVE_COLOR,
+    PIP_FILLED_COLOR,
+    PIP_EMPTY_COLOR,
+)
 
 
 class _CrewDelegate(QStyledItemDelegate):
-    """Paints clone (⧉) and remove (✕) action glyphs on the right of each
+    """Paints clone and remove action glyphs on the right of each
     crew entry and emits the corresponding signal when clicked."""
 
     remove_requested = Signal(int)
     clone_requested = Signal(int)
-    _BTN_W = 24
+    _ICON_BTN_W = 24
 
     def paint(self, painter, option, index) -> None:
         text_opt = QStyleOptionViewItem(option)
-        text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W * 2, 0)
+        text_opt.rect = option.rect.adjusted(0, 0, -self._ICON_BTN_W * 2, 0)
         super().paint(painter, text_opt, index)
 
         clone_rect = QRect(
-            option.rect.right() - self._BTN_W * 2,
+            option.rect.right() - self._ICON_BTN_W * 2,
             option.rect.top(),
-            self._BTN_W,
+            self._ICON_BTN_W,
             option.rect.height(),
         )
         remove_rect = QRect(
-            option.rect.right() - self._BTN_W,
+            option.rect.right() - self._ICON_BTN_W,
             option.rect.top(),
-            self._BTN_W,
+            self._ICON_BTN_W,
             option.rect.height(),
         )
         painter.save()
         f = QFont(painter.font())
         f.setPointSize(13)
         painter.setFont(f)
-        painter.setPen(QColor("#89dceb"))
+        painter.setPen(CREW_CLONE_COLOR)
         painter.drawText(clone_rect, Qt.AlignmentFlag.AlignCenter, "\u29c9")
-        painter.setPen(QColor("#f38ba8"))
+        painter.setPen(CREW_REMOVE_COLOR)
         painter.drawText(remove_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
         painter.restore()
 
@@ -78,15 +86,15 @@ class _CrewDelegate(QStyledItemDelegate):
         if event.type() == QEvent.Type.MouseButtonRelease:
             pos = event.position().toPoint()
             clone_rect = QRect(
-                option.rect.right() - self._BTN_W * 2,
+                option.rect.right() - self._ICON_BTN_W * 2,
                 option.rect.top(),
-                self._BTN_W,
+                self._ICON_BTN_W,
                 option.rect.height(),
             )
             remove_rect = QRect(
-                option.rect.right() - self._BTN_W,
+                option.rect.right() - self._ICON_BTN_W,
                 option.rect.top(),
-                self._BTN_W,
+                self._ICON_BTN_W,
                 option.rect.height(),
             )
             if clone_rect.contains(pos):
@@ -100,15 +108,15 @@ class _CrewDelegate(QStyledItemDelegate):
     def helpEvent(self, event, view, option, index) -> bool:
         pos = event.pos()
         clone_rect = QRect(
-            option.rect.right() - self._BTN_W * 2,
+            option.rect.right() - self._ICON_BTN_W * 2,
             option.rect.top(),
-            self._BTN_W,
+            self._ICON_BTN_W,
             option.rect.height(),
         )
         remove_rect = QRect(
-            option.rect.right() - self._BTN_W,
+            option.rect.right() - self._ICON_BTN_W,
             option.rect.top(),
-            self._BTN_W,
+            self._ICON_BTN_W,
             option.rect.height(),
         )
         if clone_rect.contains(pos):
@@ -120,17 +128,11 @@ class _CrewDelegate(QStyledItemDelegate):
         return super().helpEvent(event, view, option, index)
 
 
-# Palette of muted accent colors for avatar circles
-_AVATAR_COLORS = [
-    "#89b4fa",
-    "#a6e3a1",
-    "#fab387",
-    "#f38ba8",
-    "#cba6f7",
-    "#94e2d5",
-    "#f9e2af",
-    "#89dceb",
-]
+def _pip_html(level: int, max_level: int) -> str:
+    """Return rich-text pip string for a skill/attribute bar."""
+    filled = f"<span style='color:{PIP_FILLED_COLOR};'>{'●' * level}</span>"
+    empty = f"<span style='color:{PIP_EMPTY_COLOR};'>{'○' * (max_level - level)}</span>"
+    return filled + empty
 
 
 class _AvatarLabel(QLabel):
@@ -139,14 +141,14 @@ class _AvatarLabel(QLabel):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._initials = "?"
-        self._color = _AVATAR_COLORS[0]
+        self._color = CREW_AVATAR_COLORS[0]
         self.setFixedSize(56, 56)
 
     def set_character(self, first: str, last: str) -> None:
         self._initials = (first[:1] + last[:1]).upper() if first or last else "?"
         # Deterministic color from name
-        idx = (ord(first[:1]) if first else 0) % len(_AVATAR_COLORS)
-        self._color = _AVATAR_COLORS[idx]
+        idx = (ord(first[:1]) if first else 0) % len(CREW_AVATAR_COLORS)
+        self._color = CREW_AVATAR_COLORS[idx]
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802
@@ -161,7 +163,7 @@ class _AvatarLabel(QLabel):
         font.setPointSize(18)
         font.setWeight(QFont.Weight.Bold)
         painter.setFont(font)
-        painter.setPen(QColor("#1e1e2e"))
+        painter.setPen(CREW_AVATAR_TEXT_COLOR)
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._initials)
         painter.end()
 
@@ -310,6 +312,7 @@ class CrewTab(QWidget):
             spin = QSpinBox()
             spin.setRange(0, 200)  # game allows values > 100 (e.g. buffed health)
             spin.setFixedWidth(80)
+            spin.valueChanged.connect(lambda v, t=tag: self._on_stat_changed_by_tag(t, v))
             self._stats_spins[tag] = spin
             self._stats_form.addRow(f"{tag}:", spin)
         layout.addLayout(self._stats_form)
@@ -551,23 +554,26 @@ class CrewTab(QWidget):
             stat = stat_map.get(tag)
             spin.setValue(stat.value if stat else 0)
             spin.blockSignals(False)
-            # Reconnect to the specific Stat object for this character
-            try:
-                spin.valueChanged.disconnect()
-            except RuntimeError:
-                pass
-            if stat is not None:
-                spin.valueChanged.connect(lambda v, s=stat: self._on_stat_changed(s, v))
 
-    def _on_stat_changed(self, stat, value: int) -> None:
-        if self._save is None:
+    def _on_stat_changed_by_tag(self, tag: str, value: int) -> None:
+        if self._save is None or self._current_char is None:
             return
-        self._save.set_stat(stat, value)
-        self.status_message.emit("Stats applied (unsaved).")
+        stat = next((s for s in self._current_char.stats if s.tag == tag), None)
+        if stat is not None:
+            self._save.set_stat(stat, value)
+            self.status_message.emit("Stats applied (unsaved.)")
 
     def _populate_attributes(self, char: Character) -> None:
         self._attr_table.setRowCount(0)
         for attr in sorted(char.attributes, key=lambda a: a.name):
+            MAX_ATTR_POINTS = 10
+            # Clamp out-of-range values and persist the correction via _save,
+            # matching the same pattern used in _populate_skills.
+            if self._save is not None:
+                clamped = max(0, min(attr.points, MAX_ATTR_POINTS))
+                if clamped != attr.points:
+                    self._save.set_attribute(attr, clamped)
+
             row = self._attr_table.rowCount()
             self._attr_table.insertRow(row)
             name_item = QTableWidgetItem(attr.name)
@@ -582,17 +588,7 @@ class CrewTab(QWidget):
             spin.setRange(0, 10)
             spin.setValue(attr.points)
             spin.valueChanged.connect(
-                lambda v, a=attr, pl=pip_lbl: (
-                    self._on_attribute_changed(a, v),
-                    pl.setText(
-                        "<span style='color:#00D8F0;'>"
-                        + "●" * v
-                        + "</span>"
-                        + "<span style='color:#1E3A40;'>"
-                        + "○" * (10 - v)
-                        + "</span>"
-                    ),
-                )
+                lambda v, a=attr, pl=pip_lbl: self._on_attr_spin_changed(a, pl, v)
             )
             self._attr_table.setCellWidget(row, 2, spin)
 
@@ -604,9 +600,7 @@ class CrewTab(QWidget):
 
     @staticmethod
     def _skill_pip_label(level: int, max_level: int) -> QLabel:
-        filled = "<span style='color:#00D8F0;'>" + "●" * level + "</span>"
-        empty = "<span style='color:#1E3A40;'>" + "○" * (max_level - level) + "</span>"
-        lbl = QLabel(filled + empty)
+        lbl = QLabel(_pip_html(level, max_level))
         lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         lbl.setStyleSheet("padding-left: 6px; letter-spacing: 1px;")
         lbl.setTextFormat(Qt.TextFormat.RichText)
@@ -615,6 +609,16 @@ class CrewTab(QWidget):
     def _populate_skills(self, char: Character) -> None:
         self._skills_table.setRowCount(0)
         for skill in char.skills:
+            MAX_SKILL_LEVEL = 10
+            # Clamp out-of-range values and persist the correction via _save
+            if self._save is not None:
+                clamped_max = max(0, min(skill.max_level, MAX_SKILL_LEVEL))
+                if clamped_max != skill.max_level:
+                    self._save.set_skill_max(skill, clamped_max)
+                clamped_level = max(0, min(skill.level, skill.max_level))
+                if clamped_level != skill.level:
+                    self._save.set_skill_level(skill, clamped_level)
+
             row = self._skills_table.rowCount()
             self._skills_table.insertRow(row)
             name_item = QTableWidgetItem(skill.name)
@@ -626,42 +630,26 @@ class CrewTab(QWidget):
             self._skills_table.setCellWidget(row, 1, pip_lbl)
 
             level_spin = QSpinBox()
-            level_spin.setRange(0, min(10, skill.max_level))
-            level_spin.setValue(min(10, skill.level))
+            level_spin.setRange(0, skill.max_level)
+            level_spin.setValue(skill.level)
             self._skills_table.setCellWidget(row, 2, level_spin)
 
             max_spin = QSpinBox()
-            max_spin.setRange(min(10, skill.level), 10)
-            max_spin.setValue(min(10, skill.max_level))
+            max_spin.setRange(0, MAX_SKILL_LEVEL)
+            max_spin.setValue(skill.max_level)
             self._skills_table.setCellWidget(row, 3, max_spin)
 
-            # Cross-link: level's max tracks max_spin; max's min tracks level_spin
             level_spin.valueChanged.connect(
-                lambda v, ms=max_spin, sk=skill, pl=pip_lbl: (
-                    ms.setMinimum(v),
+                lambda v, pl=pip_lbl, ms=max_spin, sk=skill: (
+                    pl.setText(_pip_html(v, ms.value())),
                     self._on_skill_level_changed(sk, v),
-                    pl.setText(
-                        "<span style='color:#00D8F0;'>"
-                        + "●" * v
-                        + "</span>"
-                        + "<span style='color:#1E3A40;'>"
-                        + "○" * (ms.value() - v)
-                        + "</span>"
-                    ),
                 )
             )
             max_spin.valueChanged.connect(
-                lambda v, ls=level_spin, sk=skill, pl=pip_lbl: (
+                lambda v, ls=level_spin, pl=pip_lbl, sk=skill: (
                     ls.setMaximum(v),
+                    pl.setText(_pip_html(ls.value(), v)),
                     self._on_skill_max_changed(sk, v),
-                    pl.setText(
-                        "<span style='color:#00D8F0;'>"
-                        + "●" * ls.value()
-                        + "</span>"
-                        + "<span style='color:#1E3A40;'>"
-                        + "○" * (v - ls.value())
-                        + "</span>"
-                    ),
                 )
             )
 
@@ -676,6 +664,10 @@ class CrewTab(QWidget):
             return
         self._save.set_skill_max(skill, value)
         self.status_message.emit("Skills applied (unsaved).")
+
+    def _on_attr_spin_changed(self, attr, pip_lbl: QLabel, value: int) -> None:
+        self._on_attribute_changed(attr, value)
+        pip_lbl.setText(_pip_html(value, 10))
 
     def _populate_traits(self, char: Character) -> None:
         self._traits_list.clear()
@@ -757,12 +749,26 @@ class CrewTab(QWidget):
             QMessageBox.warning(self, "Rename", "First name cannot be empty.")
             return
         self._save.rename_character(self._current_char, first, last)
-        # Refresh crew list item text
+        self._avatar.set_character(first, last)
+        # Find, re-label, and re-sort the crew list item
+        old_row = -1
         for i in range(self._crew_list.count()):
-            item = self._crew_list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) is self._current_char:
-                item.setText(self._current_char.full_name)
+            if self._crew_list.item(i).data(Qt.ItemDataRole.UserRole) is self._current_char:
+                old_row = i
                 break
+        if old_row != -1:
+            self._crew_list.blockSignals(True)
+            item = self._crew_list.takeItem(old_row)
+            item.setText(self._current_char.full_name)
+            # Binary-search insertion point to maintain sort order
+            new_row = self._crew_list.count()
+            for i in range(self._crew_list.count()):
+                if self._current_char.full_name <= self._crew_list.item(i).text():
+                    new_row = i
+                    break
+            self._crew_list.insertItem(new_row, item)
+            self._crew_list.setCurrentRow(new_row)
+            self._crew_list.blockSignals(False)
         self.status_message.emit("Character renamed (unsaved).")
 
     def _add_trait(self) -> None:
@@ -901,13 +907,11 @@ class CrewTab(QWidget):
             self._set_right_enabled(False)
         self.status_message.emit(f"'{char.full_name}' removed (unsaved).")
 
-    def _unique_crew_name(self, first_name: str, last_name: str) -> tuple[str, str]:
+    @staticmethod
+    def _unique_crew_name(
+        first_name: str, last_name: str, existing: set[str]
+    ) -> tuple[str, str]:
         """Return a collision-free (first, last) name based on the source."""
-        existing = set()
-        for i in range(self._crew_list.count()):
-            item = self._crew_list.item(i)
-            if item:
-                existing.add(item.text())
         candidate_first = f"{first_name} - Copy"
         if f"{candidate_first} {last_name}".strip() not in existing:
             return candidate_first, last_name
@@ -925,8 +929,13 @@ class CrewTab(QWidget):
         if item is None:
             return
         source: Character = item.data(Qt.ItemDataRole.UserRole)
+        existing = {
+            self._crew_list.item(i).text()
+            for i in range(self._crew_list.count())
+            if self._crew_list.item(i)
+        }
         new_first, new_last = self._unique_crew_name(
-            source.first_name, source.last_name
+            source.first_name, source.last_name, existing
         )
         try:
             char = self._save.clone_character(
