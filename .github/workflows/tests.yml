@@ -9,9 +9,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    env:
-      QT_QPA_PLATFORM: offscreen
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
