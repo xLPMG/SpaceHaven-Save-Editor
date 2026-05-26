@@ -411,6 +411,15 @@ class ShipsTab(QWidget):
         new_name = self._unique_copy_name(source.name)
         try:
             new_ship = self._save.add_ship(source, new_name)
+        except ValueError as exc:
+            # Handle "no space available" error
+            QMessageBox.warning(
+                self,
+                "Cannot Duplicate Ship",
+                f"Unable to find valid position for cloned ship:\n\n{exc}\n\n"
+                "The sector may be too crowded or the ship is too large."
+            )
+            return
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Error", f"Failed to clone ship:\n{exc}")
             return

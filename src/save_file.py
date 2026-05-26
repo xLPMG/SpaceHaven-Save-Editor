@@ -185,6 +185,8 @@ class SaveFile:
         self.sectors: list[Sector] = []
         self.timeline_events: list[TimelineEvent] = []
         self.save_info: SaveInfo | None = None
+        self.sector_sx: int = 382
+        self.sector_sy: int = 382
         self._containers_cache: dict[int, list[StorageContainer]] = {}
 
     # ------------------------------------------------------------------
@@ -544,6 +546,13 @@ class SaveFile:
 
     def _parse_ships(self) -> None:
         self.ships.clear()
+        
+        # Parse sector size from <space> element
+        space_el = self._root.find("space")
+        if space_el is not None:
+            self.sector_sx = int(space_el.get("sx", 382))
+            self.sector_sy = int(space_el.get("sy", 382))
+        
         seen: set[int] = set()
         # Player ships live in <game><ships><ship ...>
         ships_el = self._root.find("ships")
@@ -1154,22 +1163,10 @@ class SaveFile:
         # unique (mirrors what the reference editor does).
         self._remap_entity_ids(new_ship_el)
 
-        # Place the clone well clear of all existing ships in the sector.
-        # Ship sx/sy are in tile units (~56 for a 2x2 ship) while sector
-        # coordinates ox/oy are in the thousands, so use a large fixed gap.
-        try:
-            source_oy = int(new_ship_el.get("oy", "0"))
-            all_ox = [
-                int(s.element.get("ox", "0"))
-                for s in self.ships
-                if s.element is not None
-            ]
-            max_ox = max(all_ox) if all_ox else 0
-            SECTOR_GAP = 5000  # puts the clone in a clearly different region
-            new_ship_el.set("ox", str(max_ox + SECTOR_GAP))
-            new_ship_el.set("oy", str(source_oy))
-        except ValueError:
-            pass
+        # Place the clone in a valid position (within bounds, no overlap)
+        new_ox, new_oy = self._find_valid_ship_position(source_ship.sx, source_ship.sy)
+        new_ship_el.set("ox", str(new_ox))
+        new_ship_el.set("oy", str(new_oy))
 
         # Append to <ships>
         ships_el = self._root.find("ships")
@@ -1197,6 +1194,81 @@ class SaveFile:
     # ------------------------------------------------------------------
     # Helpers for add_ship
     # ------------------------------------------------------------------
+
+    def _find_valid_ship_position(self, sx: int, sy: int) -> tuple[int, int]:
+        """
+        Find a valid position for a new ship (within bounds, no overlap).
+        Returns (ox, oy) coordinates.
+        Raises ValueError if no space available.
+        """
+        import math
+        
+        # Helper functions for coordinate conversion
+        def world_to_ox_oy(wx: float, wy: float) -> tuple[int, int]:
+            ox = int((wx - wy) * 32)
+            oy = int((wx + wy) * 16)
+            return ox, oy
+        
+        def ox_oy_to_world(ox: int, oy: int) -> tuple[float, float]:
+            wx = ox / 64 + oy / 32
+            wy = oy / 32 - ox / 64
+            return wx, wy
+        
+        def ship_extent(sx: int, sy: int) -> tuple[int, int]:
+            return sx, sy
+        
+        extent_x, extent_y = ship_extent(sx, sy)
+        max_wx = self.sector_sx - 1 - extent_x
+        max_wy = self.sector_sy - 1 - extent_y
+        
+        if max_wx < 0 or max_wy < 0:
+            raise ValueError(f"Ship too large for sector ({sx}x{sy} doesn't fit in {self.sector_sx}x{self.sector_sy})")
+        
+        def check_position(wx: float, wy: float) -> bool:
+            """Check if position is valid (no overlap)."""
+            if wx < 0 or wy < 0 or wx > max_wx or wy > max_wy:
+                return False
+            
+            # Check overlap with existing ships
+            for ship in self.ships:
+                ship_wx, ship_wy = ox_oy_to_world(ship.ox, ship.oy)
+                ship_ex, ship_ey = ship_extent(ship.sx, ship.sy)
+                
+                # Check rectangle intersection
+                if not (wx + extent_x <= ship_wx or
+                        wx >= ship_wx + ship_ex or
+                        wy + extent_y <= ship_wy or
+                        wy >= ship_wy + ship_ey):
+                    return False  # Overlaps
+            
+            return True
+        
+        # Try positions in a spiral pattern from center
+        center_wx = max_wx / 2
+        center_wy = max_wy / 2
+        
+        # First try: center
+        if check_position(center_wx, center_wy):
+            return world_to_ox_oy(center_wx, center_wy)
+        
+        # Spiral search with increasing radius
+        max_radius = int(math.sqrt(max_wx**2 + max_wy**2)) + 1
+        for radius in range(10, max_radius, 20):  # Step by 20 for speed
+            for angle in range(0, 360, 15):  # Every 15 degrees
+                wx = center_wx + radius * math.cos(math.radians(angle))
+                wy = center_wy + radius * math.sin(math.radians(angle))
+                
+                if check_position(wx, wy):
+                    return world_to_ox_oy(wx, wy)
+        
+        # If spiral failed, try grid positions
+        step = max(50, int(min(extent_x, extent_y)))
+        for wx in range(0, int(max_wx), step):
+            for wy in range(0, int(max_wy), step):
+                if check_position(wx, wy):
+                    return world_to_ox_oy(wx, wy)
+        
+        raise ValueError("No space available in sector for new ship")
 
     def _next_master_id(self) -> int:
         """Return a new unique ID from masterData.idCounter and advance it.

@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from src.save_file import SaveFile
 
 from src.game_data import TECH_IDS, TIMELINE_EVENT_NAMES
+from src.ui.sector_map_widget import SectorMapWidget
 
 _ICONS_DIR = Path(__file__).parent / "icons"
 
@@ -83,6 +84,28 @@ class UniverseTab(QWidget):
         title = QLabel("Universe")
         title.setObjectName("TabTitle")
         root.addWidget(title)
+
+        root.addWidget(_sep())
+
+        # Interactive Sector Map
+        self._map_group = QGroupBox("Current Sector Map")
+        map_vbox = QVBoxLayout(self._map_group)
+        map_vbox.setContentsMargins(16, 20, 16, 16)
+        map_vbox.setSpacing(12)
+
+        # Map widget
+        self._sector_map = SectorMapWidget()
+        self._sector_map.ship_moved.connect(self._on_ship_moved)
+        self._sector_map.setFixedHeight(600)
+        map_vbox.addWidget(self._sector_map)
+
+        self._no_map_lbl = QLabel("No ships found. Load a save file.")
+        self._no_map_lbl.setObjectName("StatCardDesc")
+        self._no_map_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._no_map_lbl.setVisible(False)
+        map_vbox.addWidget(self._no_map_lbl)
+
+        root.addWidget(self._map_group)
 
         root.addWidget(_sep())
 
@@ -151,11 +174,15 @@ class UniverseTab(QWidget):
 
     def load(self, save: SaveFile) -> None:
         self._save = save
+        self._load_sector_map(save)
         self._populate_sectors(save)
         self._populate_timeline(save)
 
     def clear(self) -> None:
         self._save = None
+        self._sector_map.clear()
+        self._sector_map.setVisible(True)
+        self._no_map_lbl.setVisible(False)
         self._sectors_table.setRowCount(0)
         self._sectors_table.setVisible(True)
         self._no_sectors_lbl.setVisible(False)
@@ -166,6 +193,27 @@ class UniverseTab(QWidget):
     # ------------------------------------------------------------------
     # Populate helpers
     # ------------------------------------------------------------------
+
+    def _load_sector_map(self, save: SaveFile) -> None:
+        """Load the sector map with ships."""
+        if not save.ships:
+            self._sector_map.setVisible(False)
+            self._no_map_lbl.setVisible(True)
+            return
+        
+        self._sector_map.setVisible(True)
+        self._no_map_lbl.setVisible(False)
+        self._sector_map.load(save)
+
+    def _on_ship_moved(self, ship, new_ox: int, new_oy: int) -> None:
+        """Handle ship moved event - update save data."""
+        if self._save:
+            ship.ox = new_ox
+            ship.oy = new_oy
+            if ship.element is not None:
+                ship.element.set("ox", str(new_ox))
+                ship.element.set("oy", str(new_oy))
+            self.status_message.emit(f"Moved {ship.name} to ox={new_ox}, oy={new_oy}")
 
     def _populate_sectors(self, save: SaveFile) -> None:
         sectors = save.sectors
