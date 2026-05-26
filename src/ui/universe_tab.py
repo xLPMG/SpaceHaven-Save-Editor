@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import SaveFile
 
+from src.game_data import TIMELINE_EVENT_NAMES
+
 _ICONS_DIR = Path(__file__).parent / "icons"
 
 
@@ -47,17 +49,6 @@ _TYPE_ICON: dict[int, str] = {
     6: "universe",      # New Galaxy - reuse universe icon
     7: "tl_quest",      # Quest Completed
     8: "research",      # Research Completed - reuse research icon
-}
-
-_TYPE_LABEL: dict[int, str] = {
-    1: "New Crew Member",
-    2: "Crew Member Died",
-    3: "Derelict Explored",
-    4: "Mission Completed",
-    5: "Trades Completed",
-    6: "New Galaxy",
-    7: "Quest Completed",
-    8: "Research Completed",
 }
 
 
@@ -208,7 +199,7 @@ class UniverseTab(QWidget):
         self._timeline_table.setRowCount(len(events))
         for row, ev in enumerate(reversed(events)):
             icon_name = _TYPE_ICON.get(ev.event_type, "")
-            label = _TYPE_LABEL.get(ev.event_type, f"Event #{ev.event_type}")
+            label = TIMELINE_EVENT_NAMES.get(ev.event_type, f"Event #{ev.event_type}")
 
             # Day column
             self._timeline_table.setItem(row, 0, _ro_item(f"Day {ev.day}"))

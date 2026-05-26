@@ -2,6 +2,7 @@
 # Ground truth: haven file element names resolved via texts file EN strings.
 # Attribute/skill numeric IDs verified from actual save file XML.
 
+# Character attribute IDs (attrId on <attr> elements inside <pers>).
 ATTRIBUTE_IDS: dict[int, str] = {
     210: "Bravery",
     212: "Zest",
@@ -9,6 +10,7 @@ ATTRIBUTE_IDS: dict[int, str] = {
     214: "Perception",
 }
 
+# Skill IDs (skillId on <skill> elements inside <pers>).
 SKILL_IDS: dict[int, str] = {
     1: "Construct",
     2: "Mining",
@@ -27,6 +29,7 @@ SKILL_IDS: dict[int, str] = {
     22: "Piloting",
 }
 
+# Personality trait IDs (traitId on <trait> elements inside <pers>).
 TRAIT_IDS: dict[int, str] = {
     191: "Hero",
     655: "Wimp",
@@ -54,6 +57,7 @@ TRAIT_IDS: dict[int, str] = {
     2082: "Alien lover",
 }
 
+# Active condition/status effect IDs (conditionId on <condition> elements inside <pers>).
 CONDITION_IDS: dict[int, str] = {
     193: "Panicked",
     194: "Scared",
@@ -259,6 +263,7 @@ CONDITION_IDS: dict[int, str] = {
     4644: "Scar",
 }
 
+# Storage item IDs (elementaryId / mid on <s> elements inside <inv>).
 STORAGE_IDS: dict[int, str] = {
     # Elementary resources (eid in game library)
     15: "Root vegetables",
@@ -358,6 +363,7 @@ STORAGE_IDS: dict[int, str] = {
     4106: "Infester Corpse",
 }
 
+# Pre-game occupation IDs (occupId on <pers> elements).
 OCCUPATION_IDS: dict[int, str] = {
     1763: "Police officer",
     1764: "Nurse",
@@ -391,6 +397,7 @@ OCCUPATION_IDS: dict[int, str] = {
     1792: "Florist",
 }
 
+# Entity type IDs (objId on <e> elements) for characters and creatures.
 CHARACTER_TYPE_IDS: dict[int, str] = {
     89: "Human/Android",
     989: "Crawler",
@@ -406,6 +413,7 @@ CHARACTER_TYPE_IDS: dict[int, str] = {
     4298: "Hallucination",
 }
 
+# Craft/vehicle type IDs (objId on <c> elements inside <crafts>).
 CRAFT_IDS: dict[int, str] = {
     20: "Shuttle",
     39: "Miner",
@@ -532,3 +540,37 @@ STORAGE_BY_NAME: dict[str, int] = {
 TRAIT_BY_NAME: dict[str, int] = {
     v: k for k, v in sorted(TRAIT_IDS.items(), key=lambda x: x[1])
 }
+
+# Ship tile module IDs (attribute "m" on <e> tile elements inside a <ship>).
+# Hull blocks form the outer shell; walls divide interior space.
+HULL_TILE_IDS: frozenset[str] = frozenset({
+    "38", "46", "47", "206", "1144", "1149", "1711", "1713",
+    "1794", "2758", "2759", "2760", "2762", "2763", "3029", "3031",
+})
+
+WALL_TILE_IDS: frozenset[str] = frozenset({
+    "31", "43", "44", "48", "115", "122", "423", "425", "426",
+    "428", "438", "2757", "2764", "2765", "2767", "2768", "2769",
+    "2770", "2771", "2772", "2861", "2862", "2863", "2864", "2866",
+})
+
+DOOR_TILE_IDS: frozenset[str] = frozenset({"25", "424", "905", "2755"})
+ENGINE_TILE_IDS: frozenset[str] = frozenset({"2655", "851"})
+STORAGE_TILE_IDS: frozenset[str] = frozenset({"82", "632"})
+
+# Timeline event type IDs (type attribute on <e> elements in timeline.xml).
+TIMELINE_EVENT_NAMES: dict[int, str] = {
+    1: "New Crew Member",
+    2: "Crew Member Died",
+    3: "Derelict Explored",
+    4: "Mission Completed",
+    5: "Trades Completed",
+    6: "New Galaxy",
+    7: "Quest Completed",
+    8: "Research Completed",
+}
+
+# Character vital stat XML tag names (child elements of <pers> carrying a "v" attribute).
+STAT_TAGS: tuple[str, ...] = (
+    "Health", "Food", "Rest", "Comfort", "Mood", "Oxygen", "Temperature",
+)

@@ -26,6 +26,8 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship
 
+from src.ui.ship_map_widget import ShipMapWidget
+
 
 class _ShipDelegate(QStyledItemDelegate):
     """Paints clone and remove action buttons on the right of each ship list
@@ -195,6 +197,15 @@ class ShipsTab(QWidget):
 
         dv.addWidget(name_group)
 
+        # Ship layout map
+        map_group = QGroupBox("Ship Layout")
+        map_group_layout = QVBoxLayout(map_group)
+        map_group_layout.setContentsMargins(8, 12, 8, 8)
+        self._ship_map = ShipMapWidget()
+        self._ship_map.setMinimumHeight(180)
+        map_group_layout.addWidget(self._ship_map)
+        dv.addWidget(map_group)
+
         # Info (read-only)
         info_group = QGroupBox("Info")
         info_layout = QFormLayout(info_group)
@@ -292,6 +303,7 @@ class ShipsTab(QWidget):
         self._save = None
         self._current_ship = None
         self._ship_list.clear()
+        self._ship_map.clear()
         self._detail_widget.setVisible(False)
         self._placeholder.setVisible(True)
 
@@ -333,6 +345,9 @@ class ShipsTab(QWidget):
         w_sq = max(1, round(ship.sx / 28))
         h_sq = max(1, round(ship.sy / 28))
         self._info_size.setText(f"{w_sq} × {h_sq}")
+
+        tiles = self._save.get_ship_tiles(ship)
+        self._ship_map.set_tiles(tiles)
 
     def _on_ship_remove_requested(self, row: int) -> None:
         if self._save is None:

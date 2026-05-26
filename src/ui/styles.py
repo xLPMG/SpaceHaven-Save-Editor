@@ -3,6 +3,25 @@ from __future__ import annotations
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
+MAP_COLOR_HULL       = QColor("#C0C8CC")
+MAP_COLOR_WALL       = QColor("#607080")
+MAP_COLOR_DOOR       = QColor("#4488EE")
+MAP_COLOR_ENGINE     = QColor("#E8C040")
+MAP_COLOR_STORAGE    = QColor("#E87820")
+MAP_COLOR_RESTRICTED = QColor(20, 20, 30, 80)
+MAP_COLOR_INTERIOR   = QColor("#303840")
+MAP_COLOR_BG         = QColor("#030709")
+MAP_COLOR_LEGEND_TEXT = QColor("#8FBFCC")
+
+MAP_LEGEND: list[tuple[QColor, str]] = [
+    (MAP_COLOR_HULL,     "Hull"),
+    (MAP_COLOR_WALL,     "Wall"),
+    (MAP_COLOR_DOOR,     "Door"),
+    (MAP_COLOR_ENGINE,   "Engine"),
+    (MAP_COLOR_STORAGE,  "Storage"),
+    (MAP_COLOR_INTERIOR, "Interior"),
+]
+
 
 def apply_theme(app: QApplication) -> None:
     app.setStyle("Fusion")

@@ -14,6 +14,7 @@ from src.save_file import (
     Stat,
     StorageItem,
 )
+from src.game_data import STAT_TAGS
 
 
 # ---------------------------------------------------------------------------
@@ -805,7 +806,7 @@ class TestAddRemoveCharacter:
     def test_add_character_has_all_stats(self):
         char = self.sf.add_character(self.ship, "Stats", "Check")
         stat_tags = {s.tag for s in char.stats}
-        assert stat_tags == set(self.sf.STAT_TAGS)
+        assert stat_tags == set(STAT_TAGS)
 
     def test_add_character_stats_default_to_100(self):
         char = self.sf.add_character(self.ship, "Healthy", "")

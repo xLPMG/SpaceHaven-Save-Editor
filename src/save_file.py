@@ -22,8 +22,10 @@ from src.game_data import (
     ATTRIBUTE_IDS,
     CONDITION_IDS,
     SKILL_IDS,
+    STAT_TAGS,
     STORAGE_IDS,
     TECH_IDS,
+    TIMELINE_EVENT_NAMES,
     TRAIT_IDS,
 )
 
@@ -126,19 +128,6 @@ class Sector:
     path: object = field(repr=False, default=None)  # Path to the space file
 
 
-# Timeline event type saveNr -> human-readable label (from game source)
-_TIMELINE_TYPE_NAMES: dict[int, str] = {
-    1: "New Crew Member",
-    2: "Crew Member Died",
-    3: "Derelict Explored",
-    4: "Mission Completed",
-    5: "Trades Completed",
-    6: "New Galaxy",
-    7: "Quest Completed",
-    8: "Research Completed",
-}
-
-
 @dataclass
 class TimelineEvent:
     event_type: int
@@ -184,8 +173,6 @@ class ResearchEntry:
 
 class SaveFile:
     """Loads, exposes, and saves a Space Haven save file or save folder."""
-
-    STAT_TAGS = ("Health", "Food", "Rest", "Comfort", "Mood", "Oxygen", "Temperature")
 
     def __init__(self) -> None:
         self._tree: etree._ElementTree | None = None
@@ -368,7 +355,7 @@ class SaveFile:
                     self.timeline_events.append(
                         TimelineEvent(
                             event_type=event_type,
-                            type_name=_TIMELINE_TYPE_NAMES.get(event_type, f"Event #{event_type}"),
+                            type_name=TIMELINE_EVENT_NAMES.get(event_type, f"Event #{event_type}"),
                             day=day,
                             text=text,
                         )
@@ -566,6 +553,28 @@ class SaveFile:
             )
         self.ships.sort(key=lambda s: s.name)
 
+    def get_ship_tiles(self, ship: Ship) -> list[tuple[int, int, str]]:
+        """Return floor-plan tile data for *ship* as a list of (x, y, module_id) tuples.
+
+        Each ``<e>`` child element of the ship element that carries both ``x``/``y``
+        grid coordinates and an ``m`` module-type attribute is included.  The ``m``
+        value identifies the kind of block (hull, wall, door, engine, storage, …).
+        """
+        if ship.element is None:
+            return []
+        tiles: list[tuple[int, int, str]] = []
+        for e in ship.element.findall("e"):
+            m = e.get("m")
+            if m is None:
+                continue
+            try:
+                x = int(e.get("x", "0"))
+                y = int(e.get("y", "0"))
+            except ValueError:
+                continue
+            tiles.append((x, y, m))
+        return tiles
+
     def get_storage_containers(self, ship: Ship) -> list[StorageContainer]:
         """Return all storage containers (feat elements with eatAllowed + inv) for a ship."""
         if ship.sid in self._containers_cache:
@@ -727,7 +736,7 @@ class SaveFile:
         props = c_el.find("props")
         if props is None:
             return
-        for tag in self.STAT_TAGS:
+        for tag in STAT_TAGS:
             el = props.find(tag)
             if el is not None:
                 try:
@@ -922,7 +931,7 @@ class SaveFile:
 
         # Default stats at full health
         props = etree.SubElement(c_el, "props")
-        for tag in self.STAT_TAGS:
+        for tag in STAT_TAGS:
             el = etree.SubElement(props, tag)
             el.set("v", "100")
 
