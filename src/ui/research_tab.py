@@ -1,4 +1,4 @@
-"""research_tab.py – Technology research viewer and editor."""
+"""research_tab.py – Tab for viewing and completing research entries."""
 
 from __future__ import annotations
 
@@ -22,6 +22,22 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.ui.styles import (
+    RESEARCH_BADGE_DONE_BG,
+    RESEARCH_BADGE_NONE_BG,
+    RESEARCH_BADGE_PROGRESS_BG,
+    RESEARCH_BG_EVEN,
+    RESEARCH_BG_HOVER,
+    RESEARCH_BG_ODD,
+    RESEARCH_BG_SEL,
+    RESEARCH_DONE_COLOR,
+    RESEARCH_NONE_COLOR,
+    RESEARCH_PROGRESS_COLOR,
+    RESEARCH_SEP,
+    RESEARCH_TEXT_DIM,
+    RESEARCH_TEXT_MAIN,
+)
+
 if TYPE_CHECKING:
     from src.save_file import ResearchEntry, SaveFile
 
@@ -33,18 +49,6 @@ if TYPE_CHECKING:
 
 class _TechDelegate(QStyledItemDelegate):
     """Paints each research entry as a styled row with accent strip + badge."""
-
-    _DONE_COLOR = QColor("#04D912")
-    _PROG_COLOR = QColor("#FF8800")
-    _NONE_COLOR = QColor("#1A4A58")
-
-    _BG_EVEN = QColor("#050A0B")
-    _BG_ODD = QColor("#070E10")
-    _BG_SEL = QColor("#071820")
-    _SEP = QColor(0, 216, 240, 18)
-
-    _TEXT_MAIN = QColor("#DDF0F5")
-    _TEXT_DIM = QColor("#3BBECE")
 
     def sizeHint(self, option: QStyleOptionViewItem, index) -> QSize:  # noqa: N802
         return QSize(option.rect.width(), 48)
@@ -66,25 +70,27 @@ class _TechDelegate(QStyledItemDelegate):
 
         # Row background
         if selected:
-            painter.fillRect(r, self._BG_SEL)
+            painter.fillRect(r, RESEARCH_BG_SEL)
         elif hovered:
-            painter.fillRect(r, QColor("#0A1618"))
+            painter.fillRect(r, RESEARCH_BG_HOVER)
         else:
-            painter.fillRect(r, self._BG_EVEN if index.row() % 2 == 0 else self._BG_ODD)
+            painter.fillRect(
+                r, RESEARCH_BG_EVEN if index.row() % 2 == 0 else RESEARCH_BG_ODD
+            )
 
         # Left accent strip (4 px)
         accent = (
-            self._DONE_COLOR
+            RESEARCH_DONE_COLOR
             if entry.done
-            else self._PROG_COLOR if entry.in_progress else self._NONE_COLOR
+            else RESEARCH_PROGRESS_COLOR if entry.in_progress else RESEARCH_NONE_COLOR
         )
         painter.fillRect(QRect(r.x(), r.y(), 4, r.height()), accent)
 
         # Tech name
         text_color = (
-            self._TEXT_DIM
+            RESEARCH_TEXT_DIM
             if (not entry.done and not entry.in_progress)
-            else self._TEXT_MAIN
+            else RESEARCH_TEXT_MAIN
         )
         font = painter.font()
         font.setPointSize(13)
@@ -100,16 +106,16 @@ class _TechDelegate(QStyledItemDelegate):
         # Status badge
         if entry.done:
             badge_txt = "COMPLETE"
-            badge_fg = self._DONE_COLOR
-            badge_bg = QColor(4, 217, 18, 28)
+            badge_fg = RESEARCH_DONE_COLOR
+            badge_bg = RESEARCH_BADGE_DONE_BG
         elif entry.in_progress:
             badge_txt = "IN PROGRESS"
-            badge_fg = self._PROG_COLOR
-            badge_bg = QColor(255, 136, 0, 28)
+            badge_fg = RESEARCH_PROGRESS_COLOR
+            badge_bg = RESEARCH_BADGE_PROGRESS_BG
         else:
             badge_txt = "NOT DONE"
-            badge_fg = self._NONE_COLOR
-            badge_bg = QColor(26, 74, 88, 20)
+            badge_fg = RESEARCH_NONE_COLOR
+            badge_bg = RESEARCH_BADGE_NONE_BG
 
         bw, bh = 114, 24
         badge_rect = QRect(
@@ -130,7 +136,7 @@ class _TechDelegate(QStyledItemDelegate):
         painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, badge_txt)
 
         # Separator
-        painter.setPen(self._SEP)
+        painter.setPen(RESEARCH_SEP)
         painter.drawLine(r.x() + 16, r.bottom(), r.right(), r.bottom())
 
         painter.restore()
@@ -171,14 +177,18 @@ class ResearchTab(QWidget):
         counts_row = QHBoxLayout()
         counts_row.setSpacing(0)
 
-        self._count_done, w_done = self._make_stat_widget("0", "COMPLETE", "#04D912")
+        self._count_done, w_done = self._make_stat_widget(
+            "0", "COMPLETE", RESEARCH_DONE_COLOR
+        )
         self._count_progress, w_progress = self._make_stat_widget(
-            "0", "IN PROGRESS", "#FF8800"
+            "0", "IN PROGRESS", RESEARCH_PROGRESS_COLOR
         )
         self._count_remain, w_remain = self._make_stat_widget(
-            "0", "REMAINING", "#3BBECE"
+            "0", "REMAINING", RESEARCH_TEXT_DIM
         )
-        self._count_total, w_total = self._make_stat_widget("0", "TOTAL", "#1A4A58")
+        self._count_total, w_total = self._make_stat_widget(
+            "0", "TOTAL", RESEARCH_NONE_COLOR
+        )
 
         for w in (w_done, w_progress, w_remain, w_total):
             counts_row.addWidget(w)
@@ -253,7 +263,7 @@ class ResearchTab(QWidget):
 
     @staticmethod
     def _make_stat_widget(
-        number: str, caption: str, color: str
+        number: str, caption: str, color: QColor
     ) -> tuple[QLabel, QWidget]:
         """Return (num_label, container_widget) for the stats banner."""
         w = QWidget()
@@ -262,9 +272,14 @@ class ResearchTab(QWidget):
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(1)
         num_lbl = QLabel(number)
-        num_lbl.setStyleSheet(f"color: {color}; font-size: 18px; font-weight: bold;")
+        color_str = color.name() if isinstance(color, QColor) else str(color)
+        num_lbl.setStyleSheet(
+            f"color: {color_str}; font-size: 18px; font-weight: bold;"
+        )
         cap_lbl = QLabel(caption)
-        cap_lbl.setStyleSheet("color: #1A4A58; font-size: 9px; letter-spacing: 1px;")
+        cap_lbl.setStyleSheet(
+            f"color: {RESEARCH_NONE_COLOR.name()}; font-size: 9px; letter-spacing: 1px;"
+        )
         v.addWidget(num_lbl)
         v.addWidget(cap_lbl)
         return num_lbl, w
@@ -337,7 +352,9 @@ class ResearchTab(QWidget):
     def _on_selection_changed(self) -> None:
         selected = self._list.selectedItems()
         has_incomplete = any(
-            not item.data(Qt.ItemDataRole.UserRole).done for item in selected
+            (entry := item.data(Qt.ItemDataRole.UserRole)) is not None
+            and not entry.done
+            for item in selected
         )
         self._complete_sel_btn.setEnabled(bool(selected) and has_incomplete)
 
