@@ -1,4 +1,5 @@
 """Unit tests for src/save_file.py using minimal XML fixtures."""
+
 from __future__ import annotations
 
 import io
@@ -16,10 +17,10 @@ from src.save_file import (
 )
 from src.game_data import STAT_TAGS
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_save_file(xml: str | bytes) -> SaveFile:
     """Parse an XML string or bytes into a SaveFile without touching the filesystem."""
@@ -156,9 +157,12 @@ MINIMAL_XML = textwrap.dedent("""\
 # Dataclass tests
 # ---------------------------------------------------------------------------
 
+
 class TestDataclasses:
     def test_character_full_name(self):
-        char = Character(ent_id=1, first_name="Jarvis", last_name="Michael", ship_sid=89)
+        char = Character(
+            ent_id=1, first_name="Jarvis", last_name="Michael", ship_sid=89
+        )
         assert char.full_name == "Jarvis Michael"
 
     def test_character_full_name_no_last(self):
@@ -181,6 +185,7 @@ class TestDataclasses:
 # ---------------------------------------------------------------------------
 # SaveFile.load / root validation
 # ---------------------------------------------------------------------------
+
 
 class TestSaveFileLoad:
     def test_load_valid_file(self, tmp_path):
@@ -208,6 +213,7 @@ class TestSaveFileLoad:
 # ---------------------------------------------------------------------------
 # Global getters / setters
 # ---------------------------------------------------------------------------
+
 
 class TestGlobalSettings:
     def setup_method(self):
@@ -279,6 +285,7 @@ class TestGlobalSettingsMissing:
 # Ship parsing
 # ---------------------------------------------------------------------------
 
+
 class TestShipParsing:
     def setup_method(self):
         self.sf = _make_save_file(MINIMAL_XML)
@@ -335,6 +342,7 @@ class TestShipParsing:
 # ---------------------------------------------------------------------------
 # Storage parsing and mutations
 # ---------------------------------------------------------------------------
+
 
 class TestStorageParsing:
     def setup_method(self):
@@ -415,6 +423,7 @@ class TestStorageMutations:
 # ---------------------------------------------------------------------------
 # Character parsing
 # ---------------------------------------------------------------------------
+
 
 class TestCharacterParsing:
     def setup_method(self):
@@ -506,6 +515,7 @@ class TestCharacterParsing:
 # Character mutations
 # ---------------------------------------------------------------------------
 
+
 class TestCharacterMutations:
     def setup_method(self):
         self.sf = _make_save_file(MINIMAL_XML)
@@ -588,6 +598,7 @@ class TestCharacterMutations:
 # Batch operations
 # ---------------------------------------------------------------------------
 
+
 class TestBatchOperations:
     def setup_method(self):
         self.sf = _make_save_file(MINIMAL_XML)
@@ -629,6 +640,7 @@ class TestBatchOperations:
 # ---------------------------------------------------------------------------
 # Research
 # ---------------------------------------------------------------------------
+
 
 class TestResearchParsing:
     def setup_method(self):
@@ -693,6 +705,7 @@ class TestResearchMutations:
 # Save / backup
 # ---------------------------------------------------------------------------
 
+
 class TestSaveAndBackup:
     def test_save_reflects_mutations(self, tmp_path):
         p = tmp_path / "game"
@@ -742,6 +755,7 @@ class TestSaveAndBackup:
 # Relationship setters
 # ---------------------------------------------------------------------------
 
+
 class TestRelationshipMutations:
     def setup_method(self):
         self.sf = _make_save_file(MINIMAL_XML)
@@ -777,6 +791,7 @@ class TestRelationshipMutations:
 # ---------------------------------------------------------------------------
 # add_character / remove_character
 # ---------------------------------------------------------------------------
+
 
 class TestAddRemoveCharacter:
     def setup_method(self):
@@ -822,7 +837,9 @@ class TestAddRemoveCharacter:
         skills_el = char.pers_element.find("skills")
         for s_el in skills_el.findall("s"):
             assert s_el.get("exp") is not None, "skill element missing 'exp' attribute"
-            assert s_el.get("expd") is not None, "skill element missing 'expd' attribute"
+            assert (
+                s_el.get("expd") is not None
+            ), "skill element missing 'expd' attribute"
 
     def test_add_character_has_attributes(self):
         char = self.sf.add_character(self.ship, "Attr", "Check")
@@ -867,6 +884,7 @@ class TestAddRemoveCharacter:
 # ---------------------------------------------------------------------------
 # Storage edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestStorageEdgeCases:
     """Covers scenarios not exercised by TestStorageMutations."""

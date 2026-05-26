@@ -230,7 +230,7 @@ class ShipsTab(QWidget):
 
         self._info_size = QLabel("—")
         self._info_size.setObjectName("InfoValue")
-        info_layout.addRow(QLabel("Grid size (WxH):" ), self._info_size)
+        info_layout.addRow(QLabel("Grid size (WxH):"), self._info_size)
 
         for lbl in info_group.findChildren(QLabel):
             lbl.setObjectName(lbl.objectName() or "InfoKey")
@@ -386,7 +386,9 @@ class ShipsTab(QWidget):
 
     def _unique_copy_name(self, base_name: str) -> str:
         """Return a collision-free clone name based on *base_name*."""
-        existing = {self._ship_list.item(i).text() for i in range(self._ship_list.count())}
+        existing = {
+            self._ship_list.item(i).text() for i in range(self._ship_list.count())
+        }
         candidate = f"{base_name} - Copy"
         if candidate not in existing:
             return candidate
@@ -418,4 +420,3 @@ class ShipsTab(QWidget):
         self._ship_list.setCurrentItem(new_item)
         self._ship_list.updateGeometry()
         self.status_message.emit(f'Ship "{new_name}" cloned (unsaved).')
-

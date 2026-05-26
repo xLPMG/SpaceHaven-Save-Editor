@@ -47,14 +47,14 @@ def _tile_color(m: str) -> QColor | None:
 class ShipMapWidget(QWidget):
     """Renders a zoomable, color-coded floor-plan of a Space Haven ship."""
 
-    _LEGEND_H = 22   # pixels reserved for the legend strip
-    _MIN_CELL =  2   # minimum cell size in pixels
-    _MAX_CELL = 20   # maximum cell size in pixels
-    _GAP       = 1   # gap between cells
+    _LEGEND_H = 22  # pixels reserved for the legend strip
+    _MIN_CELL = 2  # minimum cell size in pixels
+    _MAX_CELL = 20  # maximum cell size in pixels
+    _GAP = 1  # gap between cells
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._tiles: list[tuple[int, int, str]] = []   # (x, y, m)
+        self._tiles: list[tuple[int, int, str]] = []  # (x, y, m)
         self._grid_w = 0
         self._grid_h = 0
         self.setMinimumSize(200, 140)
@@ -166,5 +166,7 @@ class ShipMapWidget(QWidget):
                 break
             painter.fillRect(x, y + 1, swatch, swatch, color)
             painter.setPen(MAP_COLOR_LEGEND_TEXT)
-            painter.drawText(x + swatch + 4, y, 60, strip_h, Qt.AlignmentFlag.AlignVCenter, label)
+            painter.drawText(
+                x + swatch + 4, y, 60, strip_h, Qt.AlignmentFlag.AlignVCenter, label
+            )
             x += swatch + 4 + 52

@@ -120,9 +120,7 @@ class StorageTab(QWidget):
         self._items_table.verticalHeader().setVisible(False)
         self._items_table.verticalHeader().setDefaultSectionSize(42)
         self._items_table.itemSelectionChanged.connect(
-            lambda: self._remove_btn.setEnabled(
-                bool(self._items_table.selectedItems())
-            )
+            lambda: self._remove_btn.setEnabled(bool(self._items_table.selectedItems()))
         )
         rv.addWidget(self._items_table)
 

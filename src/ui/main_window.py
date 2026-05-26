@@ -51,10 +51,17 @@ def _icon(name: str) -> QIcon:
 
 # Themed confirm dialog
 
+
 class _ConfirmDialog(QDialog):
     """A minimal dark-themed confirmation dialog."""
 
-    def __init__(self, title: str, message: str, confirm_text: str = "Proceed", parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        title: str,
+        message: str,
+        confirm_text: str = "Proceed",
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setModal(True)
@@ -70,13 +77,17 @@ class _ConfirmDialog(QDialog):
         row.setSpacing(16)
 
         icon_lbl = QLabel("⚠")
-        icon_lbl.setStyleSheet("color: #FDBF00; font-size: 28px; background: transparent;")
+        icon_lbl.setStyleSheet(
+            "color: #FDBF00; font-size: 28px; background: transparent;"
+        )
         icon_lbl.setFixedWidth(36)
         row.addWidget(icon_lbl, alignment=Qt.AlignmentFlag.AlignTop)
 
         msg_lbl = QLabel(message)
         msg_lbl.setWordWrap(True)
-        msg_lbl.setStyleSheet("color: #DDF0F5; font-size: 13px; background: transparent;")
+        msg_lbl.setStyleSheet(
+            "color: #DDF0F5; font-size: 13px; background: transparent;"
+        )
         row.addWidget(msg_lbl)
         layout.addLayout(row)
 
@@ -589,6 +600,7 @@ class MainWindow(QMainWindow):
 
     def _show_about(self) -> None:
         from PySide6.QtWidgets import QApplication
+
         version = QApplication.applicationVersion()
         QMessageBox.about(
             self,
@@ -596,7 +608,7 @@ class MainWindow(QMainWindow):
             f"<b>Space Haven Save Editor</b> v{version}<br>"
             "A cross-platform save game editor for Space Haven.<br><br>"
             "Built with Python and PySide6.<br><br>"
-            'Author: <a href=\"https://github.com/xLPMG\">xLPMG</a>',
+            'Author: <a href="https://github.com/xLPMG">xLPMG</a>',
         )
 
     def closeEvent(self, event) -> None:  # noqa: N802

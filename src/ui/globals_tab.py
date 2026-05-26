@@ -298,7 +298,9 @@ class GlobalsTab(QWidget):
         self._info_labels["ships"].setText(str(len(save.ships)))
         self._info_labels["crew"].setText(str(len(save.characters)))
         self._info_labels["gametime"].setText(save.get_game_time_str())
-        self._info_labels["sectors"].setText(str(len(save.sectors)) if save.sectors else "—")
+        self._info_labels["sectors"].setText(
+            str(len(save.sectors)) if save.sectors else "—"
+        )
         self._info_labels["savedate"].setText(save.get_real_date_str())
         self._info_labels["systems"].setText(str(save.get_star_system_count()))
         self._info_labels["path"].setText(

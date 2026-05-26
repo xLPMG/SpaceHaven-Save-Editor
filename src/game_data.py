@@ -543,16 +543,56 @@ TRAIT_BY_NAME: dict[str, int] = {
 
 # Ship tile module IDs (attribute "m" on <e> tile elements inside a <ship>).
 # Hull blocks form the outer shell; walls divide interior space.
-HULL_TILE_IDS: frozenset[str] = frozenset({
-    "38", "46", "47", "206", "1144", "1149", "1711", "1713",
-    "1794", "2758", "2759", "2760", "2762", "2763", "3029", "3031",
-})
+HULL_TILE_IDS: frozenset[str] = frozenset(
+    {
+        "38",
+        "46",
+        "47",
+        "206",
+        "1144",
+        "1149",
+        "1711",
+        "1713",
+        "1794",
+        "2758",
+        "2759",
+        "2760",
+        "2762",
+        "2763",
+        "3029",
+        "3031",
+    }
+)
 
-WALL_TILE_IDS: frozenset[str] = frozenset({
-    "31", "43", "44", "48", "115", "122", "423", "425", "426",
-    "428", "438", "2757", "2764", "2765", "2767", "2768", "2769",
-    "2770", "2771", "2772", "2861", "2862", "2863", "2864", "2866",
-})
+WALL_TILE_IDS: frozenset[str] = frozenset(
+    {
+        "31",
+        "43",
+        "44",
+        "48",
+        "115",
+        "122",
+        "423",
+        "425",
+        "426",
+        "428",
+        "438",
+        "2757",
+        "2764",
+        "2765",
+        "2767",
+        "2768",
+        "2769",
+        "2770",
+        "2771",
+        "2772",
+        "2861",
+        "2862",
+        "2863",
+        "2864",
+        "2866",
+    }
+)
 
 DOOR_TILE_IDS: frozenset[str] = frozenset({"25", "424", "905", "2755"})
 ENGINE_TILE_IDS: frozenset[str] = frozenset({"2655", "851"})
@@ -572,5 +612,11 @@ TIMELINE_EVENT_NAMES: dict[int, str] = {
 
 # Character vital stat XML tag names (child elements of <pers> carrying a "v" attribute).
 STAT_TAGS: tuple[str, ...] = (
-    "Health", "Food", "Rest", "Comfort", "Mood", "Oxygen", "Temperature",
+    "Health",
+    "Food",
+    "Rest",
+    "Comfort",
+    "Mood",
+    "Oxygen",
+    "Temperature",
 )

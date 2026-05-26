@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 from src.save_file import Condition
 from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
 
+
 class _CrewDelegate(QStyledItemDelegate):
     """Paints clone (⧉) and remove (✕) action glyphs on the right of each
     crew entry and emits the corresponding signal when clicked."""
@@ -351,7 +352,9 @@ class CrewTab(QWidget):
         layout.setSpacing(4)
 
         self._skills_table = QTableWidget(0, 4)
-        self._skills_table.setHorizontalHeaderLabels(["Skill", "", "Level", "Max Level"])
+        self._skills_table.setHorizontalHeaderLabels(
+            ["Skill", "", "Level", "Max Level"]
+        )
         self._skills_table.horizontalHeader().setStretchLastSection(False)
         self._skills_table.horizontalHeader().setSectionResizeMode(
             0, self._skills_table.horizontalHeader().ResizeMode.ResizeToContents
@@ -554,9 +557,7 @@ class CrewTab(QWidget):
             except RuntimeError:
                 pass
             if stat is not None:
-                spin.valueChanged.connect(
-                    lambda v, s=stat: self._on_stat_changed(s, v)
-                )
+                spin.valueChanged.connect(lambda v, s=stat: self._on_stat_changed(s, v))
 
     def _on_stat_changed(self, stat, value: int) -> None:
         if self._save is None:
@@ -584,8 +585,12 @@ class CrewTab(QWidget):
                 lambda v, a=attr, pl=pip_lbl: (
                     self._on_attribute_changed(a, v),
                     pl.setText(
-                        "<span style='color:#00D8F0;'>" + "●" * v + "</span>"
-                        + "<span style='color:#1E3A40;'>" + "○" * (10 - v) + "</span>"
+                        "<span style='color:#00D8F0;'>"
+                        + "●" * v
+                        + "</span>"
+                        + "<span style='color:#1E3A40;'>"
+                        + "○" * (10 - v)
+                        + "</span>"
                     ),
                 )
             )
@@ -636,8 +641,12 @@ class CrewTab(QWidget):
                     ms.setMinimum(v),
                     self._on_skill_level_changed(sk, v),
                     pl.setText(
-                        "<span style='color:#00D8F0;'>" + "●" * v + "</span>"
-                        + "<span style='color:#1E3A40;'>" + "○" * (ms.value() - v) + "</span>"
+                        "<span style='color:#00D8F0;'>"
+                        + "●" * v
+                        + "</span>"
+                        + "<span style='color:#1E3A40;'>"
+                        + "○" * (ms.value() - v)
+                        + "</span>"
                     ),
                 )
             )
@@ -646,8 +655,12 @@ class CrewTab(QWidget):
                     ls.setMaximum(v),
                     self._on_skill_max_changed(sk, v),
                     pl.setText(
-                        "<span style='color:#00D8F0;'>" + "●" * ls.value() + "</span>"
-                        + "<span style='color:#1E3A40;'>" + "○" * (v - ls.value()) + "</span>"
+                        "<span style='color:#00D8F0;'>"
+                        + "●" * ls.value()
+                        + "</span>"
+                        + "<span style='color:#1E3A40;'>"
+                        + "○" * (v - ls.value())
+                        + "</span>"
                     ),
                 )
             )
@@ -688,7 +701,11 @@ class CrewTab(QWidget):
             for col, value, setter in [
                 (1, rel.friendship, self._save.set_friendship if self._save else None),
                 (2, rel.attraction, self._save.set_attraction if self._save else None),
-                (3, rel.compatibility, self._save.set_compatibility if self._save else None),
+                (
+                    3,
+                    rel.compatibility,
+                    self._save.set_compatibility if self._save else None,
+                ),
             ]:
                 edit = QLineEdit(str(value))
                 edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -703,6 +720,7 @@ class CrewTab(QWidget):
                             return
                         s(r, v)
                         self.status_message.emit("Relationships applied (unsaved).")
+
                     return _on_editing_finished
 
                 edit.editingFinished.connect(_make_handler())
@@ -774,7 +792,9 @@ class CrewTab(QWidget):
     # Helpers
     # ------------------------------------------------------------------
 
-    def _add_crew_item(self, char: Character, row: int | None = None) -> QListWidgetItem:
+    def _add_crew_item(
+        self, char: Character, row: int | None = None
+    ) -> QListWidgetItem:
         """Create a crew list entry (the delegate draws the ✕ glyph)."""
         item = QListWidgetItem(char.full_name)
         item.setData(Qt.ItemDataRole.UserRole, char)
@@ -851,7 +871,9 @@ class CrewTab(QWidget):
 
         char = self._save.add_character(self._current_ship, first, last)
         # Insert in sorted position
-        crew = [c for c in self._save.characters if c.ship_sid == self._current_ship.sid]
+        crew = [
+            c for c in self._save.characters if c.ship_sid == self._current_ship.sid
+        ]
         crew.sort(key=lambda c: c.full_name)
         idx = crew.index(char)
         self._add_crew_item(char, row=idx)
@@ -903,13 +925,19 @@ class CrewTab(QWidget):
         if item is None:
             return
         source: Character = item.data(Qt.ItemDataRole.UserRole)
-        new_first, new_last = self._unique_crew_name(source.first_name, source.last_name)
+        new_first, new_last = self._unique_crew_name(
+            source.first_name, source.last_name
+        )
         try:
-            char = self._save.clone_character(source, self._current_ship, new_first, new_last)
+            char = self._save.clone_character(
+                source, self._current_ship, new_first, new_last
+            )
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Error", f"Failed to clone crew member:\n{exc}")
             return
-        crew = [c for c in self._save.characters if c.ship_sid == self._current_ship.sid]
+        crew = [
+            c for c in self._save.characters if c.ship_sid == self._current_ship.sid
+        ]
         crew.sort(key=lambda c: c.full_name)
         idx = crew.index(char)
         self._add_crew_item(char, row=idx)

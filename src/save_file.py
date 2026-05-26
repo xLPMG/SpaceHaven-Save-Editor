@@ -120,7 +120,7 @@ class StorageContainer:
 
 @dataclass
 class Sector:
-    folder_name: str   # e.g. "sector240"
+    folder_name: str  # e.g. "sector240"
     sector_id: int
     sx: int
     sy: int
@@ -139,8 +139,8 @@ class TimelineEvent:
 @dataclass
 class SaveInfo:
     version: int
-    game_date: int          # in-game date (ticks)
-    real_time_ms: int       # Unix epoch ms
+    game_date: int  # in-game date (ticks)
+    real_time_ms: int  # Unix epoch ms
 
 
 @dataclass
@@ -151,7 +151,7 @@ class Ship:
     sy: int  # grid size Y in units
     ox: int = 0  # sector offset X
     oy: int = 0  # sector offset Y
-    in_game_file: bool = True   # False -> lives in ships/ folder
+    in_game_file: bool = True  # False -> lives in ships/ folder
     external_path: Optional[Path] = field(repr=False, default=None)
     external_tree: object = field(repr=False, default=None)  # lxml tree if external
     element: object = field(repr=False, default=None)  # <ship> element
@@ -177,8 +177,8 @@ class SaveFile:
     def __init__(self) -> None:
         self._tree: etree._ElementTree | None = None
         self._root: etree._Element | None = None
-        self.path: Path | None = None          # path to the ``game`` file
-        self.folder: Path | None = None        # save folder (None if single-file load)
+        self.path: Path | None = None  # path to the ``game`` file
+        self.folder: Path | None = None  # save folder (None if single-file load)
         self.ships: list[Ship] = []
         self.characters: list[Character] = []
         self.research: list[ResearchEntry] = []
@@ -235,9 +235,7 @@ class SaveFile:
         """Parse an entire save folder."""
         game_path = folder / "game"
         if not game_path.exists():
-            raise ValueError(
-                f"No 'game' file found in folder: {folder}"
-            )
+            raise ValueError(f"No 'game' file found in folder: {folder}")
 
         self._load_game_file(game_path)
         self.folder = folder  # restore after _load_game_file resets it
@@ -357,7 +355,9 @@ class SaveFile:
                     self.timeline_events.append(
                         TimelineEvent(
                             event_type=event_type,
-                            type_name=TIMELINE_EVENT_NAMES.get(event_type, f"Event #{event_type}"),
+                            type_name=TIMELINE_EVENT_NAMES.get(
+                                event_type, f"Event #{event_type}"
+                            ),
                             day=day,
                             text=text,
                         )
@@ -417,7 +417,11 @@ class SaveFile:
 
         # Write external ship files for both in-place saves and Save As
         for ship in self.ships:
-            if not ship.in_game_file and ship.external_tree is not None and ship.external_path is not None:
+            if (
+                not ship.in_game_file
+                and ship.external_tree is not None
+                and ship.external_path is not None
+            ):
                 if path is None:
                     # In-place save: write back to original locations
                     self._write_tree(ship.external_tree, ship.external_path)
@@ -425,7 +429,9 @@ class SaveFile:
                     # Save As: copy external ship files next to the new game file
                     new_ships_dir = dest.parent / "ships"
                     new_ships_dir.mkdir(exist_ok=True)
-                    self._write_tree(ship.external_tree, new_ships_dir / ship.external_path.name)
+                    self._write_tree(
+                        ship.external_tree, new_ships_dir / ship.external_path.name
+                    )
 
     @staticmethod
     def _write_tree(tree: etree._ElementTree, dest: Path) -> None:
@@ -986,7 +992,9 @@ class SaveFile:
         self.characters.append(char)
         return char
 
-    def clone_character(self, source: Character, ship: Ship, first_name: str, last_name: str) -> Character:
+    def clone_character(
+        self, source: Character, ship: Ship, first_name: str, last_name: str
+    ) -> Character:
         """Deep-copy *source* onto *ship* with a new entity ID and *first_name*/*last_name*."""
         new_id = self._next_master_id()
         new_el = copy.deepcopy(source.element)
@@ -1310,7 +1318,9 @@ class SaveFile:
             in_progress = (not done) and any(
                 (
                     (bd := s.find("blocksDone")) is not None
-                    and any(int(bd.get(a, "0")) > 0 for a in ("level1", "level2", "level3"))
+                    and any(
+                        int(bd.get(a, "0")) > 0 for a in ("level1", "level2", "level3")
+                    )
                 )
                 for s in stages
             )

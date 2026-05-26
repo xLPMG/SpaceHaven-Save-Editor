@@ -360,7 +360,7 @@ class WelcomeWidget(QWidget):
 
         version = QApplication.applicationVersion()
         author_text = QLabel(
-            f'v{version} &nbsp;·&nbsp; '
+            f"v{version} &nbsp;·&nbsp; "
             '<a href="https://github.com/xLPMG" style="color:#00D8F0;">xLPMG</a>'
         )
         author_text.setTextFormat(Qt.TextFormat.RichText)
@@ -380,9 +380,11 @@ class WelcomeWidget(QWidget):
         menu = QMenu(self)
         folder_act = menu.addAction("Open Save Folder…")
         file_act = menu.addAction("Open game File…")
-        chosen = menu.exec(self._drop_zone.browse_button.mapToGlobal(
-            self._drop_zone.browse_button.rect().bottomLeft()
-        ))
+        chosen = menu.exec(
+            self._drop_zone.browse_button.mapToGlobal(
+                self._drop_zone.browse_button.rect().bottomLeft()
+            )
+        )
         if chosen is folder_act:
             path = QFileDialog.getExistingDirectory(
                 self,

@@ -41,14 +41,14 @@ def _sep() -> QFrame:
 
 # Map from timeline event type saveNr to icon filename (without extension)
 _TYPE_ICON: dict[int, str] = {
-    1: "tl_new_crew",    # New Crew Member
+    1: "tl_new_crew",  # New Crew Member
     2: "tl_crew_died",  # Crew Member Died
-    3: "tl_derelict",   # Derelict Explored
-    4: "tl_complete",   # Mission Completed
-    5: "tl_trade",      # Trades Completed
-    6: "universe",      # New Galaxy - reuse universe icon
-    7: "tl_quest",      # Quest Completed
-    8: "research",      # Research Completed - reuse research icon
+    3: "tl_derelict",  # Derelict Explored
+    4: "tl_complete",  # Mission Completed
+    5: "tl_trade",  # Trades Completed
+    6: "universe",  # New Galaxy - reuse universe icon
+    7: "tl_quest",  # Quest Completed
+    8: "research",  # Research Completed - reuse research icon
 }
 
 
@@ -134,7 +134,9 @@ class UniverseTab(QWidget):
         )
         timeline_vbox.addWidget(self._timeline_table)
 
-        self._no_timeline_lbl = QLabel("No timeline data found (load from a save folder).")
+        self._no_timeline_lbl = QLabel(
+            "No timeline data found (load from a save folder)."
+        )
         self._no_timeline_lbl.setObjectName("StatCardDesc")
         self._no_timeline_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._no_timeline_lbl.setVisible(False)
@@ -224,4 +226,3 @@ def _ro_item(text: str) -> QTableWidgetItem:
     item = QTableWidgetItem(text)
     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
     return item
-
