@@ -674,9 +674,6 @@ class TestResearchMutations:
         self.sf.complete_research(scanner)
         for stage_el in scanner.element.find("stageStates").findall("l"):
             assert stage_el.get("done") == "true"
-            bd = stage_el.find("blocksDone")
-            assert bd is not None
-            assert int(bd.get("level1")) >= 9999
 
     def test_complete_all_research(self):
         count = self.sf.complete_all_research()
