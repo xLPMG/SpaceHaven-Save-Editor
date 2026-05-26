@@ -21,11 +21,14 @@ jobs:
           python-version: "3.14"
           cache: pip
 
-      - name: Install dependencies
-        run: pip install -r requirements-build.txt && pip install pytest pytest-qt
+      - name: Install base dependencies
+        run: pip install -r requirements-build.txt && pip install pytest
 
-      - name: Run unit tests
-        run: python -m pytest tests/ --ignore=tests/ui/ -p no:pytest_qt -v
+      - name: Run unit tests (without Qt)
+        run: python -m pytest tests/test_save_file.py -v
+
+      - name: Install Qt testing dependencies
+        run: pip install pytest-qt
 
       - name: Run UI tests
         run: python -m pytest tests/ui/ -v
