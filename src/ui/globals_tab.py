@@ -1,4 +1,4 @@
-"""globals_tab.py – Tab for editing game-wide settings."""
+"""globals_tab.py - Tab for editing game-wide settings."""
 
 from __future__ import annotations
 
@@ -81,14 +81,14 @@ class GlobalsTab(QWidget):
         root.setContentsMargins(32, 28, 32, 28)
         root.setSpacing(22)
 
-        # ── Page title ───────────────────────────────────────────────
+        # Page title
         title = QLabel("Overview")
         title.setObjectName("TabTitle")
         root.addWidget(title)
 
         root.addWidget(_sep())
 
-        # ── Save file info (read-only) ────────────────────────────────
+        # Save file info (read-only)
         info_group = QGroupBox("Save File")
         info_grid = QGridLayout(info_group)
         info_grid.setContentsMargins(16, 20, 16, 16)
@@ -113,6 +113,10 @@ class GlobalsTab(QWidget):
         _add_info(0, 1, "seed", "Seed")
         _add_info(1, 0, "ships", "Ships")
         _add_info(1, 1, "crew", "Total Crew")
+        _add_info(2, 0, "gametime", "Game Time")
+        _add_info(2, 1, "sectors", "Sectors")
+        _add_info(3, 0, "savedate", "Save Date")
+        _add_info(3, 1, "systems", "Star Systems")
 
         # Save path spans full width
         path_key = QLabel("Save Path")
@@ -123,12 +127,12 @@ class GlobalsTab(QWidget):
         self._info_labels["path"].setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
-        info_grid.addWidget(path_key, 2, 0)
-        info_grid.addWidget(self._info_labels["path"], 2, 1, 1, 3)
+        info_grid.addWidget(path_key, 4, 0)
+        info_grid.addWidget(self._info_labels["path"], 4, 1, 1, 3)
 
         root.addWidget(info_group)
 
-        # ── Resources (editable cards) ────────────────────────────────
+        # Resources (editable cards)
         res_group = QGroupBox("Resources")
         res_grid = QGridLayout(res_group)
         res_grid.setContentsMargins(16, 20, 16, 16)
@@ -152,7 +156,7 @@ class GlobalsTab(QWidget):
         res_grid.setColumnStretch(1, 1)
         root.addWidget(res_group)
 
-        # ── Difficulty ────────────────────────────────────────────────
+        # Difficulty
         diff_group = QGroupBox("Difficulty")
         diff_layout = QVBoxLayout(diff_group)
         diff_layout.setContentsMargins(16, 16, 16, 16)
@@ -172,7 +176,7 @@ class GlobalsTab(QWidget):
 
         root.addWidget(diff_group)
 
-        # ── Quick Actions ──────────────────────────────────────────────
+        # Quick actions
         root.addWidget(_sep())
 
         qa_group = QGroupBox("Quick Actions")
@@ -293,7 +297,13 @@ class GlobalsTab(QWidget):
         self._info_labels["seed"].setText(save.get_seed())
         self._info_labels["ships"].setText(str(len(save.ships)))
         self._info_labels["crew"].setText(str(len(save.characters)))
-        self._info_labels["path"].setText(str(save.path) if save.path else "—")
+        self._info_labels["gametime"].setText(save.get_game_time_str())
+        self._info_labels["sectors"].setText(str(len(save.sectors)) if save.sectors else "—")
+        self._info_labels["savedate"].setText(save.get_real_date_str())
+        self._info_labels["systems"].setText(str(save.get_star_system_count()))
+        self._info_labels["path"].setText(
+            str(save.folder) if save.folder else str(save.path) if save.path else "—"
+        )
 
         self._set_controls_enabled(True)
 

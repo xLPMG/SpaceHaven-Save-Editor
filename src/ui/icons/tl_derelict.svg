@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  <!-- Derelict ship: simple broken ship outline with a gap -->
+  <path d="M10 3 L13 7 H7 Z" fill="none" stroke="#3BBECE" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="7" y="7" width="6" height="6" rx="1" fill="none" stroke="#3BBECE" stroke-width="1.5"/>
+  <!-- Crack/damage line -->
+  <line x1="10" y1="7" x2="9" y2="10" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="9" y1="10" x2="11" y2="12" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Small fins -->
+  <path d="M7 9.5 L5 11 L7 11" fill="none" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M13 9.5 L15 11 L13 11" fill="none" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Scan wave -->
+  <path d="M3 16 Q10 13 17 16" fill="none" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

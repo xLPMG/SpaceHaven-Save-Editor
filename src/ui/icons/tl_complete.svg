@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  <!-- Checkmark in a circle: mission/quest completed -->
+  <circle cx="10" cy="10" r="8" fill="none" stroke="#3BBECE" stroke-width="1.5"/>
+  <polyline points="6,10 9,13 14,7" fill="none" stroke="#3BBECE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

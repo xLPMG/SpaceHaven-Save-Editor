@@ -1,4 +1,4 @@
-"""ships_tab.py – Ship editor tab."""
+"""ships_tab.py - Ship list and detail editor."""
 
 from __future__ import annotations
 
@@ -28,14 +28,24 @@ if TYPE_CHECKING:
 
 
 class _ShipDelegate(QStyledItemDelegate):
-    """Paints clone (⧉) and remove (✕) action glyphs on the right of each
-    ship list entry and emits the corresponding signal when clicked."""
+    """Paints clone and remove action buttons on the right of each ship list
+    entry and emits the corresponding signal when clicked.
+    Section-header rows (UserRole == None) are painted as plain dividers."""
 
     remove_requested = Signal(int)
     clone_requested = Signal(int)
     _BTN_W = 24  # width per action button
 
+    @staticmethod
+    def _is_header(index) -> bool:
+        return index.data(Qt.ItemDataRole.UserRole) is None
+
     def paint(self, painter, option, index) -> None:
+        if self._is_header(index):
+            # Draw the full-width header without action buttons
+            super().paint(painter, option, index)
+            return
+
         text_opt = QStyleOptionViewItem(option)
         text_opt.rect = option.rect.adjusted(0, 0, -self._BTN_W * 2, 0)
         super().paint(painter, text_opt, index)
@@ -64,6 +74,8 @@ class _ShipDelegate(QStyledItemDelegate):
         painter.restore()
 
     def editorEvent(self, event, model, option, index) -> bool:
+        if self._is_header(index):
+            return False
         if event.type() == QEvent.Type.MouseButtonRelease:
             pos = event.position().toPoint()
             clone_rect = QRect(
@@ -87,6 +99,8 @@ class _ShipDelegate(QStyledItemDelegate):
         return super().editorEvent(event, model, option, index)
 
     def helpEvent(self, event, view, option, index) -> bool:
+        if self._is_header(index):
+            return False
         pos = event.pos()
         clone_rect = QRect(
             option.rect.right() - self._BTN_W * 2,
@@ -127,7 +141,7 @@ class ShipsTab(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # ── Left panel: ship list ────────────────────────────────────
+        # Left panel: ship list
         left = QWidget()
         left.setObjectName("CrewLeftPanel")
         left.setFixedWidth(240)
@@ -150,7 +164,7 @@ class ShipsTab(QWidget):
 
         root.addWidget(left)
 
-        # ── Right panel: ship details ────────────────────────────────
+        # Right panel: ship details
         right = QWidget()
         rv = QVBoxLayout(right)
         rv.setContentsMargins(24, 24, 24, 24)
@@ -191,6 +205,10 @@ class ShipsTab(QWidget):
         self._info_sid.setObjectName("InfoValue")
         info_layout.addRow(QLabel("Ship ID:"), self._info_sid)
 
+        self._info_location = QLabel("—")
+        self._info_location.setObjectName("InfoValue")
+        info_layout.addRow(QLabel("Location:"), self._info_location)
+
         self._info_crew = QLabel("—")
         self._info_crew.setObjectName("InfoValue")
         info_layout.addRow(QLabel("Crew members:"), self._info_crew)
@@ -223,15 +241,52 @@ class ShipsTab(QWidget):
         self._current_ship = None
         self._ship_list.blockSignals(True)
         self._ship_list.clear()
-        for ship in save.ships:
-            item = QListWidgetItem(ship.name)
-            item.setData(Qt.ItemDataRole.UserRole, ship)
-            self._ship_list.addItem(item)
+
+        active = [s for s in save.ships if s.in_game_file]
+        stored = [s for s in save.ships if not s.in_game_file]
+
+        if active:
+            self._add_section_header("CURRENT SECTOR")
+            for ship in active:
+                item = QListWidgetItem(ship.name)
+                item.setData(Qt.ItemDataRole.UserRole, ship)
+                self._ship_list.addItem(item)
+
+        if stored:
+            self._add_section_header("STORED")
+            for ship in stored:
+                item = QListWidgetItem(ship.name)
+                item.setData(Qt.ItemDataRole.UserRole, ship)
+                self._ship_list.addItem(item)
+
+        # Fallback: no folder data, just list all
+        if not active and not stored:
+            for ship in save.ships:
+                item = QListWidgetItem(ship.name)
+                item.setData(Qt.ItemDataRole.UserRole, ship)
+                self._ship_list.addItem(item)
+
         self._ship_list.blockSignals(False)
         self._detail_widget.setVisible(False)
         self._placeholder.setVisible(True)
-        if save.ships:
-            self._ship_list.setCurrentRow(0)
+        # Select first selectable row
+        for i in range(self._ship_list.count()):
+            item = self._ship_list.item(i)
+            if item and item.data(Qt.ItemDataRole.UserRole) is not None:
+                self._ship_list.setCurrentRow(i)
+                break
+
+    def _add_section_header(self, label: str) -> None:
+        """Insert a non-selectable section divider into the ship list."""
+        item = QListWidgetItem(label)
+        item.setData(Qt.ItemDataRole.UserRole, None)  # sentinel: not a ship
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        item.setForeground(QColor("#00D8F0"))
+        font = item.font()
+        font.setPointSize(11)
+        font.setBold(True)
+        item.setFont(font)
+        self._ship_list.addItem(item)
 
     def clear(self) -> None:
         self._save = None
@@ -254,6 +309,10 @@ class ShipsTab(QWidget):
         if item is None:
             return
         ship = item.data(Qt.ItemDataRole.UserRole)
+        if ship is None:
+            # Clicked a section header; clear selection without showing detail
+            self._ship_list.clearSelection()
+            return
         self._current_ship = ship
         self._populate_ship(ship)
         self._detail_widget.setVisible(True)
@@ -262,6 +321,12 @@ class ShipsTab(QWidget):
     def _populate_ship(self, ship: Ship) -> None:
         self._name_edit.setText(ship.name)
         self._info_sid.setText(str(ship.sid))
+        if ship.in_game_file:
+            location_text = "Current Sector"
+        else:
+            fname = ship.external_path.name if ship.external_path else "Unknown"
+            location_text = f"Stored ({fname})"
+        self._info_location.setText(location_text)
         crew_count = sum(1 for c in self._save.characters if c.ship_sid == ship.sid)
         self._info_crew.setText(str(crew_count))
         self._info_pos.setText(f"({ship.ox}, {ship.oy})")
@@ -276,6 +341,8 @@ class ShipsTab(QWidget):
         if item is None:
             return
         ship = item.data(Qt.ItemDataRole.UserRole)
+        if ship is None:
+            return  # header row
         if len(self._save.ships) <= 1:
             QMessageBox.warning(self, "Remove Ship", "Cannot remove the last ship.")
             return
@@ -322,6 +389,8 @@ class ShipsTab(QWidget):
         if item is None:
             return
         source = item.data(Qt.ItemDataRole.UserRole)
+        if source is None:
+            return  # header row
         new_name = self._unique_copy_name(source.name)
         try:
             new_ship = self._save.add_ship(source, new_name)

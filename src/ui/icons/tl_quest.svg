@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  <!-- Scroll/parchment: quest -->
+  <rect x="4" y="3" width="12" height="14" rx="2" fill="none" stroke="#3BBECE" stroke-width="1.5"/>
+  <!-- Rolled ends -->
+  <path d="M4 5 Q2 5 2 7" fill="none" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M4 15 Q2 15 2 13" fill="none" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Lines of text -->
+  <line x1="7" y1="7" x2="13" y2="7" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="7" y1="10" x2="13" y2="10" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="7" y1="13" x2="11" y2="13" stroke="#3BBECE" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

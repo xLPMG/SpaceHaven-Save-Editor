@@ -1,4 +1,4 @@
-"""welcome_widget.py – Welcome screen with drag-and-drop file loading."""
+"""welcome_widget.py - Welcome screen with drag-and-drop file loading."""
 
 from __future__ import annotations
 
@@ -25,13 +25,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# ── Palette tokens ─────────────────────────────────────────────────────────
+# Palette tokens
 _BG = QColor("#030709")
 _ACCENT = QColor(0, 216, 240)
 _TEXT = QColor("#DDF0F5")
 
 
-# ── Starfield background ────────────────────────────────────────────────────
+# Starfield background
 
 
 class _StarfieldWidget(QWidget):
@@ -128,7 +128,7 @@ class _StarfieldWidget(QWidget):
         painter.end()
 
 
-# ── Program Title ─────────────────────────────────────────────────────────────
+# Program title
 
 
 class _TitleLabel(QWidget):
@@ -156,7 +156,7 @@ class _TitleLabel(QWidget):
         painter.end()
 
 
-# ── Drop zone ──────────────────────────────────────────────────────────────
+# Drop zone
 
 
 class DropZone(QFrame):
@@ -200,7 +200,7 @@ class DropZone(QFrame):
         arrow.setObjectName("DropArrow")
         layout.addWidget(arrow)
 
-        title = QLabel("Drop your save file here")
+        title = QLabel("Drop your save folder or game file here")
         tf = QFont()
         tf.setPointSize(15)
         tf.setWeight(QFont.Weight.DemiBold)
@@ -210,8 +210,9 @@ class DropZone(QFrame):
         layout.addWidget(title)
 
         hint = QLabel(
-            "The Space Haven save file is typically named <b>game</b> "
-            "and found inside your Space Haven saves directory."
+            "Drop your Space Haven <b>save folder</b> or the <b>game</b> file here. "
+            "The save folder is the one named <b>save</b> inside your chosen save slot, "
+            "or drop the slot folder itself and the editor will find it automatically."
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hint.setWordWrap(True)
@@ -221,7 +222,7 @@ class DropZone(QFrame):
 
         layout.addSpacing(8)
 
-        self._browse_btn = QPushButton("Browse files...")
+        self._browse_btn = QPushButton("Browse…")
         self._browse_btn.setObjectName("BrowseButton")
         self._browse_btn.setFixedWidth(200)
         self._browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -241,7 +242,7 @@ class DropZone(QFrame):
 
         r = self.rect().adjusted(2, 2, -2, -2)
 
-        # Dark glass background — always present so text is readable
+        # Dark glass background; always present so text stays readable
         painter.setPen(Qt.PenStyle.NoPen)
         glass_path = QPainterPath()
         glass_path.addRoundedRect(r.x(), r.y(), r.width(), r.height(), 16, 16)
@@ -300,7 +301,7 @@ class DropZone(QFrame):
             self.file_dropped.emit(urls[0].toLocalFile())
 
 
-# ── Welcome widget ─────────────────────────────────────────────────────────
+# Welcome widget
 
 
 class WelcomeWidget(QWidget):
@@ -377,11 +378,27 @@ class WelcomeWidget(QWidget):
         super().resizeEvent(event)
 
     def _browse(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open Space Haven Save File",
-            str(Path.home()),
-            "Space Haven Save (game);;All Files (*)",
-        )
-        if path:
-            self.file_selected.emit(path)
+        from PySide6.QtWidgets import QMenu
+        menu = QMenu(self)
+        folder_act = menu.addAction("Open Save Folder…")
+        file_act = menu.addAction("Open game File…")
+        chosen = menu.exec(self._drop_zone.browse_button.mapToGlobal(
+            self._drop_zone.browse_button.rect().bottomLeft()
+        ))
+        if chosen is folder_act:
+            path = QFileDialog.getExistingDirectory(
+                self,
+                "Open Space Haven Save Folder",
+                str(Path.home()),
+            )
+            if path:
+                self.file_selected.emit(path)
+        elif chosen is file_act:
+            path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Open Space Haven Save File",
+                str(Path.home()),
+                "Space Haven Save (game);;All Files (*)",
+            )
+            if path:
+                self.file_selected.emit(path)

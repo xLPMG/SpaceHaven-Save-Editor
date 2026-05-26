@@ -1,4 +1,9 @@
-"""Parses and writes Space Haven 'game' save files (XML via lxml)."""
+"""Parses and writes Space Haven save files (XML via lxml).
+
+Supports loading either a single ``game`` file or a complete save *folder*
+(which also contains a ``ships/`` sub-folder, ``sector*/space`` files,
+an ``info`` metadata file, and ``timeline.xml``).
+"""
 
 from __future__ import annotations
 
@@ -7,8 +12,9 @@ import random
 import shutil
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 from lxml import etree
 
@@ -111,6 +117,44 @@ class StorageContainer:
 
 
 @dataclass
+class Sector:
+    folder_name: str   # e.g. "sector240"
+    sector_id: int
+    sx: int
+    sy: int
+    entity_count: int
+    path: object = field(repr=False, default=None)  # Path to the space file
+
+
+# Timeline event type saveNr -> human-readable label (from game source)
+_TIMELINE_TYPE_NAMES: dict[int, str] = {
+    1: "New Crew Member",
+    2: "Crew Member Died",
+    3: "Derelict Explored",
+    4: "Mission Completed",
+    5: "Trades Completed",
+    6: "New Galaxy",
+    7: "Quest Completed",
+    8: "Research Completed",
+}
+
+
+@dataclass
+class TimelineEvent:
+    event_type: int
+    type_name: str
+    day: int
+    text: str
+
+
+@dataclass
+class SaveInfo:
+    version: int
+    game_date: int          # in-game date (ticks)
+    real_time_ms: int       # Unix epoch ms
+
+
+@dataclass
 class Ship:
     sid: int
     name: str
@@ -118,6 +162,9 @@ class Ship:
     sy: int  # grid size Y in units
     ox: int = 0  # sector offset X
     oy: int = 0  # sector offset Y
+    in_game_file: bool = True   # False -> lives in ships/ folder
+    external_path: Optional[Path] = field(repr=False, default=None)
+    external_tree: object = field(repr=False, default=None)  # lxml tree if external
     element: object = field(repr=False, default=None)  # <ship> element
 
 
@@ -136,17 +183,21 @@ class ResearchEntry:
 
 
 class SaveFile:
-    """Loads, exposes, and saves a Space Haven XML save file."""
+    """Loads, exposes, and saves a Space Haven save file or save folder."""
 
     STAT_TAGS = ("Health", "Food", "Rest", "Comfort", "Mood", "Oxygen", "Temperature")
 
     def __init__(self) -> None:
         self._tree: etree._ElementTree | None = None
         self._root: etree._Element | None = None
-        self.path: Path | None = None
+        self.path: Path | None = None          # path to the ``game`` file
+        self.folder: Path | None = None        # save folder (None if single-file load)
         self.ships: list[Ship] = []
         self.characters: list[Character] = []
         self.research: list[ResearchEntry] = []
+        self.sectors: list[Sector] = []
+        self.timeline_events: list[TimelineEvent] = []
+        self.save_info: SaveInfo | None = None
         self._containers_cache: dict[int, list[StorageContainer]] = {}
 
     # ------------------------------------------------------------------
@@ -154,9 +205,30 @@ class SaveFile:
     # ------------------------------------------------------------------
 
     def load(self, path: str | Path) -> None:
-        self.path = Path(path)
+        """Load from a ``game`` file, the ``save/`` folder, or the outer slot folder.
+
+        Accepted inputs:
+        - The ``game`` file directly
+        - The ``save/`` folder (contains ``game``, ``ships/``, ``sector*/``)
+        - The outer slot folder (contains a ``save/`` subfolder with ``game`` inside)
+        """
+        p = Path(path)
+        if p.is_dir():
+            # Check if it's the outer slot folder (contains save/game)
+            candidate = p / "save"
+            if candidate.is_dir() and (candidate / "game").exists():
+                self._load_from_folder(candidate)
+            else:
+                self._load_from_folder(p)
+        else:
+            self._load_game_file(p)
+
+    def _load_game_file(self, game_path: Path) -> None:
+        """Parse a single ``game`` file (minimal / backward-compat mode)."""
+        self.path = game_path
+        self.folder = None
         parser = etree.XMLParser(remove_blank_text=False, recover=True)
-        self._tree = etree.parse(str(self.path), parser)
+        self._tree = etree.parse(str(game_path), parser)
         self._root = self._tree.getroot()
 
         if self._root is None or self._root.tag != "game":
@@ -165,21 +237,209 @@ class SaveFile:
             )
 
         self._containers_cache.clear()
+        self.sectors.clear()
+        self.timeline_events.clear()
+        self.save_info = None
         self._parse_ships()
         self._parse_characters()
         self._parse_research()
 
+    def _load_from_folder(self, folder: Path) -> None:
+        """Parse an entire save folder."""
+        game_path = folder / "game"
+        if not game_path.exists():
+            raise ValueError(
+                f"No 'game' file found in folder: {folder}"
+            )
+
+        self._load_game_file(game_path)
+        self.folder = folder  # restore after _load_game_file resets it
+
+        # Parse supplementary files (errors are silently ignored so a
+        # partially-written save still opens as much as possible).
+        self._parse_info_file()
+        self._parse_external_ships()
+        self._parse_sectors()
+        self._parse_timeline()
+
+        # Re-parse characters now that external ships are loaded
+        self._parse_characters()
+
+    # ------------------------------------------------------------------
+    # Supplementary parsers (folder-only)
+    # ------------------------------------------------------------------
+
+    def _parse_info_file(self) -> None:
+        info_path = self.folder / "info"
+        if not info_path.exists():
+            return
+        try:
+            parser = etree.XMLParser(recover=True)
+            root = etree.parse(str(info_path), parser).getroot()
+            self.save_info = SaveInfo(
+                version=int(root.get("version", "0")),
+                game_date=int(root.get("date", "0")),
+                real_time_ms=int(root.get("realTimeDate", "0")),
+            )
+        except Exception:
+            pass
+
+    def _parse_external_ships(self) -> None:
+        """Load ship files from the ``ships/`` sub-folder."""
+        ships_dir = self.folder / "ships"
+        if not ships_dir.is_dir():
+            return
+        parser = etree.XMLParser(remove_blank_text=False, recover=True)
+        existing_sids = {s.sid for s in self.ships}
+        for ship_file in sorted(ships_dir.iterdir()):
+            if ship_file.is_dir() or ship_file.name.startswith("."):
+                continue
+            try:
+                tree = etree.parse(str(ship_file), parser)
+                ship_el = tree.getroot()
+                if ship_el is None or ship_el.tag != "ship":
+                    continue
+                sid = int(ship_el.get("sid", "0"))
+                if sid == 0 or sid in existing_sids:
+                    continue
+                existing_sids.add(sid)
+                self.ships.append(
+                    Ship(
+                        sid=sid,
+                        name=ship_el.get("sname") or f"Ship #{sid}",
+                        sx=int(ship_el.get("sx", 0)),
+                        sy=int(ship_el.get("sy", 0)),
+                        ox=int(ship_el.get("ox", 0)),
+                        oy=int(ship_el.get("oy", 0)),
+                        in_game_file=False,
+                        external_path=ship_file,
+                        external_tree=tree,
+                        element=ship_el,
+                    )
+                )
+            except Exception:
+                continue
+        self.ships.sort(key=lambda s: s.name)
+
+    def _parse_sectors(self) -> None:
+        """Parse all sector*/space files inside the save folder."""
+        self.sectors.clear()
+        for item in sorted(self.folder.iterdir()):
+            if not item.is_dir() or not item.name.startswith("sector"):
+                continue
+            space_file = item / "space"
+            if not space_file.exists():
+                continue
+            try:
+                parser = etree.XMLParser(recover=True)
+                root = etree.parse(str(space_file), parser).getroot()
+                sector_id_str = item.name.replace("sector", "")
+                sector_id = int(sector_id_str) if sector_id_str.isdigit() else 0
+                entity_count = sum(1 for el in root if el.tag == "e")
+                self.sectors.append(
+                    Sector(
+                        folder_name=item.name,
+                        sector_id=sector_id,
+                        sx=int(root.get("sx", 0)),
+                        sy=int(root.get("sy", 0)),
+                        entity_count=entity_count,
+                        path=space_file,
+                    )
+                )
+            except Exception:
+                continue
+        self.sectors.sort(key=lambda s: s.sector_id)
+
+    def _parse_timeline(self) -> None:
+        """Parse timeline.xml for the game event log."""
+        self.timeline_events.clear()
+        timeline_path = self.folder / "timeline.xml"
+        if not timeline_path.exists():
+            return
+        try:
+            parser = etree.XMLParser(recover=True)
+            root = etree.parse(str(timeline_path), parser).getroot()
+            for e in root.findall("e"):
+                try:
+                    event_type = int(e.get("type", "0"))
+                    day = int(e.get("day", "0"))
+                    p_el = e.find("p")
+                    text = (p_el.text or "").strip() if p_el is not None else ""
+                    self.timeline_events.append(
+                        TimelineEvent(
+                            event_type=event_type,
+                            type_name=_TIMELINE_TYPE_NAMES.get(event_type, f"Event #{event_type}"),
+                            day=day,
+                            text=text,
+                        )
+                    )
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # Convenience accessors for folder-wide metadata
+    # ------------------------------------------------------------------
+
+    def get_game_time_str(self) -> str:
+        """Return formatted in-game time from the ``<clock>`` element."""
+        if self._root is None:
+            return "—"
+        clock = self._root.find("clock")
+        if clock is None:
+            return "—"
+        try:
+            days = int(clock.get("days", "0"))
+            hours = int(clock.get("hours", "0"))
+            minutes = int(clock.get("minutes", "0"))
+            return f"Day {days}, {hours:02d}:{minutes:02d}"
+        except ValueError:
+            return "—"
+
+    def get_real_date_str(self) -> str:
+        """Return the real-world save date from the ``info`` file."""
+        if self.save_info is None or self.save_info.real_time_ms == 0:
+            return "—"
+        try:
+            dt = datetime.fromtimestamp(
+                self.save_info.real_time_ms / 1000, tz=timezone.utc
+            ).astimezone()
+            return dt.strftime("%Y-%m-%d  %H:%M")
+        except Exception:
+            return "—"
+
+    def get_star_system_count(self) -> int:
+        """Return total star systems from the starmap."""
+        if self._root is None:
+            return 0
+        starmap = self._root.find("starmap")
+        if starmap is None:
+            return 0
+        systems = starmap.find("systems")
+        return len(systems) if systems is not None else 0
+
     def save(self, path: str | Path | None = None) -> None:
+        # Write the main game file
         dest = Path(path) if path else self.path
         if dest is None:
             raise ValueError("No save path specified.")
-        # Write to a temp file in the same directory, then replace atomically so a
-        # crash or full-disk mid-write cannot produce a partial/corrupt save file.
+        self._write_tree(self._tree, dest)
+
+        # Write external ship files (only when doing an in-place save, not Save As)
+        if path is None:
+            for ship in self.ships:
+                if not ship.in_game_file and ship.external_tree is not None and ship.external_path is not None:
+                    self._write_tree(ship.external_tree, ship.external_path)
+
+    @staticmethod
+    def _write_tree(tree: etree._ElementTree, dest: Path) -> None:
+        """Write *tree* to *dest* atomically."""
         dest_dir = dest.parent
         fd, tmp_path = tempfile.mkstemp(dir=dest_dir, prefix=".tmp_save_")
         try:
             with open(fd, "wb") as fh:
-                self._tree.write(
+                tree.write(
                     fh,
                     pretty_print=True,
                     xml_declaration=False,
@@ -194,12 +454,17 @@ class SaveFile:
             raise
 
     def backup(self) -> Path:
-        """Create a timestamped backup next to the save file."""
+        """Create a timestamped backup next to the save file (or folder)."""
         if self.path is None:
             raise ValueError("No file loaded; cannot create backup.")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = self.path.parent / f"game.backup.{ts}"
-        shutil.copy2(str(self.path), str(backup_path))
+        if self.folder is not None:
+            # Back up the entire folder
+            backup_path = self.folder.parent / f"{self.folder.name}.backup.{ts}"
+            shutil.copytree(str(self.folder), str(backup_path))
+        else:
+            backup_path = self.path.parent / f"game.backup.{ts}"
+            shutil.copy2(str(self.path), str(backup_path))
         return backup_path
 
     # ------------------------------------------------------------------
@@ -373,7 +638,7 @@ class SaveFile:
                     if item.item_id == item_id:
                         item.quantity = new_qty
                         return None  # stacked onto existing
-                # Item existed in XML with qty=0 (filtered during parse) – surface it now
+                # Item existed in XML with qty=0 (filtered during parse) - surface it now
                 surfaced = StorageItem(
                     item_id=item_id,
                     name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
@@ -823,7 +1088,10 @@ class SaveFile:
             parent = ship.element.getparent()
             if parent is not None:
                 parent.remove(ship.element)
-        # Remove the fleet reference
+        if not ship.in_game_file:
+            # External ship: its fleet reference is recorded in the game file's starmap
+            pass  # ship element already detached from its external tree above
+        # Remove the fleet reference from the game file
         for f_el in self._root.iter("f"):
             if f_el.get("isPlayer") == "true":
                 cs_el = f_el.find("createdShips")
@@ -858,7 +1126,7 @@ class SaveFile:
         self._remap_entity_ids(new_ship_el)
 
         # Place the clone well clear of all existing ships in the sector.
-        # Ship sx/sy are in tile units (~56 for a 2×2 ship) while sector
+        # Ship sx/sy are in tile units (~56 for a 2x2 ship) while sector
         # coordinates ox/oy are in the thousands, so use a large fixed gap.
         try:
             source_oy = int(new_ship_el.get("oy", "0"))
@@ -890,6 +1158,7 @@ class SaveFile:
             sy=source_ship.sy,
             ox=int(new_ship_el.get("ox", 0)),
             oy=int(new_ship_el.get("oy", 0)),
+            in_game_file=True,
             element=new_ship_el,
         )
         self.ships.append(new_ship)
@@ -944,7 +1213,7 @@ class SaveFile:
 
         id_map: dict[str, str] = {}
 
-        # First pass – assign new IDs
+        # First pass: assign new IDs
         for el in ship_el.iter():
             old = el.get("entId")
             if old:
@@ -953,7 +1222,7 @@ class SaveFile:
                 id_map[old] = new_id
                 el.set("entId", new_id)
 
-        # Second pass – patch references that point to remapped IDs
+        # Second pass: patch references that point to remapped IDs
         for el in ship_el.iter():
             for attr in self._REMAP_REF_ATTRS:
                 val = el.get(attr)

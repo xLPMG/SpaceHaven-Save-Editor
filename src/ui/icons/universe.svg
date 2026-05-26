@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <g fill="none" stroke="#3BBECE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Outer circle (galaxy/universe) -->
+    <circle cx="12" cy="12" r="9"/>
+    <!-- Star in center -->
+    <circle cx="12" cy="12" r="1.8" fill="#3BBECE" stroke="none"/>
+    <!-- Orbit ellipse -->
+    <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(-35 12 12)"/>
+    <!-- Small dot on orbit -->
+    <circle cx="17.5" cy="9.5" r="1" fill="#3BBECE" stroke="none"/>
+  </g>
+</svg>

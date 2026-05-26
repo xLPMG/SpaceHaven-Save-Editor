@@ -1,4 +1,4 @@
-"""main_window.py – Application main window."""
+"""main_window.py - Application main window."""
 
 from __future__ import annotations
 
@@ -37,6 +37,7 @@ from src.ui.globals_tab import GlobalsTab
 from src.ui.research_tab import ResearchTab
 from src.ui.ships_tab import ShipsTab
 from src.ui.storage_tab import StorageTab
+from src.ui.universe_tab import UniverseTab
 from src.ui.welcome_widget import WelcomeWidget
 
 _ICONS_DIR = Path(__file__).parent / "icons"
@@ -48,7 +49,7 @@ def _icon(name: str) -> QIcon:
     return QIcon(str(path)) if path.exists() else QIcon()
 
 
-# ── Themed confirm dialog ──────────────────────────────────────────────────
+# Themed confirm dialog
 
 class _ConfirmDialog(QDialog):
     """A minimal dark-themed confirmation dialog."""
@@ -160,10 +161,14 @@ class MainWindow(QMainWindow):
 
         file_menu = mb.addMenu("&File")
 
-        self._open_action = QAction("&Open…", self)
+        self._open_action = QAction("&Open Save Folder…", self)
         self._open_action.setShortcut(QKeySequence.StandardKey.Open)
-        self._open_action.triggered.connect(self._open_file)
+        self._open_action.triggered.connect(self._open_folder)
         file_menu.addAction(self._open_action)
+
+        self._open_file_action = QAction("Open game &File…", self)
+        self._open_file_action.triggered.connect(self._open_file)
+        file_menu.addAction(self._open_file_action)
 
         self._save_action = QAction("&Save", self)
         self._save_action.setShortcut(QKeySequence.StandardKey.Save)
@@ -198,19 +203,19 @@ class MainWindow(QMainWindow):
         help_menu.addAction(about_action)
 
     # ------------------------------------------------------------------
-    # Central widget – stacked: welcome | editor
+    # Central widget: stacked welcome | editor
     # ------------------------------------------------------------------
 
     def _build_central(self) -> None:
         self._stack = QStackedWidget()
         self.setCentralWidget(self._stack)
 
-        # ── Page 0: Welcome ──────────────────────────────────────────
+        # Page 0: Welcome
         self._welcome = WelcomeWidget()
         self._welcome.file_selected.connect(self._load_file)
         self._stack.addWidget(self._welcome)
 
-        # ── Page 1: Editor ───────────────────────────────────────────
+        # Page 1: Editor
         editor_page = QWidget()
         editor_page.setObjectName("EditorPage")
         ev = QVBoxLayout(editor_page)
@@ -233,11 +238,13 @@ class MainWindow(QMainWindow):
         self._storage_tab = StorageTab()
         self._ships_tab = ShipsTab()
         self._research_tab = ResearchTab()
+        self._universe_tab = UniverseTab()
         self._content_stack.addWidget(self._globals_tab)  # index 0
         self._content_stack.addWidget(self._crew_tab)  # index 1
         self._content_stack.addWidget(self._storage_tab)  # index 2
         self._content_stack.addWidget(self._ships_tab)  # index 3
         self._content_stack.addWidget(self._research_tab)  # index 4
+        self._content_stack.addWidget(self._universe_tab)  # index 5
 
         self._globals_tab.status_message.connect(self._mark_unsaved)
         self._crew_tab.status_message.connect(self._mark_unsaved)
@@ -267,6 +274,7 @@ class MainWindow(QMainWindow):
             ("Storage", 2, "storage"),
             ("Ships", 3, "ships"),
             ("Research", 4, "research"),
+            ("Universe", 5, "universe"),
         ]
 
         self._nav_buttons: list[QPushButton] = []
@@ -412,7 +420,7 @@ class MainWindow(QMainWindow):
         self._unsaved_badge.setVisible(False)
 
     # ------------------------------------------------------------------
-    # Drag & drop (main-window level – catches drops on the editor view)
+    # Drag & drop (main-window level - catches drops on the editor view)
     # ------------------------------------------------------------------
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
@@ -456,15 +464,40 @@ class MainWindow(QMainWindow):
         self._storage_tab.load(save)
         self._ships_tab.load(save)
         self._research_tab.load(save)
+        self._universe_tab.load(save)
         self._update_actions()
         self._clear_unsaved()
 
         p = Path(path)
-        self._file_label.setText(str(p))
-        self._file_label.setToolTip(str(p))
+        if p.is_dir():
+            display_path = str(p)
+            # Outer slot folder: use its name; save/ subfolder: use parent name
+            if p.name == "save":
+                folder_name = p.parent.name
+            else:
+                folder_name = p.name
+        else:
+            display_path = str(p)
+            # game file: parent is save/, grandparent is the slot folder
+            if p.parent.name == "save":
+                folder_name = p.parent.parent.name
+            else:
+                folder_name = p.parent.name
 
-        self.setWindowTitle(f"Space Haven Save Editor  –  {p.parent.name}")
+        self._file_label.setText(display_path)
+        self._file_label.setToolTip(display_path)
+        self.setWindowTitle(f"Space Haven Save Editor  –  {folder_name}")
         self._show_editor()
+
+    def _open_folder(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Open Space Haven Save Folder",
+            str(Path.home()),
+        )
+        if not path:
+            return
+        self._load_file(path)
 
     def _open_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -493,6 +526,7 @@ class MainWindow(QMainWindow):
         self._storage_tab.clear()
         self._ships_tab.clear()
         self._research_tab.clear()
+        self._universe_tab.clear()
         self._clear_unsaved()
         self._update_actions()
         self._show_welcome()
