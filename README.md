@@ -138,15 +138,6 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Usage
-
-1. Launch the editor and use **File → Open** (or drag your save file onto the window) to load a save.
-2. Space Haven save files are named `game` and live inside numbered slot folders in the game's save directory. The exact path on your system is shown in the game's main menu under save management.
-3. Use the tabs on the left to navigate between sections and make your changes.
-4. Save with **File → Save** or **Ctrl+S**. A timestamped backup of the original file is created automatically before anything is written to disk.
-
-Keep a manual backup before making sweeping changes — the backup the editor creates covers you for a single session, not for repeated overwrites.
-
 ## Running tests
 
 ```bash
