@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import io
 import textwrap
 
 import pytest
-from lxml import etree
 
 from src.save_file import (
     Character,
@@ -14,28 +12,11 @@ from src.save_file import (
     SKILL_HARD_MAX,
 )
 from src.game_data import STAT_TAGS, TRAIT_IDS
+from tests.helpers import make_save_from_xml as _make_save_file
 
 # Trait IDs resolved from TRAIT_IDS for use in mutation tests
 _FAST_LEARNER_ID = next(k for k, v in TRAIT_IDS.items() if v == "Fast learner")
 _CONFIDENT_ID = next(k for k, v in TRAIT_IDS.items() if v == "Confident")
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_save_file(xml: str | bytes) -> SaveFile:
-    """Parse an XML string or bytes into a SaveFile without touching the filesystem."""
-    sf = SaveFile()
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    data = xml if isinstance(xml, bytes) else xml.encode()
-    sf._tree = etree.parse(io.BytesIO(data), parser)
-    sf._root = sf._tree.getroot()
-    sf._parse_ships()
-    sf._parse_characters()
-    sf._parse_research()
-    return sf
-
 
 # Minimal complete game XML mirroring the real save file structure
 MINIMAL_XML = textwrap.dedent("""\
@@ -1014,6 +995,7 @@ class TestMetadataAccessors:
 
     def test_get_ship_tiles_no_element(self):
         from src.save_file import Ship
+
         ship = Ship(sid=1, name="Ghost", sx=10, sy=10)
         sf = _make_save_file(MINIMAL_XML)
         assert sf.get_ship_tiles(ship) == []
@@ -1109,6 +1091,7 @@ class TestFolderParsing:
     def _write_folder_save(self, tmp_path) -> "Path":
         """Write a minimal multi-file save folder and return its path."""
         from pathlib import Path
+
         folder = tmp_path / "save"
         folder.mkdir()
         (folder / "game").write_bytes(MINIMAL_XML.encode())

@@ -317,23 +317,10 @@ class StorageTab(QWidget):
         if item_id is None:
             QMessageBox.warning(self, "Add Item", "Please select a valid item.")
             return
-        new_item = self._save.add_storage_item(self._current_container, item_id, qty)
-        if new_item is not None:
-            # add_storage_item re-sorts; rebuilding keeps table order in sync.
-            self._populate_items(self._current_container)
-        else:
-            # Item was stacked - update the existing spinbox in-place
-            for row in range(self._items_table.rowCount()):
-                cell = self._items_table.item(row, 0)
-                if cell is None:
-                    continue
-                si: StorageItem = cell.data(Qt.ItemDataRole.UserRole)
-                if si.item_id == item_id:
-                    spin: QSpinBox = self._items_table.cellWidget(row, 1)
-                    spin.blockSignals(True)
-                    spin.setValue(si.quantity)
-                    spin.blockSignals(False)
-                    break
+        self._save.add_storage_item(self._current_container, item_id, qty)
+        # Always rebuild the table so sort order and spinbox values are correct
+        # regardless of whether the item was new or stacked onto an existing one.
+        self._populate_items(self._current_container)
         self.status_message.emit(
             f"Added {qty}x {STORAGE_IDS.get(item_id, str(item_id))} (unsaved)."
         )

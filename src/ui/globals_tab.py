@@ -222,7 +222,7 @@ class GlobalsTab(QWidget):
 
         skills_row, self._skills_btn = _action_row(
             "Max All Skills",
-            "Set all crew skills to level 20 and max natural level 20.",
+            "Set all crew skills to level 10 and max natural level 10.",
             "Max Skills",
             self._max_all_skills,
         )

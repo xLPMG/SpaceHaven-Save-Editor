@@ -923,12 +923,15 @@ class TestMainWindowAbout:
     def test_show_about_displays_messagebox(self, qtbot):
         win = MainWindow()
         qtbot.addWidget(win)
-        with patch.object(QMessageBox, "about") as mock_about:
+        with patch("src.ui.main_window.QMessageBox") as mock_mb_cls:
+            mock_instance = mock_mb_cls.return_value
+            mock_instance.findChildren.return_value = []
             win._show_about()
-            mock_about.assert_called_once()
-            # Check that the call contains version info
-            args = mock_about.call_args[0]
-            assert "Space Haven Save Editor" in args[2]
+            mock_mb_cls.assert_called_once_with(win)
+            # Check that the dialog text contains version info
+            text_arg = mock_instance.setText.call_args[0][0]
+            assert "Space Haven Save Editor" in text_arg
+            mock_instance.exec.assert_called_once()
 
 
 # ===========================================================================

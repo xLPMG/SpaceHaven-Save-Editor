@@ -215,6 +215,7 @@ class SaveFile:
         self.sector_sx: int = 382
         self.sector_sy: int = 382
         self._containers_cache: dict[int, list[StorageContainer]] = {}
+        self._external_files_to_delete: set[Path] = set()
 
     # ------------------------------------------------------------------
     # Load / Save
@@ -253,6 +254,7 @@ class SaveFile:
             )
 
         self._containers_cache.clear()
+        self._external_files_to_delete.clear()
         self.sectors.clear()
         self.timeline_events.clear()
         self.save_info = None
@@ -462,6 +464,26 @@ class SaveFile:
                         ship.external_tree, new_ships_dir / ship.external_path.name
                     )
 
+        # Copy supplementary folder files (info, timeline, sectors) for Save As
+        if path is not None and self.folder is not None:
+            new_folder = dest.parent
+            for extra in ("info", "timeline.xml"):
+                src = self.folder / extra
+                if src.exists():
+                    shutil.copy2(src, new_folder / extra)
+            for sector_dir in sorted(self.folder.iterdir()):
+                if sector_dir.is_dir() and sector_dir.name.startswith("sector"):
+                    dst_sector = new_folder / sector_dir.name
+                    dst_sector.mkdir(exist_ok=True)
+                    space = sector_dir / "space"
+                    if space.exists():
+                        shutil.copy2(space, dst_sector / "space")
+
+        # Remove external ship files that were deleted during this session
+        for dead_path in self._external_files_to_delete:
+            dead_path.unlink(missing_ok=True)
+        self._external_files_to_delete.clear()
+
     @staticmethod
     def _write_tree(tree: etree._ElementTree, dest: Path) -> None:
         """Write *tree* to *dest* atomically."""
@@ -512,6 +534,8 @@ class SaveFile:
         return self._root.get("seed", "0")
 
     def get_credits(self) -> int:
+        if self._root is None:
+            return 0
         el = self._root.find("playerBank")
         if el is not None:
             try:
@@ -521,11 +545,15 @@ class SaveFile:
         return 0
 
     def set_credits(self, value: int) -> None:
+        if self._root is None:
+            return
         el = self._root.find("playerBank")
         if el is not None:
             el.set("ca", str(value))
 
     def get_sandbox(self) -> bool:
+        if self._root is None:
+            return False
         settings = self._root.find("settings")
         if settings is not None:
             diff = settings.find("diff")
@@ -534,6 +562,8 @@ class SaveFile:
         return False
 
     def set_sandbox(self, enabled: bool) -> None:
+        if self._root is None:
+            return
         settings = self._root.find("settings")
         if settings is not None:
             diff = settings.find("diff")
@@ -541,6 +571,8 @@ class SaveFile:
                 diff.set("sandbox", "true" if enabled else "false")
 
     def get_prestige(self) -> int:
+        if self._root is None:
+            return 0
         ql1 = self._root.find("questLines")
         if ql1 is None:
             return 0
@@ -556,6 +588,8 @@ class SaveFile:
         return 0
 
     def set_prestige(self, value: int) -> None:
+        if self._root is None:
+            return
         ql1 = self._root.find("questLines")
         if ql1 is None:
             return
@@ -634,6 +668,9 @@ class SaveFile:
         """Return all storage containers (feat elements with eatAllowed + inv) for a ship."""
         if ship.sid in self._containers_cache:
             return self._containers_cache[ship.sid]
+        if ship.element is None:
+            self._containers_cache[ship.sid] = []
+            return []
         containers: list[StorageContainer] = []
         idx = 0
         for feat in ship.element.iter("feat"):
@@ -980,6 +1017,7 @@ class SaveFile:
 
         c_el = etree.SubElement(chars_el, "c")
         c_el.set("entId", str(new_id))
+        c_el.set("objId", "89")  # Human/Android entity type
         c_el.set("name", first_name)
         c_el.set("lname", last_name)
         c_el.set("cid", str(ship.sid))
@@ -1060,6 +1098,7 @@ class SaveFile:
             self._parse_char_skills(pers_el, char)
             self._parse_char_traits(pers_el, char)
             self._parse_char_conditions(pers_el, char)
+            self._parse_char_relationships(pers_el, char)
         self.characters.append(char)
         return char
 
@@ -1147,6 +1186,8 @@ class SaveFile:
 
     def remove_ship(self, ship: Ship) -> None:
         """Remove *ship*, its crew, and its fleet reference from the XML."""
+        if self._root is None:
+            return
         # Drop in-memory characters for this ship
         self.characters = [c for c in self.characters if c.ship_sid != ship.sid]
         self._containers_cache.pop(ship.sid, None)
@@ -1156,8 +1197,9 @@ class SaveFile:
             if parent is not None:
                 parent.remove(ship.element)
         if not ship.in_game_file:
-            # External ship: its fleet reference is recorded in the game file's starmap
-            pass  # ship element already detached from its external tree above
+            # External ship: queue file for deletion when save() is next called
+            if ship.external_path is not None:
+                self._external_files_to_delete.add(ship.external_path)
         # Remove the fleet reference from the game file
         for f_el in self._root.iter("f"):
             if f_el.get("isPlayer") == "true":
@@ -1419,6 +1461,8 @@ class SaveFile:
             return
         stage_states = entry.element.find("stageStates")
         if stage_states is None:
+            entry.done = True
+            entry.in_progress = False
             return
         for stage_el in stage_states.findall("l"):
             stage_el.set("done", "true")

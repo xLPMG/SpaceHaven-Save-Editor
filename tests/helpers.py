@@ -9,8 +9,8 @@ from lxml import etree
 from src.save_file import SaveFile
 
 
-def make_save_from_xml(xml: str) -> SaveFile:
-    """Parse an XML string into a SaveFile without touching the filesystem.
+def make_save_from_xml(xml: str | bytes) -> SaveFile:
+    """Parse an XML string or bytes into a SaveFile without touching the filesystem.
 
     This is the single canonical implementation of the save-file test factory;
     all test modules should import and alias it rather than duplicating the
@@ -18,7 +18,8 @@ def make_save_from_xml(xml: str) -> SaveFile:
     """
     sf = SaveFile()
     parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    sf._tree = etree.parse(io.BytesIO(xml.encode()), parser)
+    data = xml if isinstance(xml, bytes) else xml.encode()
+    sf._tree = etree.parse(io.BytesIO(data), parser)
     sf._root = sf._tree.getroot()
     sf._parse_ships()
     sf._parse_characters()

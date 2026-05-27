@@ -74,7 +74,6 @@ class _ConfirmDialog(QDialog):
         self.setWindowTitle(title)
         self.setModal(True)
         self.setFixedWidth(self._WIDTH)
-        self._accepted = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 20)
@@ -608,14 +607,18 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QApplication
 
         version = QApplication.applicationVersion()
-        QMessageBox.about(
-            self,
-            "About Space Haven Save Editor",
+        msg = QMessageBox(self)
+        msg.setWindowTitle("About Space Haven Save Editor")
+        msg.setText(
             f"<b>Space Haven Save Editor</b> v{version}<br>"
             "A cross-platform save game editor for Space Haven.<br><br>"
             "Built with Python and PySide6.<br><br>"
-            'Author: <a href="https://github.com/xLPMG">xLPMG</a>',
+            'Author: <a href="https://github.com/xLPMG">xLPMG</a>'
         )
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        for lbl in msg.findChildren(QLabel):
+            lbl.setOpenExternalLinks(True)
+        msg.exec()
 
     def closeEvent(self, event) -> None:  # noqa: N802
         if self._unsaved:
