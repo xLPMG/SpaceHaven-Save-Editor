@@ -776,7 +776,23 @@ class TestAddRemoveCharacter:
 
     def test_add_character_has_cid_attribute(self):
         char = self.sf.add_character(self.ship, "Test", "Cid")
-        assert char.element.get("cid") == str(self.ship.sid)
+        assert char.element.get("cid") == "89"
+
+    def test_add_character_has_default_schedule_masks(self):
+        char = self.sf.add_character(self.ship, "Schedule", "Mask")
+        sched = char.pers_element.find("schedule")
+        assert sched is not None
+        assert sched.get("p0") == "1188386"
+        assert sched.get("p1") == "0"
+        assert sched.get("p2") == "285212672"
+
+    def test_add_character_has_default_sec_masks(self):
+        char = self.sf.add_character(self.ship, "Section", "Mask")
+        sec = char.pers_element.find("sec")
+        assert sec is not None
+        assert sec.get("s0") == "0"
+        assert sec.get("s1") == "286331153"
+        assert sec.get("s2") == "4369"
 
     def test_add_character_has_all_stats(self):
         char = self.sf.add_character(self.ship, "Stats", "Check")

@@ -2,6 +2,15 @@
 # Ground truth: haven file element names resolved via texts file EN strings.
 # Attribute/skill numeric IDs verified from actual save file XML.
 
+# Default crew schedule/section bitmasks used by game-generated human crew.
+# Required for normal AI routines (work, sleep, etc.).
+DEFAULT_SCHEDULE_P0: str = "1188386"
+DEFAULT_SCHEDULE_P1: str = "0"
+DEFAULT_SCHEDULE_P2: str = "285212672"
+DEFAULT_SEC_S0: str = "0"
+DEFAULT_SEC_S1: str = "286331153"
+DEFAULT_SEC_S2: str = "4369"
+
 # Character attribute IDs (attrId on <attr> elements inside <pers>).
 ATTRIBUTE_IDS: dict[int, str] = {
     210: "Bravery",

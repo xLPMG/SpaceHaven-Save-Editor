@@ -22,6 +22,12 @@ from lxml import etree
 from src.game_data import (
     ATTRIBUTE_IDS,
     CONDITION_IDS,
+    DEFAULT_SCHEDULE_P0,
+    DEFAULT_SCHEDULE_P1,
+    DEFAULT_SCHEDULE_P2,
+    DEFAULT_SEC_S0,
+    DEFAULT_SEC_S1,
+    DEFAULT_SEC_S2,
     DOOR_TILE_IDS,
     ENGINE_TILE_IDS,
     HULL_TILE_IDS,
@@ -1222,14 +1228,14 @@ class SaveFile:
         etree.SubElement(abilities_el, "a").set("type", "CarryAbility")
 
         sched = etree.SubElement(pers, "schedule")
-        sched.set("p0", "0")
-        sched.set("p1", "0")
-        sched.set("p2", "0")
+        sched.set("p0", DEFAULT_SCHEDULE_P0)
+        sched.set("p1", DEFAULT_SCHEDULE_P1)
+        sched.set("p2", DEFAULT_SCHEDULE_P2)
 
         sec = etree.SubElement(pers, "sec")
-        sec.set("s0", "0")
-        sec.set("s1", "0")
-        sec.set("s2", "0")
+        sec.set("s0", DEFAULT_SEC_S0)
+        sec.set("s1", DEFAULT_SEC_S1)
+        sec.set("s2", DEFAULT_SEC_S2)
 
         colors_el = etree.SubElement(c_el, "colors")
         colors_el.set("glovesOff", "false")
