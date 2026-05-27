@@ -27,11 +27,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# Palette tokens
-_BG = QColor("#030709")
-_ACCENT = QColor(0, 216, 240)
-_TEXT = QColor("#DDF0F5")
-
+from src.ui.styles import (
+    WELCOME_AUTHOR_COLOR,
+    WELCOME_BG_COLOR,
+    WELCOME_DROP_BG,
+    WELCOME_DROP_BORDER_COLOR,
+    WELCOME_DROP_BORDER_HOVER_COLOR,
+    WELCOME_DROP_CORNER_COLOR,
+    WELCOME_DROP_HOVER_BG,
+    WELCOME_LINK_COLOR,
+    WELCOME_STAR_TINTS,
+    WELCOME_SUBTITLE_COLOR,
+    WELCOME_TITLE_COLOR,
+    WELCOME_TIP_COLOR,
+)
 
 # Starfield background
 
@@ -42,18 +51,12 @@ class _StarfieldWidget(QWidget):
     _N_STARS = 90  # total star count
     _FPS = 28  # target frame rate
     _LAYERS = [  # (size_px, speed_px_per_tick, base_alpha)
-        (1, 0.12, 100),
-        (1, 0.22, 140),
-        (2, 0.35, 110),
+        (2, 0.12, 100),
+        (2, 0.22, 140),
+        (3, 0.35, 110),
     ]
     # Possible star tints: cool white, neutral white, warm white, faint amber, faint rose
-    _TINTS = [
-        (220, 235, 255),  # cool blue-white
-        (255, 255, 255),  # pure white
-        (255, 252, 240),  # warm white
-        (255, 240, 200),  # soft amber
-        (255, 225, 215),  # faint rose
-    ]
+    _TINTS = WELCOME_STAR_TINTS
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -110,14 +113,14 @@ class _StarfieldWidget(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(), _BG)
+        painter.fillRect(self.rect(), WELCOME_BG_COLOR)
 
         t = self._tick * 0.04  # slow twinkle phase
         for s in self._stars:
             phase = math.sin(t + s["twinkle_offset"])
             alpha = int(max(30, min(255, s["alpha"] + phase * 30)))
-            r, g, b = s["tint"]
-            color = QColor(r, g, b, alpha)
+            color = QColor(s["tint"])
+            color.setAlpha(alpha)
             painter.setBrush(color)
             painter.setPen(Qt.PenStyle.NoPen)
             radius = s["size"] / 2
@@ -151,7 +154,7 @@ class _TitleLabel(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setFont(self._font)
-        painter.setPen(QColor("#00D8F0"))
+        painter.setPen(WELCOME_TITLE_COLOR)
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._text)
         painter.end()
 
@@ -245,9 +248,9 @@ class DropZone(QFrame):
         glass_path = QPainterPath()
         glass_path.addRoundedRect(r.x(), r.y(), r.width(), r.height(), 16, 16)
         if self._hovered:
-            painter.setBrush(QColor(0, 216, 240, 18))
+            painter.setBrush(WELCOME_DROP_HOVER_BG)
         else:
-            painter.setBrush(QColor(3, 7, 9, 170))
+            painter.setBrush(WELCOME_DROP_BG)
         painter.drawPath(glass_path)
 
         # Pulsing dashed border
@@ -257,7 +260,14 @@ class DropZone(QFrame):
         else:
             alpha = 80 + int(phase * 40)
 
-        pen = QPen(QColor(0, 216, 240, alpha))
+        border_color = (
+            WELCOME_DROP_BORDER_HOVER_COLOR
+            if self._hovered
+            else WELCOME_DROP_BORDER_COLOR
+        )
+        border_color = QColor(border_color)
+        border_color.setAlpha(alpha)
+        pen = QPen(border_color)
         pen.setWidth(2)
         pen.setStyle(Qt.PenStyle.DashLine)
         painter.setPen(pen)
@@ -269,8 +279,7 @@ class DropZone(QFrame):
 
         # Corner accent dots when hovered
         if self._hovered:
-            dot_color = QColor(0, 216, 240, 200)
-            painter.setBrush(dot_color)
+            painter.setBrush(WELCOME_DROP_CORNER_COLOR)
             painter.setPen(Qt.PenStyle.NoPen)
             for cx, cy in [
                 (r.x(), r.y()),
@@ -286,17 +295,23 @@ class DropZone(QFrame):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
             self._hovered = True
+            self.update()
         else:
             event.ignore()
 
     def dragLeaveEvent(self, event) -> None:
         self._hovered = False
+        self.update()
 
     def dropEvent(self, event: QDropEvent) -> None:
         self._hovered = False
         urls = event.mimeData().urls()
         if urls:
             self.file_dropped.emit(urls[0].toLocalFile())
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+        self.update()
 
 
 # Welcome widget
@@ -327,11 +342,13 @@ class WelcomeWidget(QWidget):
         root.setSpacing(0)
 
         program_title = _TitleLabel("SPACE HAVEN SAVE EDITOR")
+        program_title.setObjectName("WelcomeTitle")
         root.addWidget(program_title, alignment=Qt.AlignmentFlag.AlignCenter)
 
         subtitle = QLabel("Mission Control for your save files")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setObjectName("WelcomeSubtitle")
+        subtitle.setStyleSheet(f"color: {WELCOME_SUBTITLE_COLOR.name()};")
         root.addWidget(subtitle)
 
         root.addSpacing(36)
@@ -352,6 +369,7 @@ class WelcomeWidget(QWidget):
         tip_text.setTextFormat(Qt.TextFormat.RichText)
         tip_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tip_text.setObjectName("WelcomeTip")
+        tip_text.setStyleSheet(f"color: {WELCOME_TIP_COLOR.name()};")
         root.addWidget(tip_text)
 
         root.addSpacing(16)
@@ -359,12 +377,13 @@ class WelcomeWidget(QWidget):
         version = QApplication.applicationVersion()
         author_text = QLabel(
             f"v{version} &nbsp;·&nbsp; "
-            '<a href="https://github.com/xLPMG" style="color:#00D8F0;">xLPMG</a>'
+            f'<a href="https://github.com/xLPMG" style="color:{WELCOME_LINK_COLOR.name()};">xLPMG</a>'
         )
         author_text.setTextFormat(Qt.TextFormat.RichText)
         author_text.setOpenExternalLinks(True)
         author_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         author_text.setObjectName("WelcomeAuthor")
+        author_text.setStyleSheet(f"color: {WELCOME_AUTHOR_COLOR.name()};")
         root.addWidget(author_text)
 
         self._overlay = overlay
