@@ -96,7 +96,7 @@ class UniverseTab(QWidget):
         # Map widget
         self._sector_map = SectorMapWidget()
         self._sector_map.ship_moved.connect(self._on_ship_moved)
-        self._sector_map.setFixedHeight(600)
+        self._sector_map.setFixedHeight(500)
         map_vbox.addWidget(self._sector_map)
 
         self._no_map_lbl = QLabel("No ships found. Load a save file.")
