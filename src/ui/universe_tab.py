@@ -100,6 +100,11 @@ class UniverseTab(QWidget):
         self._sector_map.setFixedHeight(500)
         map_vbox.addWidget(self._sector_map)
 
+        self._map_hint_lbl = QLabel("Tip: Drag ships on the map to move them.")
+        self._map_hint_lbl.setObjectName("StatCardDesc")
+        self._map_hint_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        map_vbox.addWidget(self._map_hint_lbl)
+
         self._no_map_lbl = QLabel("No ships found. Load a save file.")
         self._no_map_lbl.setObjectName("StatCardDesc")
         self._no_map_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -183,6 +188,7 @@ class UniverseTab(QWidget):
         self._save = None
         self._sector_map.clear()
         self._sector_map.setVisible(True)
+        self._map_hint_lbl.setVisible(True)
         self._no_map_lbl.setVisible(False)
         self._sectors_table.setRowCount(0)
         self._sectors_table.setVisible(True)
@@ -201,10 +207,12 @@ class UniverseTab(QWidget):
         if not has_map_ships:
             self._sector_map.clear()
             self._sector_map.setVisible(False)
+            self._map_hint_lbl.setVisible(False)
             self._no_map_lbl.setVisible(True)
             return
 
         self._sector_map.setVisible(True)
+        self._map_hint_lbl.setVisible(True)
         self._no_map_lbl.setVisible(False)
         self._sector_map.load(save)
 
