@@ -1185,18 +1185,19 @@ class CrewTab(QWidget):
             spin.setValue(self._int_attr(ai_el, key, ai_defaults.get(key, 0)))
             spin.blockSignals(False)
 
-        pers = self._ensure_pers(char)
+        pers = char.element.find("pers")
         for key, spin in self._pers_spins.items():
             spin.blockSignals(True)
             spin.setValue(self._int_attr(pers, key, spin.minimum()))
             spin.blockSignals(False)
 
         self._use_global_check.blockSignals(True)
-        self._use_global_check.setChecked(pers.get("useGlobal", "false") == "true")
+        use_global = pers.get("useGlobal", "false") if pers is not None else "false"
+        self._use_global_check.setChecked(use_global == "true")
         self._use_global_check.blockSignals(False)
 
         priorities: dict[str, str] = {}
-        js_el = pers.find("jobsetting")
+        js_el = pers.find("jobsetting") if pers is not None else None
         if js_el is not None:
             for j in js_el.findall("j"):
                 prof = j.get("profession")
@@ -1213,9 +1214,9 @@ class CrewTab(QWidget):
                 combo.blockSignals(False)
 
     def _populate_schedule(self, char: Character) -> None:
-        pers = self._ensure_pers(char)
-        sched = pers.find("schedule")
-        sec = pers.find("sec")
+        pers = char.element.find("pers")
+        sched = pers.find("schedule") if pers is not None else None
+        sec = pers.find("sec") if pers is not None else None
 
         defaults = {
             "p0": DEFAULT_SCHEDULE_P0,
@@ -1273,14 +1274,16 @@ class CrewTab(QWidget):
                 control.blockSignals(False)
 
     def _populate_loadout(self, char: Character) -> None:
-        loadout = self._ensure_child(char.element, "loadout")
+        loadout = char.element.find("loadout")
         for key, spin in self._loadout_spins.items():
             spin.blockSignals(True)
-            spin.setValue(self._parse_int(loadout.get(key, "0"), 0))
+            value = loadout.get(key, "0") if loadout is not None else "0"
+            spin.setValue(self._parse_int(value, 0))
             spin.blockSignals(False)
         for key, check in self._loadout_checks.items():
             check.blockSignals(True)
-            check.setChecked(loadout.get(key, "false") == "true")
+            value = loadout.get(key, "false") if loadout is not None else "false"
+            check.setChecked(value == "true")
             check.blockSignals(False)
 
     def _populate_identity(self, char: Character) -> None:

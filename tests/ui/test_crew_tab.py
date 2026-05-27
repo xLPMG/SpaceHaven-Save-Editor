@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import textwrap
 
+from lxml import etree
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QLineEdit, QSpinBox
 
@@ -185,6 +187,43 @@ TWO_CREW_SHIPS_XML = textwrap.dedent("""\
       </ships>
       <research treeId="2535"><states/></research>
     </game>
+""")
+
+
+SCHEMA_MINIMAL_XML = textwrap.dedent("""\
+        <game mode="Normal" seed="4">
+            <playerBank ca="0" cr="0"/>
+            <settings><diff sandbox="false"/></settings>
+            <questLines><questLines>
+                <l type="ExodusFleet" playerPrestigePoints="0"/>
+            </questLines></questLines>
+            <ships>
+                <ship sid="30" sname="SCHEMA SHIP" sx="28" sy="28">
+                    <characters>
+                        <c entId="301" name="NoLoadout" lname="Crew" cid="89" task="Walk" dir="D1" side="Player" fac="1">
+                            <props>
+                                <Health v="80"/><Food v="100"/><Rest v="90"/>
+                                <Comfort v="50"/><Mood v="70"/><Oxygen v="0"/>
+                                <Temperature v="100"/>
+                            </props>
+                            <pers>
+                                <attr/><traits/><conditions/>
+                                <sociality><relationships/></sociality>
+                                <skills/>
+                            </pers>
+                        </c>
+                        <c entId="302" name="NoPers" lname="Crew" cid="89" task="Walk" dir="D1" side="Player" fac="1">
+                            <props>
+                                <Health v="81"/><Food v="99"/><Rest v="88"/>
+                                <Comfort v="52"/><Mood v="68"/><Oxygen v="0"/>
+                                <Temperature v="100"/>
+                            </props>
+                        </c>
+                    </characters>
+                </ship>
+            </ships>
+            <research treeId="2535"><states/></research>
+        </game>
 """)
 
 
@@ -426,6 +465,135 @@ class TestCrewTabSelection:
         tab.load(_make_save())
         tab._crew_list.setCurrentRow(0)
         assert tab._rel_table.rowCount() == 1
+
+    def test_populate_character_does_not_create_missing_loadout(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        sf = _make_save(SCHEMA_MINIMAL_XML)
+        tab.load(sf)
+
+        row = next(
+            i for i in range(tab._crew_list.count())
+            if "NoLoadout" in tab._crew_list.item(i).text()
+        )
+        tab._crew_list.setCurrentRow(row)
+        assert tab._current_char is not None
+        assert tab._current_char.element.find("loadout") is None
+
+    def test_populate_character_does_not_create_missing_pers(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        sf = _make_save(SCHEMA_MINIMAL_XML)
+        tab.load(sf)
+
+        row = next(
+            i for i in range(tab._crew_list.count())
+            if "NoPers" in tab._crew_list.item(i).text()
+        )
+        tab._crew_list.setCurrentRow(row)
+        assert tab._current_char is not None
+        assert tab._current_char.element.find("pers") is None
+
+    def test_selecting_missing_loadout_does_not_mutate_xml(self, qtbot):
+        sf = _make_save(SCHEMA_MINIMAL_XML)
+        char = next(c for c in sf.characters if c.first_name == "NoLoadout")
+        before = etree.tostring(char.element, encoding="unicode")
+
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(sf)
+
+        row = next(
+            i for i in range(tab._crew_list.count())
+            if "NoLoadout" in tab._crew_list.item(i).text()
+        )
+        tab._crew_list.setCurrentRow(row)
+
+        after = etree.tostring(char.element, encoding="unicode")
+        assert after == before
+
+    def test_selecting_missing_pers_does_not_mutate_xml(self, qtbot):
+        sf = _make_save(SCHEMA_MINIMAL_XML)
+        char = next(c for c in sf.characters if c.first_name == "NoPers")
+        before = etree.tostring(char.element, encoding="unicode")
+
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(sf)
+
+        row = next(
+            i for i in range(tab._crew_list.count())
+            if "NoPers" in tab._crew_list.item(i).text()
+        )
+        tab._crew_list.setCurrentRow(row)
+
+        after = etree.tostring(char.element, encoding="unicode")
+        assert after == before
+
+    def test_toggling_advanced_mode_does_not_mutate_xml(self, qtbot):
+        sf = _make_save(SCHEMA_MINIMAL_XML)
+        char = next(c for c in sf.characters if c.first_name == "NoLoadout")
+
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(sf)
+
+        row = next(
+            i for i in range(tab._crew_list.count())
+            if "NoLoadout" in tab._crew_list.item(i).text()
+        )
+        tab._crew_list.setCurrentRow(row)
+        before = etree.tostring(char.element, encoding="unicode")
+
+        tab._advanced_mode_check.setChecked(True)
+        tab._advanced_mode_check.setChecked(False)
+
+        after = etree.tostring(char.element, encoding="unicode")
+        assert after == before
+
+    def test_explicit_loadout_edit_creates_loadout_node(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        sf = _make_save(SCHEMA_MINIMAL_XML)
+        tab.load(sf)
+
+        row = next(
+            i for i in range(tab._crew_list.count())
+            if "NoLoadout" in tab._crew_list.item(i).text()
+        )
+        tab._crew_list.setCurrentRow(row)
+        assert tab._current_char is not None
+        assert tab._current_char.element.find("loadout") is None
+
+        tab._loadout_spins["primary"].setValue(729)
+
+        loadout = tab._current_char.element.find("loadout")
+        assert loadout is not None
+        assert loadout.get("primary") == "729"
+
+    def test_explicit_schedule_edit_creates_pers_and_schedule(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        sf = _make_save(SCHEMA_MINIMAL_XML)
+        tab.load(sf)
+
+        row = next(
+            i for i in range(tab._crew_list.count())
+            if "NoPers" in tab._crew_list.item(i).text()
+        )
+        tab._crew_list.setCurrentRow(row)
+        assert tab._current_char is not None
+        assert tab._current_char.element.find("pers") is None
+
+        edit = tab._mask_edits["p0"]
+        edit.setText("123456")
+        edit.editingFinished.emit()
+
+        pers = tab._current_char.element.find("pers")
+        assert pers is not None
+        schedule = pers.find("schedule")
+        assert schedule is not None
+        assert schedule.get("p0") == "123456"
 
 
 # ===========================================================================
