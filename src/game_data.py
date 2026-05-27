@@ -37,6 +37,107 @@ SKILL_IDS: dict[int, str] = {
     22: "Piloting",
 }
 
+# Custom editor-only skill presets
+# Maps: preset name -> {skill_id: (starting_level, max_level)}
+CUSTOM_SKILL_PRESETS: dict[str, dict[int, tuple[int, int]]] = {
+    "Jack of All Trades": {
+        2: (2, 7),  # Mining
+        3: (2, 7),  # Botany
+        4: (2, 7),  # Construction
+        5: (2, 7),  # Industry
+        6: (2, 7),  # Medical
+        7: (1, 6),  # Gunner
+        8: (1, 6),  # Shielding
+        9: (2, 7),  # Operations
+        10: (1, 6),  # Weapons
+        12: (2, 7),  # Carry
+        13: (0, 1),  # Unknown (unused)
+        14: (2, 7),  # Navigation
+        16: (1, 6),  # Research
+        22: (1, 6),  # Piloting
+    },
+    "Builder": {
+        2: (1, 5),  # Mining
+        3: (1, 4),  # Botany
+        4: (4, 9),  # Construction
+        5: (3, 8),  # Industry
+        6: (1, 4),  # Medical
+        7: (0, 2),  # Gunner
+        8: (0, 2),  # Shielding
+        9: (2, 7),  # Operations
+        10: (0, 2),  # Weapons
+        12: (2, 6),  # Carry
+        13: (0, 1),  # Unknown (unused)
+        14: (1, 6),  # Navigation
+        16: (1, 4),  # Research
+        22: (0, 2),  # Piloting
+    },
+    "Medic Scientist": {
+        2: (1, 4),  # Mining
+        6: (4, 9),  # Medical
+        7: (0, 2),  # Gunner
+        8: (0, 2),  # Shielding
+        9: (2, 7),  # Operations
+        10: (0, 2),  # Weapons
+        12: (2, 6),  # Carry
+        13: (0, 1),  # Unknown (unused)
+        14: (1, 5),  # Navigation
+        16: (4, 9),  # Research
+        22: (0, 2),  # Piloting
+        3: (2, 7),  # Botany
+        4: (1, 5),  # Construction
+        5: (1, 5),  # Industry
+    },
+    "Security Pilot": {
+        2: (0, 2),  # Mining
+        3: (0, 2),  # Botany
+        4: (1, 4),  # Construction
+        5: (1, 4),  # Industry
+        6: (1, 4),  # Medical
+        7: (3, 8),  # Gunner
+        8: (3, 8),  # Shielding
+        9: (2, 6),  # Operations
+        10: (4, 9),  # Weapons
+        14: (3, 9),  # Navigation
+        12: (2, 6),  # Carry
+        13: (0, 1),  # Unknown (unused)
+        16: (0, 3),  # Research
+        22: (4, 10),  # Piloting
+    },
+    "Industrial Miner": {
+        2: (4, 10),  # Mining
+        3: (1, 4),  # Botany
+        4: (2, 6),  # Construction
+        5: (4, 9),  # Industry
+        6: (1, 4),  # Medical
+        7: (0, 2),  # Gunner
+        8: (0, 2),  # Shielding
+        9: (2, 6),  # Operations
+        10: (0, 2),  # Weapons
+        12: (3, 8),  # Carry
+        13: (0, 1),  # Unknown (unused)
+        14: (1, 5),  # Navigation
+        16: (1, 4),  # Research
+        22: (0, 2),  # Piloting
+    },
+    "Agricultural Specialist": {
+        2: (1, 4),  # Mining
+        3: (4, 10),  # Botany
+        4: (2, 6),  # Construction
+        5: (2, 6),  # Industry
+        6: (2, 6),  # Medical
+        7: (0, 2),  # Gunner
+        8: (0, 2),  # Shielding
+        9: (2, 6),  # Operations
+        10: (0, 2),  # Weapons
+        12: (2, 6),  # Carry
+        13: (0, 1),  # Unknown (unused)
+        14: (1, 5),  # Navigation
+        16: (3, 8),  # Research
+        22: (0, 2),  # Piloting
+    },
+}
+
 # Personality trait IDs (traitId on <trait> elements inside <pers>).
 TRAIT_IDS: dict[int, str] = {
     191: "Hero",

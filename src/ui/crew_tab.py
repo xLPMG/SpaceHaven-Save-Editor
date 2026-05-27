@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING
+
+from lxml import etree
 
 from PySide6.QtCore import Qt, QEvent, QRect, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -36,7 +41,17 @@ if TYPE_CHECKING:
     from src.save_file import Character, SaveFile, Ship, Trait
 
 from src.save_file import Condition, SKILL_HARD_MAX
-from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
+from src.game_data import (
+    CUSTOM_SKILL_PRESETS,
+    DEFAULT_SCHEDULE_P0,
+    DEFAULT_SCHEDULE_P1,
+    DEFAULT_SCHEDULE_P2,
+    DEFAULT_SEC_S0,
+    DEFAULT_SEC_S1,
+    DEFAULT_SEC_S2,
+    TRAIT_BY_NAME,
+    TRAIT_IDS,
+)
 from src.ui.styles import (
     ACTION_CLONE_COLOR,
     ACTION_REMOVE_COLOR,
@@ -47,6 +62,37 @@ from src.ui.styles import (
 )
 
 MAX_ATTR_POINTS: int = 10  # UI edit cap for attribute points
+
+JOB_PRIORITY_VALUES: tuple[str, ...] = (
+    "DontDo",
+    "Lowest",
+    "Low",
+    "Normal",
+    "High",
+    "Highest",
+)
+JOB_PROFESSIONS: tuple[str, ...] = (
+    "Navigate",
+    "Gunner",
+    "Shield",
+    "Operations",
+    "Fighter",
+    "Medical",
+    "Farm",
+    "Construct",
+    "Maintenance",
+    "Mine",
+    "Industry",
+    "Research",
+    "Logistics",
+)
+COMMON_TASKS: tuple[str, ...] = (
+    "Walk",
+    "Sleep",
+    "MedicalSleep",
+    "Idle",
+)
+COMMON_DIRECTIONS: tuple[str, ...] = ("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8")
 
 
 class _CrewDelegate(QStyledItemDelegate):
@@ -278,13 +324,40 @@ class CrewTab(QWidget):
         # Detail tabs
         self._tabs = QTabWidget()
         self._tabs.setObjectName("CharDetailTabs")
+        self._tabs.setDocumentMode(True)
+        tab_bar = self._tabs.tabBar()
+        tab_bar.setExpanding(True)
+        tab_bar.setUsesScrollButtons(False)
+        tab_bar.setElideMode(Qt.TextElideMode.ElideNone)
         self._tabs.addTab(self._build_stats_tab(), "Stats")
         self._tabs.addTab(self._build_attributes_tab(), "Attributes")
         self._tabs.addTab(self._build_skills_tab(), "Skills")
         self._tabs.addTab(self._build_traits_tab(), "Traits")
         self._tabs.addTab(self._build_conditions_tab(), "Conditions")
         self._tabs.addTab(self._build_relationships_tab(), "Relationships")
+        self._tabs.addTab(self._build_behavior_tab(), "Behavior")
+        self._tabs.addTab(self._build_schedule_tab(), "Schedule")
+        self._tabs.addTab(self._build_appearance_tab(), "Appearance")
+        self._tabs.addTab(self._build_loadout_tab(), "Loadout")
+        self._tabs.addTab(self._build_identity_tab(), "Identity")
+
+        self._advanced_tab_names = {
+            "Behavior",
+            "Schedule",
+            "Appearance",
+            "Loadout",
+            "Identity",
+        }
+        mode_row = QHBoxLayout()
+        mode_row.addStretch()
+        self._advanced_mode_check = QCheckBox("Advanced mode")
+        self._advanced_mode_check.setChecked(False)
+        self._advanced_mode_check.toggled.connect(self._set_advanced_tabs_visible)
+        mode_row.addWidget(self._advanced_mode_check)
+        rv.addLayout(mode_row)
+
         rv.addWidget(self._tabs)
+        self._set_advanced_tabs_visible(False)
 
         splitter.addWidget(right)
         splitter.setStretchFactor(0, 0)
@@ -322,6 +395,27 @@ class CrewTab(QWidget):
             self._stats_form.addRow(f"{tag}:", spin)
         layout.addLayout(self._stats_form)
 
+        layout.addSpacing(6)
+
+        advanced_lbl = QLabel("Advanced atmosphere sensors")
+        advanced_lbl.setObjectName("StatCardDesc")
+        layout.addWidget(advanced_lbl)
+        
+        layout.addSpacing(6)
+
+        self._gas_spins: dict[str, QSpinBox] = {}
+        gas_form = QFormLayout()
+        for tag in ("Co2Gas", "SmokeGas", "HazardousGas"):
+            spin = QSpinBox()
+            spin.setRange(0, 200)
+            spin.setFixedWidth(80)
+            spin.valueChanged.connect(
+                lambda v, t=tag: self._on_gas_stat_changed_by_tag(t, v)
+            )
+            self._gas_spins[tag] = spin
+            gas_form.addRow(f"{tag}:", spin)
+        layout.addLayout(gas_form)
+
         layout.addStretch()
         return w
 
@@ -358,6 +452,18 @@ class CrewTab(QWidget):
         layout = QVBoxLayout(w)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(4)
+
+        preset_row = QHBoxLayout()
+        preset_row.addWidget(QLabel("Preset:"))
+        self._skill_preset_combo = QComboBox()
+        self._skill_preset_combo.addItems(list(CUSTOM_SKILL_PRESETS.keys()))
+        preset_row.addWidget(self._skill_preset_combo)
+        preset_btn = QPushButton("Apply")
+        preset_btn.setObjectName("InlineButton")
+        preset_btn.clicked.connect(self._apply_skill_preset)
+        preset_row.addWidget(preset_btn)
+        preset_row.addStretch()
+        layout.addLayout(preset_row)
 
         self._skills_table = QTableWidget(0, 4)
         self._skills_table.setHorizontalHeaderLabels(
@@ -461,6 +567,290 @@ class CrewTab(QWidget):
         self._rel_table.verticalHeader().setVisible(False)
         self._rel_table.verticalHeader().setDefaultSectionSize(42)
         layout.addWidget(self._rel_table)
+
+        btn_row = QHBoxLayout()
+        normalize_btn = QPushButton("Normalize All")
+        normalize_btn.setObjectName("InlineButton")
+        normalize_btn.clicked.connect(self._normalize_relationships)
+        btn_row.addWidget(normalize_btn)
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
+        return w
+
+    def _build_behavior_tab(self) -> QWidget:
+        w = QWidget()
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        form = QFormLayout()
+        form.setSpacing(6)
+
+        self._task_combo = QComboBox()
+        self._task_combo.setEditable(True)
+        for task in COMMON_TASKS:
+            self._task_combo.addItem(task)
+        self._task_combo.currentTextChanged.connect(self._on_task_changed)
+        form.addRow("Task:", self._task_combo)
+
+        self._ai_spins: dict[str, QSpinBox] = {}
+        for key, min_v, max_v in (
+            ("bts", 0, 1000),
+            ("suitOn", 0, 1),
+            ("bstx", -5000, 5000),
+            ("bsty", -5000, 5000),
+            ("bstsh", 0, 1000),
+            ("hsid", 0, 1000000),
+            ("rest", 0, 1000000000),
+        ):
+            sp = QSpinBox()
+            sp.setRange(min_v, max_v)
+            sp.valueChanged.connect(lambda v, k=key: self._on_ai_field_changed(k, v))
+            self._ai_spins[key] = sp
+            form.addRow(f"AI {key}:", sp)
+
+        self._pers_spins: dict[str, QSpinBox] = {}
+        for key, min_v, max_v in (
+            ("ret", 0, 10),
+            ("ret2", 0, 10),
+            ("bsid", 0, 10000),
+            ("globalSch", 0, 10),
+        ):
+            sp = QSpinBox()
+            sp.setRange(min_v, max_v)
+            sp.valueChanged.connect(
+                lambda v, k=key: self._on_pers_field_changed(k, str(v))
+            )
+            self._pers_spins[key] = sp
+            form.addRow(f"Pers {key}:", sp)
+
+        self._use_global_check = QCheckBox("Use global schedule")
+        self._use_global_check.toggled.connect(self._on_use_global_toggled)
+        form.addRow("", self._use_global_check)
+        layout.addLayout(form)
+
+        self._job_table = QTableWidget(0, 2)
+        self._job_table.setHorizontalHeaderLabels(["Profession", "Priority"])
+        self._job_table.horizontalHeader().setStretchLastSection(True)
+        self._job_table.verticalHeader().setVisible(False)
+        self._job_table.verticalHeader().setDefaultSectionSize(48)
+        self._job_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._job_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        job_hdr = self._job_table.horizontalHeader()
+        job_hdr.setSectionResizeMode(0, job_hdr.ResizeMode.Stretch)
+        job_hdr.setSectionResizeMode(1, job_hdr.ResizeMode.Fixed)
+        self._job_table.setColumnWidth(1, 170)
+        for prof in JOB_PROFESSIONS:
+            row = self._job_table.rowCount()
+            self._job_table.insertRow(row)
+            item = QTableWidgetItem(prof)
+            item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            self._job_table.setItem(row, 0, item)
+            combo = QComboBox()
+            for p in JOB_PRIORITY_VALUES:
+                combo.addItem(p)
+            combo.setMinimumContentsLength(8)
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+            combo.setMinimumWidth(150)
+            combo.setMinimumHeight(36)
+            combo.currentTextChanged.connect(
+                lambda text, profession=prof: self._on_job_priority_changed(
+                    profession, text
+                )
+            )
+            self._job_table.setCellWidget(row, 1, combo)
+        layout.addWidget(self._job_table)
+        return w
+
+    def _build_schedule_tab(self) -> QWidget:
+        w = QWidget()
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(6)
+        self._mask_edits: dict[str, QLineEdit] = {}
+        self._mask_binary_labels: dict[str, QLabel] = {}
+        labels = ["p0", "p1", "p2", "s0", "s1", "s2"]
+        for row, key in enumerate(labels):
+            grid.addWidget(QLabel(f"{key}:"), row, 0)
+            edit = QLineEdit()
+            edit.setPlaceholderText("integer mask")
+            edit.editingFinished.connect(lambda k=key, e=edit: self._on_mask_edited(k, e))
+            self._mask_edits[key] = edit
+            grid.addWidget(edit, row, 1)
+            bin_lbl = QLabel("")
+            bin_lbl.setObjectName("StatCardDesc")
+            self._mask_binary_labels[key] = bin_lbl
+            grid.addWidget(bin_lbl, row, 2)
+        layout.addLayout(grid)
+
+        note = QLabel("Bitmask preview is shown as binary for quick sanity checks.")
+        note.setObjectName("StatCardDesc")
+        layout.addWidget(note)
+        layout.addStretch()
+        return w
+
+    def _build_appearance_tab(self) -> QWidget:
+        w = QWidget()
+        wrap = QVBoxLayout(w)
+        wrap.setContentsMargins(12, 12, 12, 12)
+        wrap.setSpacing(8)
+
+        top = QHBoxLayout()
+        randomize_btn = QPushButton("Randomize")
+        randomize_btn.setObjectName("InlineButton")
+        randomize_btn.clicked.connect(self._randomize_appearance)
+        top.addWidget(randomize_btn)
+        top.addStretch()
+        wrap.addLayout(top)
+
+        form_widget = QWidget()
+        layout = QFormLayout(form_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        self._appearance_controls: dict[str, QWidget] = {}
+        color_keys = {
+            "pantsSet",
+            "shirtSet",
+            "skinSet",
+            "sp",
+            "ss",
+            "sr",
+            "sh",
+            "ssh",
+            "sg",
+            "sl",
+        }
+
+        def _add_combo(key: str, values: tuple[str, ...], label: str) -> None:
+            cb = QComboBox()
+            for value in values:
+                cb.addItem(value)
+            cb.currentTextChanged.connect(lambda text, k=key: self._set_char_attr(k, text))
+            self._appearance_controls[key] = cb
+            layout.addRow(label, cb)
+
+        def _add_spin(key: str, min_v: int, max_v: int, label: str) -> None:
+            sp = QSpinBox()
+            sp.setRange(min_v, max_v)
+            if key in color_keys:
+                sp.valueChanged.connect(
+                    lambda value, k=key: self._set_colors_attr(k, str(value))
+                )
+            else:
+                sp.valueChanged.connect(
+                    lambda value, k=key: self._set_char_attr(k, str(value))
+                )
+            self._appearance_controls[key] = sp
+            layout.addRow(label, sp)
+
+        def _add_check(key: str, label: str) -> None:
+            ch = QCheckBox()
+            ch.toggled.connect(lambda on, k=key: self._set_colors_attr(k, "true" if on else "false"))
+            self._appearance_controls[key] = ch
+            layout.addRow(label, ch)
+
+        _add_combo("bb", ("m", "f"), "Body BB:")
+        _add_spin("bs", 0, 10, "Body BS:")
+        _add_combo("bh", ("m", "f"), "Body BH:")
+        _add_spin("bp", 0, 10, "Body BP:")
+        _add_spin("orgColor", 0, 100000, "Org Color:")
+        _add_spin("colorSet", 0, 100000, "Color Set:")
+
+        for key, label in (
+            ("glovesOff", "Gloves Off:"),
+            ("longSleeve", "Long Sleeve:"),
+        ):
+            _add_check(key, label)
+        for key, label in (
+            ("pantsSet", "Pants Set:"),
+            ("shirtSet", "Shirt Set:"),
+            ("skinSet", "Skin Set:"),
+            ("sp", "SP:"),
+            ("ss", "SS:"),
+            ("sr", "SR:"),
+            ("sh", "SH:"),
+            ("ssh", "SSH:"),
+            ("sg", "SG:"),
+            ("sl", "SL:"),
+        ):
+            _add_spin(key, 0, 100000, label)
+
+        wrap.addWidget(form_widget)
+        return w
+
+    def _build_loadout_tab(self) -> QWidget:
+        w = QWidget()
+        layout = QFormLayout(w)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(6)
+        self._loadout_spins: dict[str, QSpinBox] = {}
+        self._loadout_checks: dict[str, QCheckBox] = {}
+
+        for key, label in (
+            ("headgear", "Headgear:"),
+            ("armor", "Armor:"),
+            ("primary", "Primary:"),
+            ("attachment", "Attachment:"),
+            ("secondary", "Secondary:"),
+            ("pocket1", "Pocket 1:"),
+            ("pocket2", "Pocket 2:"),
+            ("pocket3", "Pocket 3:"),
+        ):
+            sp = QSpinBox()
+            sp.setRange(0, 10000000)
+            sp.valueChanged.connect(lambda v, k=key: self._set_loadout_attr(k, str(v)))
+            self._loadout_spins[key] = sp
+            layout.addRow(label, sp)
+
+        for key, label in (
+            ("bestQArmor", "Best Quality Armor:"),
+            ("bestQPrimary", "Best Quality Primary:"),
+        ):
+            ch = QCheckBox()
+            ch.toggled.connect(lambda on, k=key: self._set_loadout_attr(k, "true" if on else "false"))
+            self._loadout_checks[key] = ch
+            layout.addRow(label, ch)
+
+        return w
+
+    def _build_identity_tab(self) -> QWidget:
+        w = QWidget()
+        layout = QFormLayout(w)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(6)
+
+        self._cid_combo = QComboBox()
+        self._cid_combo.setEditable(True)
+        self._cid_combo.addItem("89")
+        self._cid_combo.currentTextChanged.connect(lambda text: self._set_char_attr("cid", text))
+        layout.addRow("Character Template (cid):", self._cid_combo)
+
+        self._side_combo = QComboBox()
+        self._side_combo.setEditable(True)
+        for side in ("Player", "Neutral", "Enemy"):
+            self._side_combo.addItem(side)
+        self._side_combo.currentTextChanged.connect(lambda text: self._set_char_attr("side", text))
+        layout.addRow("Side:", self._side_combo)
+
+        self._fac_spin = QSpinBox()
+        self._fac_spin.setRange(0, 1000000)
+        self._fac_spin.valueChanged.connect(lambda value: self._set_char_attr("fac", str(value)))
+        layout.addRow("Faction (fac):", self._fac_spin)
+
+        self._dir_combo = QComboBox()
+        self._dir_combo.setEditable(True)
+        for direction in COMMON_DIRECTIONS:
+            self._dir_combo.addItem(direction)
+        self._dir_combo.currentTextChanged.connect(lambda text: self._set_char_attr("dir", text))
+        layout.addRow("Direction:", self._dir_combo)
+
         return w
 
     # ------------------------------------------------------------------
@@ -551,6 +941,11 @@ class CrewTab(QWidget):
         self._populate_traits(char)
         self._populate_conditions(char)
         self._populate_relationships(char)
+        self._populate_behavior(char)
+        self._populate_schedule(char)
+        self._populate_appearance(char)
+        self._populate_loadout(char)
+        self._populate_identity(char)
 
     def _populate_stats(self, char: Character) -> None:
         stat_map = {s.tag: s for s in char.stats}
@@ -560,6 +955,17 @@ class CrewTab(QWidget):
             spin.setValue(stat.value if stat else 0)
             spin.blockSignals(False)
 
+        props = char.element.find("props")
+        for tag, spin in self._gas_spins.items():
+            spin.blockSignals(True)
+            value = 0
+            if props is not None:
+                node = props.find(tag)
+                if node is not None:
+                    value = self._parse_int(node.get("v", "0"), 0)
+            spin.setValue(value)
+            spin.blockSignals(False)
+
     def _on_stat_changed_by_tag(self, tag: str, value: int) -> None:
         if self._save is None or self._current_char is None:
             return
@@ -567,6 +973,18 @@ class CrewTab(QWidget):
         if stat is not None:
             self._save.set_stat(stat, value)
             self.status_message.emit("Stats applied (unsaved.)")
+
+    def _on_gas_stat_changed_by_tag(self, tag: str, value: int) -> None:
+        if self._current_char is None:
+            return
+        props = self._current_char.element.find("props")
+        if props is None:
+            props = etree.SubElement(self._current_char.element, "props")
+        node = props.find(tag)
+        if node is None:
+            node = etree.SubElement(props, tag)
+        node.set("v", str(value))
+        self.status_message.emit("Advanced stats applied (unsaved).")
 
     def _populate_attributes(self, char: Character) -> None:
         self._attr_table.setRowCount(0)
@@ -668,6 +1086,32 @@ class CrewTab(QWidget):
         self._save.set_skill_max(skill, value)
         self.status_message.emit("Skills applied (unsaved).")
 
+    def _apply_skill_preset(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        preset = self._skill_preset_combo.currentText()
+        profile = CUSTOM_SKILL_PRESETS.get(preset, {})
+        changes = 0
+        for skill in self._current_char.skills:
+            target = profile.get(skill.skill_id)
+            if target is None:
+                continue
+            start_level, max_level = target
+            max_level = max(0, min(max_level, SKILL_HARD_MAX))
+            start_level = max(0, min(start_level, max_level))
+
+            if skill.max_level != max_level:
+                self._save.set_skill_max(skill, max_level)
+                changes += 1
+            if skill.level != start_level:
+                self._save.set_skill_level(skill, start_level)
+                changes += 1
+        self._populate_skills(self._current_char)
+        if changes:
+            self.status_message.emit(f"Applied {preset} preset (unsaved).")
+        else:
+            self.status_message.emit(f"{preset} already satisfied (no changes).")
+
     def _on_attr_spin_changed(self, attr, pip_lbl: QLabel, value: int) -> None:
         self._on_attribute_changed(attr, value)
         pip_lbl.setText(_pip_html(value, 10))
@@ -721,6 +1165,308 @@ class CrewTab(QWidget):
                 edit.editingFinished.connect(_make_handler())
                 self._rel_table.setCellWidget(row, col, edit)
 
+    def _populate_behavior(self, char: Character) -> None:
+        self._task_combo.blockSignals(True)
+        self._task_combo.setCurrentText(char.element.get("task", "Walk"))
+        self._task_combo.blockSignals(False)
+
+        ai_el = char.element.find("ai")
+        ai_defaults = {
+            "bts": 100,
+            "suitOn": 0,
+            "bstx": -1,
+            "bsty": -1,
+            "bstsh": 0,
+            "hsid": char.ship_sid,
+            "rest": 0,
+        }
+        for key, spin in self._ai_spins.items():
+            spin.blockSignals(True)
+            spin.setValue(self._int_attr(ai_el, key, ai_defaults.get(key, 0)))
+            spin.blockSignals(False)
+
+        pers = self._ensure_pers(char)
+        for key, spin in self._pers_spins.items():
+            spin.blockSignals(True)
+            spin.setValue(self._int_attr(pers, key, spin.minimum()))
+            spin.blockSignals(False)
+
+        self._use_global_check.blockSignals(True)
+        self._use_global_check.setChecked(pers.get("useGlobal", "false") == "true")
+        self._use_global_check.blockSignals(False)
+
+        priorities: dict[str, str] = {}
+        js_el = pers.find("jobsetting")
+        if js_el is not None:
+            for j in js_el.findall("j"):
+                prof = j.get("profession")
+                prio = j.get("priority")
+                if prof and prio:
+                    priorities[prof] = prio
+
+        for row in range(self._job_table.rowCount()):
+            profession = self._job_table.item(row, 0).text()
+            combo = self._job_table.cellWidget(row, 1)
+            if isinstance(combo, QComboBox):
+                combo.blockSignals(True)
+                combo.setCurrentText(priorities.get(profession, "Normal"))
+                combo.blockSignals(False)
+
+    def _populate_schedule(self, char: Character) -> None:
+        pers = self._ensure_pers(char)
+        sched = pers.find("schedule")
+        sec = pers.find("sec")
+
+        defaults = {
+            "p0": DEFAULT_SCHEDULE_P0,
+            "p1": DEFAULT_SCHEDULE_P1,
+            "p2": DEFAULT_SCHEDULE_P2,
+            "s0": DEFAULT_SEC_S0,
+            "s1": DEFAULT_SEC_S1,
+            "s2": DEFAULT_SEC_S2,
+        }
+        for key, edit in self._mask_edits.items():
+            if key.startswith("p") and sched is not None:
+                value = sched.get(key, defaults[key])
+            elif key.startswith("s") and sec is not None:
+                value = sec.get(key, defaults[key])
+            else:
+                value = defaults[key]
+            edit.blockSignals(True)
+            edit.setText(value)
+            edit.blockSignals(False)
+            self._update_mask_binary_label(key, value)
+
+    def _populate_appearance(self, char: Character) -> None:
+        colors = char.element.find("colors")
+        for key, control in self._appearance_controls.items():
+            if key in {"glovesOff", "longSleeve"}:
+                if isinstance(control, QCheckBox):
+                    control.blockSignals(True)
+                    control.setChecked(
+                        (colors.get(key, "false") if colors is not None else "false")
+                        == "true"
+                    )
+                    control.blockSignals(False)
+                continue
+
+            source = colors if key in {
+                "pantsSet",
+                "shirtSet",
+                "skinSet",
+                "sp",
+                "ss",
+                "sr",
+                "sh",
+                "ssh",
+                "sg",
+                "sl",
+            } else char.element
+            raw = source.get(key, "0") if source is not None else "0"
+            if isinstance(control, QComboBox):
+                control.blockSignals(True)
+                control.setCurrentText(raw)
+                control.blockSignals(False)
+            elif isinstance(control, QSpinBox):
+                control.blockSignals(True)
+                control.setValue(self._parse_int(raw, 0))
+                control.blockSignals(False)
+
+    def _populate_loadout(self, char: Character) -> None:
+        loadout = self._ensure_child(char.element, "loadout")
+        for key, spin in self._loadout_spins.items():
+            spin.blockSignals(True)
+            spin.setValue(self._parse_int(loadout.get(key, "0"), 0))
+            spin.blockSignals(False)
+        for key, check in self._loadout_checks.items():
+            check.blockSignals(True)
+            check.setChecked(loadout.get(key, "false") == "true")
+            check.blockSignals(False)
+
+    def _populate_identity(self, char: Character) -> None:
+        self._cid_combo.blockSignals(True)
+        self._cid_combo.setCurrentText(char.element.get("cid", "89"))
+        self._cid_combo.blockSignals(False)
+
+        self._side_combo.blockSignals(True)
+        self._side_combo.setCurrentText(char.element.get("side", "Player"))
+        self._side_combo.blockSignals(False)
+
+        self._fac_spin.blockSignals(True)
+        self._fac_spin.setValue(self._parse_int(char.element.get("fac", "0"), 0))
+        self._fac_spin.blockSignals(False)
+
+        self._dir_combo.blockSignals(True)
+        self._dir_combo.setCurrentText(char.element.get("dir", "D1"))
+        self._dir_combo.blockSignals(False)
+
+    def _clear_new_tabs(self) -> None:
+        self._task_combo.setCurrentText("Walk")
+        for spin in self._ai_spins.values():
+            spin.setValue(0)
+        for spin in self._pers_spins.values():
+            spin.setValue(0)
+        self._use_global_check.setChecked(False)
+        for row in range(self._job_table.rowCount()):
+            combo = self._job_table.cellWidget(row, 1)
+            if isinstance(combo, QComboBox):
+                combo.setCurrentText("Normal")
+        for key, edit in self._mask_edits.items():
+            edit.setText("0")
+            self._update_mask_binary_label(key, "0")
+        for control in self._appearance_controls.values():
+            if isinstance(control, QCheckBox):
+                control.setChecked(False)
+            elif isinstance(control, QComboBox):
+                control.setCurrentIndex(0)
+            elif isinstance(control, QSpinBox):
+                control.setValue(0)
+        for spin in self._loadout_spins.values():
+            spin.setValue(0)
+        for check in self._loadout_checks.values():
+            check.setChecked(False)
+        self._cid_combo.setCurrentText("89")
+        self._side_combo.setCurrentText("Player")
+        self._fac_spin.setValue(0)
+        self._dir_combo.setCurrentText("D1")
+
+    @staticmethod
+    def _parse_int(raw: str | None, fallback: int) -> int:
+        if raw is None:
+            return fallback
+        try:
+            return int(raw)
+        except ValueError:
+            return fallback
+
+    def _int_attr(self, el, key: str, fallback: int) -> int:
+        if el is None:
+            return fallback
+        return self._parse_int(el.get(key), fallback)
+
+    @staticmethod
+    def _ensure_child(parent, tag: str):
+        child = parent.find(tag)
+        if child is None:
+            child = etree.SubElement(parent, tag)
+        return child
+
+    def _ensure_pers(self, char: Character):
+        pers = char.element.find("pers")
+        if pers is None:
+            pers = self._ensure_child(char.element, "pers")
+        return pers
+
+    def _on_task_changed(self, text: str) -> None:
+        self._set_char_attr("task", text)
+
+    def _on_ai_field_changed(self, key: str, value: int) -> None:
+        if self._current_char is None:
+            return
+        ai_el = self._ensure_child(self._current_char.element, "ai")
+        ai_el.set(key, str(value))
+        self.status_message.emit("AI settings applied (unsaved).")
+
+    def _on_pers_field_changed(self, key: str, value: str) -> None:
+        if self._current_char is None:
+            return
+        pers = self._ensure_pers(self._current_char)
+        pers.set(key, value)
+        self.status_message.emit("Personality settings applied (unsaved).")
+
+    def _on_use_global_toggled(self, on: bool) -> None:
+        self._on_pers_field_changed("useGlobal", "true" if on else "false")
+
+    def _on_job_priority_changed(self, profession: str, priority: str) -> None:
+        if self._current_char is None:
+            return
+        pers = self._ensure_pers(self._current_char)
+        js_el = pers.find("jobsetting")
+        if js_el is None:
+            js_el = self._ensure_child(pers, "jobsetting")
+        target = None
+        for j in js_el.findall("j"):
+            if j.get("profession") == profession:
+                target = j
+                break
+        if target is None:
+            target = etree.SubElement(js_el, "j")
+            target.set("profession", profession)
+        target.set("priority", priority)
+        self.status_message.emit("Job priorities applied (unsaved).")
+
+    def _on_mask_edited(self, key: str, edit: QLineEdit) -> None:
+        value = edit.text().strip()
+        if not value:
+            return
+        if self._set_mask_value(key, value):
+            self._update_mask_binary_label(key, value)
+            self.status_message.emit("Bitmasks applied (unsaved).")
+        else:
+            QMessageBox.warning(self, "Invalid Bitmask", f"{key} must be an integer.")
+
+    def _set_mask_value(self, key: str, value: str) -> bool:
+        if self._current_char is None:
+            return False
+        try:
+            int(value)
+        except ValueError:
+            return False
+        pers = self._ensure_pers(self._current_char)
+        tag = "schedule" if key.startswith("p") else "sec"
+        node = pers.find(tag)
+        if node is None:
+            node = self._ensure_child(pers, tag)
+        node.set(key, value)
+        return True
+
+    def _update_mask_binary_label(self, key: str, value: str) -> None:
+        label = self._mask_binary_labels.get(key)
+        if label is None:
+            return
+        try:
+            parsed = int(value)
+            label.setText(f"0b{parsed:b}")
+        except ValueError:
+            label.setText("invalid")
+
+    def _set_char_attr(self, key: str, value: str) -> None:
+        if self._current_char is None:
+            return
+        self._current_char.element.set(key, value)
+        if key in {"name", "lname"}:
+            self._avatar.set_character(
+                self._current_char.element.get("name", ""),
+                self._current_char.element.get("lname", ""),
+            )
+        self.status_message.emit("Identity/appearance applied (unsaved).")
+
+    def _set_colors_attr(self, key: str, value: str) -> None:
+        if self._current_char is None:
+            return
+        colors = self._ensure_child(self._current_char.element, "colors")
+        colors.set(key, value)
+        self.status_message.emit("Appearance applied (unsaved).")
+
+    def _set_loadout_attr(self, key: str, value: str) -> None:
+        if self._current_char is None:
+            return
+        loadout = self._ensure_child(self._current_char.element, "loadout")
+        loadout.set(key, value)
+        self.status_message.emit("Loadout applied (unsaved).")
+
+    def _randomize_appearance(self) -> None:
+        if self._current_char is None:
+            return
+        self._set_char_attr("bb", random.choice(["m", "f"]))
+        self._set_char_attr("bh", random.choice(["m", "f"]))
+        self._set_char_attr("bs", str(random.randint(1, 2)))
+        self._set_char_attr("bp", str(random.randint(1, 2)))
+        for key in ("sp", "ss", "sr", "sh", "ssh", "sg", "sl"):
+            self._set_colors_attr(key, str(random.randint(0, 5)))
+        self._populate_appearance(self._current_char)
+        self.status_message.emit("Appearance randomized (unsaved).")
+
     # ------------------------------------------------------------------
     # Apply changes
     # ------------------------------------------------------------------
@@ -742,6 +1488,16 @@ class CrewTab(QWidget):
         self._save.clear_conditions(self._current_char)
         self._conditions_list.clear()
         self.status_message.emit("All conditions cleared (unsaved).")
+
+    def _normalize_relationships(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        for rel in self._current_char.relationships:
+            self._save.set_friendship(rel, 0)
+            self._save.set_attraction(rel, 0)
+            self._save.set_compatibility(rel, 50)
+        self._populate_relationships(self._current_char)
+        self.status_message.emit("Relationships normalized (unsaved).")
 
     def _rename_character(self) -> None:
         if self._save is None or self._current_char is None:
@@ -831,16 +1587,33 @@ class CrewTab(QWidget):
             spin.blockSignals(True)
             spin.setValue(0)
             spin.blockSignals(False)
+        for spin in self._gas_spins.values():
+            spin.blockSignals(True)
+            spin.setValue(0)
+            spin.blockSignals(False)
         self._attr_table.setRowCount(0)
         self._skills_table.setRowCount(0)
         self._traits_list.clear()
         self._conditions_list.clear()
         self._rel_table.setRowCount(0)
+        self._clear_new_tabs()
 
     def _set_right_enabled(self, enabled: bool) -> None:
         self._first_name_edit.setEnabled(enabled)
         self._last_name_edit.setEnabled(enabled)
         self._tabs.setEnabled(enabled)
+
+    def _set_advanced_tabs_visible(self, visible: bool) -> None:
+        bar = self._tabs.tabBar()
+        for idx in range(self._tabs.count()):
+            name = self._tabs.tabText(idx)
+            if name in self._advanced_tab_names:
+                bar.setTabVisible(idx, visible)
+
+        # Force a geometry pass so visible tabs re-expand/re-squash immediately.
+        bar.updateGeometry()
+        self._tabs.updateGeometry()
+        self._tabs.repaint()
 
     def refresh_current_char(self) -> None:
         """Re-populate the character detail panel for the currently selected character."""
