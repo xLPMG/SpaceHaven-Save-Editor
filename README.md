@@ -2,6 +2,14 @@
 
 A desktop save file editor for [Space Haven](https://bugbyte.fi/spacehaven/), the space colony sim by Bugbyte. If you want to give your crew a fighting chance, unlock research, or recover a run that went sideways, this tool lets you do that without touching raw XML.
 
+## Disclaimer
+
+This project is still in early development!
+
+Because parts of the save format and behavior were implemented through reverse engineering of Space Haven's data/code patterns, some edits may behave unexpectedly and bugs can happen.
+
+If you run into issues, please report them on the [Issues](../../issues) page with as much detail as possible (what you changed, what you expected, and what happened).
+
 ## What you can edit
 
 - **Globals** – change game-wide values such as credits
