@@ -41,6 +41,14 @@ Because the app is not notarized, macOS will block it on first launch with a mes
 
 You only need to do this once.
 
+**Safety**
+
+Should you have any concerns about running the app, I suggest you let any LLM of your choice analyze the repository for malicious code. 
+Should you find anything suspicious, please report it immediately on the [Issues](../../issues) page.
+If not, go ahead to the [Actions](../../actions) page, click on ``Build`` on the left side and then click on the latest successful workflow run. 
+Next, scroll down to the **Artifacts** section and download the zip file for your platform.
+This way, you can be sure that the binary you are running corresponds to the source code in the repository and was not tampered with.
+
 ## Tabs
 
 ### Welcome Screen
@@ -130,7 +138,7 @@ A read-only view of the broader game state:
 
 ## Setup (from source)
 
-**Prerequisites:** Python 3.9+
+**Prerequisites:** Python 3.11+
 
 ```bash
 git clone https://github.com/xLPMG/SpaceHaven-Save-Editor.git

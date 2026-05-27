@@ -9,7 +9,7 @@ from lxml import etree
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QLineEdit, QSpinBox
 
-from src.save_file import SaveFile, SKILL_HARD_MAX
+from src.save_file import Character, SaveFile, SKILL_HARD_MAX
 from src.ui.crew_tab import CrewTab, _pip_html, _AvatarLabel, MAX_ATTR_POINTS
 from src.game_data import TRAIT_IDS
 from tests.helpers import make_save_from_xml

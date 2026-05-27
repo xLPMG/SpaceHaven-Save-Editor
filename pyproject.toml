@@ -1,12 +1,13 @@
 [build-system]
 requires = ["setuptools>=61"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "spacehaven-save-editor"
-version = "0.3.0"
+version = "1.0.0"
 description = "A cross-platform save game editor for Space Haven"
-authors = [{name = "xLPMG", url = "https://github.com/xLPMG"}]
+readme = "README.md"
+authors = [{name = "xLPMG"}]
 requires-python = ">=3.11"
 dependencies = [
     "lxml==6.1.1",
@@ -17,6 +18,16 @@ dependencies = [
 [project.scripts]
 spacehaven-save-editor = "main:main"
 
+[project.urls]
+Homepage = "https://github.com/xLPMG/SpaceHaven-Save-Editor"
+Issues = "https://github.com/xLPMG/SpaceHaven-Save-Editor/issues"
+
+[tool.setuptools]
+py-modules = ["main"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.setuptools.package-data]
+"src.ui" = ["icons/*", "fonts/*"]

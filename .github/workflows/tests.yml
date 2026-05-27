@@ -9,7 +9,10 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v6
 
@@ -20,7 +23,9 @@ jobs:
           cache: pip
 
       - name: Install base dependencies
-        run: pip install -r requirements-build.txt && pip install pytest
+        run: |
+          pip install -r requirements-build.txt
+          pip install pytest
 
       - name: Run unit tests (without Qt)
         run: python -m pytest tests/test_save_file.py -v
