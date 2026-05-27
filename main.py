@@ -19,7 +19,7 @@ def main() -> None:
     for font_file in sorted(_FONTS_DIR.glob("*.otf")) + sorted(_FONTS_DIR.glob("*.ttf")):
         QFontDatabase.addApplicationFont(str(font_file))
     app.setApplicationName("Space Haven Save Editor")
-    app.setApplicationVersion("0.2.0")
+    app.setApplicationVersion("1.0.0")
     app.setWindowIcon(QIcon(str(_ICONS_DIR / "app.svg")))
     apply_theme(app)
     window = MainWindow()
