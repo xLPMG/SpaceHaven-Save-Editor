@@ -20,7 +20,7 @@ SVG = ROOT / "src" / "ui" / "icons" / "app.svg"
 ASSETS = ROOT / "assets"
 ASSETS.mkdir(exist_ok=True)
 
-# ── Qt renderer ────────────────────────────────────────────────────────────
+# Qt renderer
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -42,7 +42,7 @@ def render(size: int, path: str | Path) -> None:
     image.save(str(path))
 
 
-# ── macOS – .icns via iconutil ─────────────────────────────────────────────
+# macOS - .icns via iconutil
 
 _ICONSET_SPECS: list[tuple[int, str]] = [
     (16,   "icon_16x16.png"),

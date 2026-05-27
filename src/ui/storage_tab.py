@@ -52,7 +52,7 @@ class StorageTab(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         root.addWidget(splitter)
 
-        # ── Left panel ──────────────────────────────────────────────
+        # Left panel
         left = QWidget()
         left.setObjectName("CrewLeftPanel")
         left.setMinimumWidth(210)
@@ -89,7 +89,7 @@ class StorageTab(QWidget):
 
         splitter.addWidget(left)
 
-        # ── Right panel ─────────────────────────────────────────────
+        # Right panel
         right = QWidget()
         rv = QVBoxLayout(right)
         rv.setContentsMargins(8, 14, 14, 14)
@@ -322,7 +322,7 @@ class StorageTab(QWidget):
             # add_storage_item re-sorts; rebuilding keeps table order in sync.
             self._populate_items(self._current_container)
         else:
-            # Item was stacked — update the existing spinbox in-place
+            # Item was stacked - update the existing spinbox in-place
             for row in range(self._items_table.rowCount()):
                 cell = self._items_table.item(row, 0)
                 if cell is None:

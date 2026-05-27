@@ -272,7 +272,7 @@ class TestAvatarLabel:
 
 
 # ===========================================================================
-# CrewTab – load / clear
+# CrewTab - load / clear
 # ===========================================================================
 
 
@@ -365,7 +365,7 @@ class TestCrewTabLoad:
 
 
 # ===========================================================================
-# CrewTab – character selection
+# CrewTab - character selection
 # ===========================================================================
 
 
@@ -429,7 +429,7 @@ class TestCrewTabSelection:
 
 
 # ===========================================================================
-# CrewTab – rename character
+# CrewTab - rename character
 # ===========================================================================
 
 
@@ -466,7 +466,7 @@ class TestRenameCharacter:
         tab = CrewTab()
         qtbot.addWidget(tab)
         tab.load(_make_save())
-        tab._crew_list.setCurrentRow(0)  # Alice → ZZZ (should move to end)
+        tab._crew_list.setCurrentRow(0)  # Alice -> ZZZ (should move to end)
         tab._first_name_edit.setText("ZZZ")
         tab._rename_character()
         names = _crew_names(tab)
@@ -476,7 +476,7 @@ class TestRenameCharacter:
         tab = CrewTab()
         qtbot.addWidget(tab)
         tab.load(_make_save())
-        tab._crew_list.setCurrentRow(0)  # Alice Smith → AS
+        tab._crew_list.setCurrentRow(0)  # Alice Smith -> AS
         tab._first_name_edit.setText("Carol")
         tab._last_name_edit.setText("King")
         tab._rename_character()
@@ -537,7 +537,7 @@ class TestRenameCharacter:
 
 
 # ===========================================================================
-# CrewTab – remove crew member
+# CrewTab - remove crew member
 # ===========================================================================
 
 
@@ -585,7 +585,7 @@ class TestRemoveCrewMember:
 
 
 # ===========================================================================
-# CrewTab – skill clamping on load
+# CrewTab - skill clamping on load
 # ===========================================================================
 
 
@@ -595,7 +595,7 @@ class TestSkillClamping:
         qtbot.addWidget(tab)
         sf = _make_save(OVER_MAX_XML)
         tab.load(sf)
-        # level=15 mxn=20 → both clamped to 10
+        # level=15 mxn=20 -> both clamped to 10
         assert tab._skills_table.rowCount() == 1
         level_spin: QSpinBox = tab._skills_table.cellWidget(0, 2)
         max_spin: QSpinBox = tab._skills_table.cellWidget(0, 3)
@@ -613,7 +613,7 @@ class TestSkillClamping:
 
 
 # ===========================================================================
-# CrewTab – attribute clamping on load
+# CrewTab - attribute clamping on load
 # ===========================================================================
 
 
@@ -623,7 +623,7 @@ class TestAttributeClamping:
         qtbot.addWidget(tab)
         sf = _make_save(OVER_MAX_ATTR_XML)
         tab.load(sf)
-        # points=15 → clamped to spin max of MAX_ATTR_POINTS
+        # points=15 -> clamped to spin max of MAX_ATTR_POINTS
         assert tab._attr_table.rowCount() == 1
         spin: QSpinBox = tab._attr_table.cellWidget(0, 2)
         assert spin.value() == MAX_ATTR_POINTS
@@ -638,7 +638,7 @@ class TestAttributeClamping:
 
 
 # ===========================================================================
-# CrewTab – conditions
+# CrewTab - conditions
 # ===========================================================================
 
 
@@ -683,7 +683,7 @@ class TestConditions:
 
 
 # ===========================================================================
-# CrewTab – _unique_crew_name (static, no Qt needed)
+# CrewTab - _unique_crew_name (static, no Qt needed)
 # ===========================================================================
 
 
@@ -711,7 +711,7 @@ class TestUniqueCrewName:
 
 
 # ===========================================================================
-# Stats – edit / save-back
+# Stats - edit / save-back
 # ===========================================================================
 
 
@@ -753,7 +753,7 @@ class TestStatEditing:
 
 
 # ===========================================================================
-# Attributes – edit / save-back
+# Attributes - edit / save-back
 # ===========================================================================
 
 
@@ -791,7 +791,7 @@ class TestAttributeEditing:
 
 
 # ===========================================================================
-# Skills – edit / save-back
+# Skills - edit / save-back
 # ===========================================================================
 
 
@@ -849,7 +849,7 @@ class TestSkillEditing:
 
 
 # ===========================================================================
-# Traits – add / remove
+# Traits - add / remove
 # ===========================================================================
 
 
@@ -866,7 +866,7 @@ class TestTraitEditing:
         qtbot.addWidget(tab)
         tab.load(_make_save())
         tab._crew_list.setCurrentRow(0)  # Alice has 1 trait (Confident)
-        self._select_trait(tab, _HERO_ID)  # Hero – not yet present
+        self._select_trait(tab, _HERO_ID)  # Hero - not yet present
         tab._add_trait()
         assert tab._traits_list.count() == 2
 
@@ -948,7 +948,7 @@ class TestTraitEditing:
 
 
 # ===========================================================================
-# Relationships – edit / save-back
+# Relationships - edit / save-back
 # ===========================================================================
 
 
@@ -1097,7 +1097,7 @@ class TestCloneCrewMember:
 
 
 # ===========================================================================
-# Delegate signals – clone ⧉ and remove ✕ icons
+# Delegate signals - clone and remove
 # ===========================================================================
 
 

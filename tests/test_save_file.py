@@ -1154,7 +1154,7 @@ class TestFolderParsing:
         sf.load(str(folder))
         result = sf.get_real_date_str()
         # Should be a formatted date string, not the dash fallback
-        assert result != "—"
+        assert result != "-"
         assert "-" in result  # e.g. "2025-05-26  …"
 
     def test_load_from_folder_parses_sectors(self, tmp_path):

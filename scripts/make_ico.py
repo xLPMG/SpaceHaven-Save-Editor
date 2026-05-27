@@ -19,7 +19,7 @@ SVG = ROOT / "src" / "ui" / "icons" / "app.svg"
 ASSETS = ROOT / "assets"
 ASSETS.mkdir(exist_ok=True)
 
-# ── Qt renderer ────────────────────────────────────────────────────────────
+# Qt renderer
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -41,7 +41,7 @@ def render(size: int, path: str | Path) -> None:
     image.save(str(path))
 
 
-# ── Windows – .ico via Pillow ──────────────────────────────────────────────
+# Windows - .ico via Pillow
 
 def make_ico() -> None:
     try:

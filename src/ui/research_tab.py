@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Custom item delegate – rich row rendering
+# Custom item delegate - rich row rendering
 # ---------------------------------------------------------------------------
 
 
@@ -168,7 +168,7 @@ class ResearchTab(QWidget):
         root.setContentsMargins(24, 20, 24, 24)
         root.setSpacing(14)
 
-        # ── Stats banner ─────────────────────────────────────────────
+        # Stats banner
         banner = QFrame()
         banner.setObjectName("ResearchBanner")
         banner.setFixedHeight(82)
@@ -208,7 +208,7 @@ class ResearchTab(QWidget):
 
         root.addWidget(banner)
 
-        # ── Filter + search ──────────────────────────────────────────
+        # Filter + search
         filter_row = QHBoxLayout()
         filter_row.setSpacing(6)
 
@@ -235,7 +235,7 @@ class ResearchTab(QWidget):
 
         root.addLayout(filter_row)
 
-        # ── Tech list ────────────────────────────────────────────────
+        # Tech list
         self._list = QListWidget()
         self._list.setObjectName("TechList")
         self._list.setItemDelegate(_TechDelegate(self._list))
@@ -244,7 +244,7 @@ class ResearchTab(QWidget):
         self._list.itemSelectionChanged.connect(self._on_selection_changed)
         root.addWidget(self._list)
 
-        # ── Action buttons ───────────────────────────────────────────
+        # Action buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
         btn_row.addStretch()

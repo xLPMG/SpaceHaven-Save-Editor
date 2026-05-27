@@ -191,7 +191,7 @@ class CrewTab(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         root.addWidget(splitter)
 
-        # ── Left panel ──────────────────────────────────────────────
+        # Left panel
         left = QWidget()
         left.setObjectName("CrewLeftPanel")
         left.setMinimumWidth(210)
@@ -238,7 +238,7 @@ class CrewTab(QWidget):
 
         splitter.addWidget(left)
 
-        # ── Right panel ─────────────────────────────────────────────
+        # Right panel
         right = QWidget()
         rv = QVBoxLayout(right)
         rv.setContentsMargins(8, 14, 14, 14)
@@ -291,7 +291,7 @@ class CrewTab(QWidget):
 
         self._set_right_enabled(False)
 
-    # ── Sub-tab builders ────────────────────────────────────────────
+    # Sub-tab builders
 
     def _build_stats_tab(self) -> QWidget:
         w = QWidget()

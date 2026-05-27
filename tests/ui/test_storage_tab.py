@@ -77,7 +77,7 @@ def _row_for_item(tab: StorageTab, item_name: str) -> int:
 
 
 # ===========================================================================
-# StorageTab – load / clear
+# StorageTab - load / clear
 # ===========================================================================
 
 
@@ -144,7 +144,7 @@ class TestStorageTabLoad:
 
 
 # ===========================================================================
-# StorageTab – selection and filtering
+# StorageTab - selection and filtering
 # ===========================================================================
 
 
@@ -193,7 +193,7 @@ class TestStorageTabSelectionAndFilter:
 
 
 # ===========================================================================
-# StorageTab – quantity editing
+# StorageTab - quantity editing
 # ===========================================================================
 
 
@@ -225,7 +225,7 @@ class TestStorageTabQuantityEditing:
 
 
 # ===========================================================================
-# StorageTab – add item
+# StorageTab - add item
 # ===========================================================================
 
 
@@ -311,7 +311,7 @@ class TestStorageTabAddItem:
 
 
 # ===========================================================================
-# StorageTab – remove item
+# StorageTab - remove item
 # ===========================================================================
 
 
@@ -354,7 +354,7 @@ class TestStorageTabRemoveItem:
 
 
 # ===========================================================================
-# StorageTab – signal safety on lifecycle methods
+# StorageTab - signal safety on lifecycle methods
 # ===========================================================================
 
 

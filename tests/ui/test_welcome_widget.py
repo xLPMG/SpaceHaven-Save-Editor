@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QLabel
 from src.ui.welcome_widget import WelcomeWidget, _StarfieldWidget, _TitleLabel
 
 # ===========================================================================
-# WelcomeWidget – construction
+# WelcomeWidget - construction
 # ===========================================================================
 
 
@@ -63,7 +63,7 @@ class TestWelcomeWidgetConstruction:
 
 
 # ===========================================================================
-# WelcomeWidget – drag and drop
+# WelcomeWidget - drag and drop
 # ===========================================================================
 
 
@@ -159,7 +159,7 @@ class TestWelcomeWidgetDragDrop:
 
 
 # ===========================================================================
-# WelcomeWidget – browse menu
+# WelcomeWidget - browse menu
 # ===========================================================================
 # Helpers
 # ===========================================================================

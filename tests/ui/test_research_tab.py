@@ -13,8 +13,8 @@ from tests.helpers import make_save_from_xml
 
 # Tech IDs used in fixtures and assertions
 # 2536 and 2537 are intentionally NOT in TECH_IDS (test the unknown-ID fallback path).
-_TECH_UNMAPPED_1 = 2536   # → "Unknown (2536)"
-_TECH_UNMAPPED_2 = 2537   # → "Unknown (2537)"
+_TECH_UNMAPPED_1 = 2536   # -> "Unknown (2536)"
+_TECH_UNMAPPED_2 = 2537   # -> "Unknown (2537)"
 _TECH_LARGE_STORAGE = next(k for k, v in TECH_IDS.items() if v == "Large Storage")  # 2538
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ class TestTechDelegate:
 
 
 # ===========================================================================
-# ResearchTab – load / clear
+# ResearchTab - load / clear
 # ===========================================================================
 
 
@@ -303,7 +303,7 @@ class TestResearchTabLoad:
 
 
 # ===========================================================================
-# ResearchTab – filtering
+# ResearchTab - filtering
 # ===========================================================================
 
 
@@ -398,7 +398,7 @@ class TestResearchTabFiltering:
 
 
 # ===========================================================================
-# ResearchTab – search
+# ResearchTab - search
 # ===========================================================================
 
 
@@ -459,7 +459,7 @@ class TestResearchTabSearch:
 
 
 # ===========================================================================
-# ResearchTab – selection
+# ResearchTab - selection
 # ===========================================================================
 
 
@@ -526,7 +526,7 @@ class TestResearchTabSelection:
 
 
 # ===========================================================================
-# ResearchTab – actions
+# ResearchTab - actions
 # ===========================================================================
 
 
@@ -660,7 +660,7 @@ class TestResearchTabActions:
 
 
 # ===========================================================================
-# ResearchTab – edge cases
+# ResearchTab - edge cases
 # ===========================================================================
 
 

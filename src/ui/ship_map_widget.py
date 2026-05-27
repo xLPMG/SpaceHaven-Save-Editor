@@ -140,7 +140,7 @@ class ShipMapWidget(QWidget):
             color = _tile_color(m)
             if color is None:
                 continue
-            # Flip 180°: mirror both axes
+            # Flip 180 deg: mirror both axes
             flipped_gx = (self._grid_w - 1) - gx
             flipped_gy = (self._grid_h - 1) - gy
             px = off_x + flipped_gx * (cell + self._GAP)

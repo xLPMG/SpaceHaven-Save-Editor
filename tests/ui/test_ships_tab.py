@@ -103,7 +103,7 @@ def _section_names(tab: ShipsTab, header_text: str) -> list[str]:
 
 
 # ===========================================================================
-# ShipsTab – construction, load, clear
+# ShipsTab - construction, load, clear
 # ===========================================================================
 
 
@@ -166,7 +166,7 @@ class TestShipsTabLoad:
 
 
 # ===========================================================================
-# ShipsTab – rename / clone / remove
+# ShipsTab - rename / clone / remove
 # ===========================================================================
 
 

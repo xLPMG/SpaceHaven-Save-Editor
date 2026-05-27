@@ -154,7 +154,7 @@ class TestEditCard:
 
 
 # ===========================================================================
-# GlobalsTab – load / clear
+# GlobalsTab - load / clear
 # ===========================================================================
 
 
@@ -278,7 +278,7 @@ class TestGlobalsTabLoad:
 
 
 # ===========================================================================
-# GlobalsTab – editing resources
+# GlobalsTab - editing resources
 # ===========================================================================
 
 
@@ -377,7 +377,7 @@ class TestGlobalsTabEditing:
 
 
 # ===========================================================================
-# GlobalsTab – quick actions
+# GlobalsTab - quick actions
 # ===========================================================================
 
 
@@ -495,7 +495,7 @@ class TestGlobalsTabQuickActions:
 
 
 # ===========================================================================
-# GlobalsTab – fill storage spinbox
+# GlobalsTab - fill storage spinbox
 # ===========================================================================
 
 
@@ -537,7 +537,7 @@ class TestGlobalsTabFillStorage:
 
 
 # ===========================================================================
-# GlobalsTab – info labels with edge cases
+# GlobalsTab - info labels with edge cases
 # ===========================================================================
 
 
@@ -602,7 +602,7 @@ class TestGlobalsTabInfoLabels:
 
 
 # ===========================================================================
-# GlobalsTab – signal connections
+# GlobalsTab - signal connections
 # ===========================================================================
 
 
@@ -657,7 +657,7 @@ class TestGlobalsTabSignalConnections:
 
 
 # ===========================================================================
-# GlobalsTab – step values
+# GlobalsTab - step values
 # ===========================================================================
 
 
