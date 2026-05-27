@@ -1137,6 +1137,7 @@ class SaveFile:
         ship.name = name
         if ship.element is not None:
             ship.element.set("sname", name)
+        self.ships.sort(key=lambda s: s.name)
 
     def remove_ship(self, ship: Ship) -> None:
         """Remove *ship*, its crew, and its fleet reference from the XML."""

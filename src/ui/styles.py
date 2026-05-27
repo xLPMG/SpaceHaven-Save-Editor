@@ -34,10 +34,13 @@ CREW_AVATAR_COLORS: list[str] = [
     "#89dceb",
 ]
 CREW_AVATAR_TEXT_COLOR = QColor("#1e1e2e")
-CREW_CLONE_COLOR = QColor("#89dceb")
-CREW_REMOVE_COLOR = QColor("#f38ba8")
+ACTION_CLONE_COLOR = QColor("#89dceb")
+ACTION_REMOVE_COLOR = QColor("#f38ba8")
 PIP_FILLED_COLOR = "#00D8F0"
 PIP_EMPTY_COLOR = "#1E3A40"
+
+# Ship tab colours
+SHIP_TAB_SECTION_COLOR = QColor("#00D8F0")
 
 # Research tab colors
 RESEARCH_DONE_COLOR = QColor("#04D912")

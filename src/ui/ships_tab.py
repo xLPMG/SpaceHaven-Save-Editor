@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QEvent, QRect, Signal
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from src.ui.styles import ACTION_CLONE_COLOR, ACTION_REMOVE_COLOR, SHIP_TAB_SECTION_COLOR
 
 if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship
@@ -69,9 +71,9 @@ class _ShipDelegate(QStyledItemDelegate):
         f = QFont(painter.font())
         f.setPointSize(13)
         painter.setFont(f)
-        painter.setPen(QColor("#89dceb"))
+        painter.setPen(ACTION_CLONE_COLOR)
         painter.drawText(clone_rect, Qt.AlignmentFlag.AlignCenter, "\u29c9")
-        painter.setPen(QColor("#f38ba8"))
+        painter.setPen(ACTION_REMOVE_COLOR)
         painter.drawText(remove_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
         painter.restore()
 
@@ -250,11 +252,19 @@ class ShipsTab(QWidget):
     def load(self, save: SaveFile) -> None:
         self._save = save
         self._current_ship = None
+        self._rebuild_ship_list(select_first=True)
+
+    def _rebuild_ship_list(
+        self,
+        selected_ship: Ship | None = None,
+        *,
+        select_first: bool = False,
+    ) -> None:
         self._ship_list.blockSignals(True)
         self._ship_list.clear()
 
-        active = [s for s in save.ships if s.in_game_file]
-        stored = [s for s in save.ships if not s.in_game_file]
+        active = [s for s in self._save.ships if s.in_game_file] if self._save else []
+        stored = [s for s in self._save.ships if not s.in_game_file] if self._save else []
 
         if active:
             self._add_section_header("CURRENT SECTOR")
@@ -270,29 +280,42 @@ class ShipsTab(QWidget):
                 item.setData(Qt.ItemDataRole.UserRole, ship)
                 self._ship_list.addItem(item)
 
-        # Fallback: no folder data, just list all
-        if not active and not stored:
-            for ship in save.ships:
+        if not active and not stored and self._save is not None:
+            for ship in self._save.ships:
                 item = QListWidgetItem(ship.name)
                 item.setData(Qt.ItemDataRole.UserRole, ship)
                 self._ship_list.addItem(item)
 
         self._ship_list.blockSignals(False)
-        self._detail_widget.setVisible(False)
-        self._placeholder.setVisible(True)
-        # Select first selectable row
-        for i in range(self._ship_list.count()):
-            item = self._ship_list.item(i)
-            if item and item.data(Qt.ItemDataRole.UserRole) is not None:
-                self._ship_list.setCurrentRow(i)
-                break
+
+        row_to_select: int | None = None
+        if selected_ship is not None:
+            for i in range(self._ship_list.count()):
+                item = self._ship_list.item(i)
+                if item and item.data(Qt.ItemDataRole.UserRole) is selected_ship:
+                    row_to_select = i
+                    break
+        elif select_first:
+            for i in range(self._ship_list.count()):
+                item = self._ship_list.item(i)
+                if item and item.data(Qt.ItemDataRole.UserRole) is not None:
+                    row_to_select = i
+                    break
+
+        if row_to_select is None:
+            self._current_ship = None
+            self._detail_widget.setVisible(False)
+            self._placeholder.setVisible(True)
+            self._ship_list.clearSelection()
+        else:
+            self._ship_list.setCurrentRow(row_to_select)
 
     def _add_section_header(self, label: str) -> None:
         """Insert a non-selectable section divider into the ship list."""
         item = QListWidgetItem(label)
         item.setData(Qt.ItemDataRole.UserRole, None)  # sentinel: not a ship
         item.setFlags(Qt.ItemFlag.NoItemFlags)
-        item.setForeground(QColor("#00D8F0"))
+        item.setForeground(SHIP_TAB_SECTION_COLOR)
         font = item.font()
         font.setPointSize(11)
         font.setBold(True)
@@ -323,6 +346,9 @@ class ShipsTab(QWidget):
         ship = item.data(Qt.ItemDataRole.UserRole)
         if ship is None:
             # Clicked a section header; clear selection without showing detail
+            self._current_ship = None
+            self._detail_widget.setVisible(False)
+            self._placeholder.setVisible(True)
             self._ship_list.clearSelection()
             return
         self._current_ship = ship
@@ -362,11 +388,9 @@ class ShipsTab(QWidget):
             QMessageBox.warning(self, "Remove Ship", "Cannot remove the last ship.")
             return
         self._save.remove_ship(ship)
-        self._ship_list.takeItem(row)
-        if self._current_ship is ship:
-            self._current_ship = None
-            self._detail_widget.setVisible(False)
-            self._placeholder.setVisible(True)
+        self._rebuild_ship_list(
+            selected_ship=None if self._current_ship is ship else self._current_ship
+        )
         self.status_message.emit(f'Ship "{ship.name}" removed (unsaved).')
 
     def _rename_ship(self) -> None:
@@ -376,12 +400,7 @@ class ShipsTab(QWidget):
         if not name:
             return
         self._save.rename_ship(self._current_ship, name)
-        # Refresh list item
-        for i in range(self._ship_list.count()):
-            item = self._ship_list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) is self._current_ship:
-                item.setText(name)
-                break
+        self._rebuild_ship_list(selected_ship=self._current_ship)
         self.status_message.emit(f'Ship renamed to "{name}" (unsaved).')
 
     def _unique_copy_name(self, base_name: str) -> str:
@@ -423,9 +442,5 @@ class ShipsTab(QWidget):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Error", f"Failed to clone ship:\n{exc}")
             return
-        new_item = QListWidgetItem(new_ship.name)
-        new_item.setData(Qt.ItemDataRole.UserRole, new_ship)
-        self._ship_list.addItem(new_item)
-        self._ship_list.setCurrentItem(new_item)
-        self._ship_list.updateGeometry()
+        self._rebuild_ship_list(selected_ship=new_ship)
         self.status_message.emit(f'Ship "{new_name}" cloned (unsaved).')

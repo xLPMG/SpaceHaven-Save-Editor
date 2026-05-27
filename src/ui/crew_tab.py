@@ -38,10 +38,10 @@ if TYPE_CHECKING:
 from src.save_file import Condition
 from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
 from src.ui.styles import (
+    ACTION_CLONE_COLOR,
+    ACTION_REMOVE_COLOR,
     CREW_AVATAR_COLORS,
     CREW_AVATAR_TEXT_COLOR,
-    CREW_CLONE_COLOR,
-    CREW_REMOVE_COLOR,
     PIP_FILLED_COLOR,
     PIP_EMPTY_COLOR,
 )
@@ -76,9 +76,9 @@ class _CrewDelegate(QStyledItemDelegate):
         f = QFont(painter.font())
         f.setPointSize(13)
         painter.setFont(f)
-        painter.setPen(CREW_CLONE_COLOR)
+        painter.setPen(ACTION_CLONE_COLOR)
         painter.drawText(clone_rect, Qt.AlignmentFlag.AlignCenter, "\u29c9")
-        painter.setPen(CREW_REMOVE_COLOR)
+        painter.setPen(ACTION_REMOVE_COLOR)
         painter.drawText(remove_rect, Qt.AlignmentFlag.AlignCenter, "\u2715")
         painter.restore()
 
