@@ -129,6 +129,7 @@ class _ShipDelegate(QStyledItemDelegate):
 
 class ShipsTab(QWidget):
     status_message = Signal(str)
+    ships_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -375,6 +376,11 @@ class ShipsTab(QWidget):
         tiles = self._save.get_ship_tiles(ship)
         self._ship_map.set_tiles(tiles)
 
+    def refresh_current_ship(self) -> None:
+        """Re-populate the detail panel for the currently selected ship."""
+        if self._current_ship is not None and self._save is not None:
+            self._populate_ship(self._current_ship)
+
     def _on_ship_remove_requested(self, row: int) -> None:
         if self._save is None:
             return
@@ -391,6 +397,7 @@ class ShipsTab(QWidget):
         self._rebuild_ship_list(
             selected_ship=None if self._current_ship is ship else self._current_ship
         )
+        self.ships_changed.emit()
         self.status_message.emit(f'Ship "{ship.name}" removed (unsaved).')
 
     def _rename_ship(self) -> None:
@@ -401,6 +408,7 @@ class ShipsTab(QWidget):
             return
         self._save.rename_ship(self._current_ship, name)
         self._rebuild_ship_list(selected_ship=self._current_ship)
+        self.ships_changed.emit()
         self.status_message.emit(f'Ship renamed to "{name}" (unsaved).')
 
     def _unique_copy_name(self, base_name: str) -> str:
@@ -443,4 +451,5 @@ class ShipsTab(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to clone ship:\n{exc}")
             return
         self._rebuild_ship_list(selected_ship=new_ship)
+        self.ships_changed.emit()
         self.status_message.emit(f'Ship "{new_name}" cloned (unsaved).')

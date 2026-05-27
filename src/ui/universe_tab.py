@@ -55,6 +55,7 @@ _TYPE_ICON: dict[int, str] = {
 
 class UniverseTab(QWidget):
     status_message = Signal(str)
+    ship_position_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -212,6 +213,9 @@ class UniverseTab(QWidget):
         if self._save and ship.element is not None:
             ship.element.set("ox", str(new_ox))
             ship.element.set("oy", str(new_oy))
+            ship.ox = new_ox
+            ship.oy = new_oy
+            self.ship_position_changed.emit()
             self.status_message.emit(
                 f"Moved {ship.name} to ox={new_ox}, oy={new_oy} (unsaved)."
             )

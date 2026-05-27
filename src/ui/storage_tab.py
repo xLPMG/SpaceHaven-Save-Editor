@@ -280,6 +280,11 @@ class StorageTab(QWidget):
             self._insert_item_row(storage_item)
         self._sync_remove_enabled()
 
+    def refresh_current_container(self) -> None:
+        """Re-populate the items table for the currently selected container."""
+        if self._current_container is not None:
+            self._populate_items(self._current_container)
+
     def _insert_item_row(self, storage_item: StorageItem) -> int:
         """Append one row for storage_item and return its row index."""
         row = self._items_table.rowCount()

@@ -62,6 +62,8 @@ class _EditCard(QWidget):
 
 class GlobalsTab(QWidget):
     status_message = Signal(str)
+    crew_data_changed = Signal()
+    storage_data_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -355,18 +357,21 @@ class GlobalsTab(QWidget):
         if self._save is None:
             return
         n = self._save.heal_all_crew()
+        self.crew_data_changed.emit()
         self.status_message.emit(f"Healed {n} crew members (unsaved).")
 
     def _max_all_skills(self) -> None:
         if self._save is None:
             return
         n = self._save.max_all_skills()
+        self.crew_data_changed.emit()
         self.status_message.emit(f"Maxed {n} skills across all crew (unsaved).")
 
     def _clear_all_conditions(self) -> None:
         if self._save is None:
             return
         n = self._save.clear_all_conditions()
+        self.crew_data_changed.emit()
         self.status_message.emit(f"Cleared conditions from {n} crew members (unsaved).")
 
     def _fill_all_storage(self) -> None:
@@ -374,4 +379,5 @@ class GlobalsTab(QWidget):
             return
         qty = self._fill_qty_spin.value()
         n = self._save.fill_all_storage(qty)
+        self.storage_data_changed.emit()
         self.status_message.emit(f"Set {n} storage items to {qty:,} (unsaved).")

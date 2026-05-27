@@ -265,11 +265,16 @@ class MainWindow(QMainWindow):
         self._content_stack.addWidget(self._universe_tab)  # index 5
 
         self._globals_tab.status_message.connect(self._mark_unsaved)
+        self._globals_tab.crew_data_changed.connect(self._crew_tab.refresh_current_char)
+        self._globals_tab.storage_data_changed.connect(self._storage_tab.refresh_current_container)
         self._crew_tab.status_message.connect(self._mark_unsaved)
+        self._crew_tab.crew_changed.connect(self._ships_tab.refresh_current_ship)
         self._storage_tab.status_message.connect(self._mark_unsaved)
         self._ships_tab.status_message.connect(self._mark_unsaved)
+        self._ships_tab.ships_changed.connect(self._on_ships_changed)
         self._research_tab.status_message.connect(self._mark_unsaved)
         self._universe_tab.status_message.connect(self._mark_unsaved)
+        self._universe_tab.ship_position_changed.connect(self._ships_tab.refresh_current_ship)
 
         body_layout.addWidget(self._content_stack)
         ev.addWidget(body)
@@ -423,6 +428,13 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Status bar
     # ------------------------------------------------------------------
+
+    def _on_ships_changed(self) -> None:
+        """Reload crew, storage, and universe tabs after ships are added or removed."""
+        if self._save is not None:
+            self._crew_tab.load(self._save)
+            self._storage_tab.load(self._save)
+            self._universe_tab.load(self._save)
 
     def _mark_unsaved(self, _msg: str = "") -> None:
         self._unsaved = True

@@ -172,6 +172,7 @@ class _AvatarLabel(QLabel):
 
 class CrewTab(QWidget):
     status_message = Signal(str)
+    crew_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -841,6 +842,11 @@ class CrewTab(QWidget):
         self._last_name_edit.setEnabled(enabled)
         self._tabs.setEnabled(enabled)
 
+    def refresh_current_char(self) -> None:
+        """Re-populate the character detail panel for the currently selected character."""
+        if self._current_char is not None:
+            self._populate_character(self._current_char)
+
     # ------------------------------------------------------------------
     # Add / Remove crew members
     # ------------------------------------------------------------------
@@ -890,6 +896,7 @@ class CrewTab(QWidget):
         self._add_crew_item(char, row=idx)
         self._crew_count.setText(str(self._crew_list.count()))
         self._crew_list.setCurrentRow(idx)
+        self.crew_changed.emit()
         self.status_message.emit(f"Crew member '{char.full_name}' added (unsaved).")
 
     def _remove_crew_member_by_char(self, char: Character) -> None:
@@ -910,6 +917,7 @@ class CrewTab(QWidget):
             self._current_char = None
             self._clear_character_panels()
             self._set_right_enabled(False)
+        self.crew_changed.emit()
         self.status_message.emit(f"'{char.full_name}' removed (unsaved).")
 
     @staticmethod
@@ -957,4 +965,5 @@ class CrewTab(QWidget):
         self._add_crew_item(char, row=idx)
         self._crew_count.setText(str(self._crew_list.count()))
         self._crew_list.setCurrentRow(idx)
+        self.crew_changed.emit()
         self.status_message.emit(f"'{char.full_name}' cloned (unsaved).")
