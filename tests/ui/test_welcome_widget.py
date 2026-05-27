@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
 from PySide6.QtCore import QMimeData, Qt, QUrl
@@ -129,7 +130,8 @@ class TestWelcomeWidgetDragDrop:
         widget._drop_zone._hovered = True
         widget._drop_zone.dropEvent(event)
 
-        assert received == [str(dropped_file)]
+        assert len(received) == 1
+        assert Path(received[0]) == dropped_file
         assert event.isAccepted()
         assert not widget._drop_zone._hovered
 

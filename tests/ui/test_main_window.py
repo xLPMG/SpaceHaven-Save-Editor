@@ -481,7 +481,8 @@ class TestMainWindowDragDrop:
                 Qt.KeyboardModifier.NoModifier,
             )
             win.dropEvent(event)
-            mock_load.assert_called_once_with(str(test_file))
+            mock_load.assert_called_once()
+            assert Path(mock_load.call_args.args[0]) == test_file
 
 
 # ===========================================================================
