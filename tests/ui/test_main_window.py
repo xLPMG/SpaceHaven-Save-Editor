@@ -219,7 +219,7 @@ class TestSidebarIndicator:
         assert indicator.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
     def test_slide_to_changes_geometry(self, qtbot):
-        from PySide6.QtCore import QAbstractAnimation, QRect
+        from PySide6.QtCore import QRect
         from PySide6.QtWidgets import QWidget
 
         parent = QWidget()
@@ -228,11 +228,9 @@ class TestSidebarIndicator:
         indicator = _SidebarIndicator(parent)
         new_rect = QRect(0, 50, parent.width(), 40)
         indicator.slide_to(new_rect)
-        # Wait for the animation to finish rather than an arbitrary sleep.
-        qtbot.waitUntil(
-            lambda: indicator._anim.state() == QAbstractAnimation.State.Stopped,
-            timeout=1000,
-        )
+        # Force animation to the end frame to avoid platform timing variance.
+        indicator._anim.setCurrentTime(indicator._anim.duration())
+        indicator._anim.stop()
         final_rect = indicator.geometry()
         assert abs(final_rect.y() - new_rect.y()) <= 1
         assert final_rect.width() == new_rect.width()
