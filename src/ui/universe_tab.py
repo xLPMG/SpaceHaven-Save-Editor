@@ -196,11 +196,13 @@ class UniverseTab(QWidget):
 
     def _load_sector_map(self, save: SaveFile) -> None:
         """Load the sector map with ships."""
-        if not save.ships:
+        has_map_ships = any(ship.in_game_file for ship in save.ships)
+        if not has_map_ships:
+            self._sector_map.clear()
             self._sector_map.setVisible(False)
             self._no_map_lbl.setVisible(True)
             return
-        
+
         self._sector_map.setVisible(True)
         self._no_map_lbl.setVisible(False)
         self._sector_map.load(save)
@@ -210,7 +212,9 @@ class UniverseTab(QWidget):
         if self._save and ship.element is not None:
             ship.element.set("ox", str(new_ox))
             ship.element.set("oy", str(new_oy))
-            self.status_message.emit(f"Moved {ship.name} to ox={new_ox}, oy={new_oy}")
+            self.status_message.emit(
+                f"Moved {ship.name} to ox={new_ox}, oy={new_oy} (unsaved)."
+            )
 
     def _populate_sectors(self, save: SaveFile) -> None:
         sectors = save.sectors

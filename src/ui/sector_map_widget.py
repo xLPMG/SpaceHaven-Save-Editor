@@ -19,6 +19,18 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QWidget
 
 from src.save_file import world_to_ox_oy, ox_oy_to_world
+from src.ui.styles import (
+    SECTOR_MAP_BG_COLOR,
+    SECTOR_MAP_BORDER_COLOR,
+    SECTOR_MAP_EMPTY_TEXT_COLOR,
+    SECTOR_MAP_FILL_COLOR,
+    SECTOR_MAP_SHIP_DRAG_PEN_COLOR,
+    SECTOR_MAP_SHIP_FALLBACK_COLOR,
+    SECTOR_MAP_SHIP_HOVER_PEN_COLOR,
+    SECTOR_MAP_SHIP_NAME_OUTLINE_COLOR,
+    SECTOR_MAP_SHIP_NAME_TEXT_COLOR,
+    SECTOR_MAP_SHIP_NORMAL_PEN_COLOR,
+)
 
 if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship
@@ -189,11 +201,11 @@ class SectorMapWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Background
-        painter.fillRect(self.rect(), QColor(20, 20, 30))
+        painter.fillRect(self.rect(), SECTOR_MAP_BG_COLOR)
         
         if not self._ships:
             # Show "no data" message
-            painter.setPen(QColor(150, 150, 150))
+            painter.setPen(SECTOR_MAP_EMPTY_TEXT_COLOR)
             font = QFont("Arial", 12)
             painter.setFont(font)
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, 
@@ -208,8 +220,8 @@ class SectorMapWidget(QWidget):
             self._sector_sx * scale,
             self._sector_sy * scale
         )
-        painter.setPen(QPen(QColor(100, 100, 120), 2))
-        painter.setBrush(QBrush(QColor(30, 30, 40)))
+        painter.setPen(QPen(SECTOR_MAP_BORDER_COLOR, 2))
+        painter.setBrush(QBrush(SECTOR_MAP_FILL_COLOR))
         painter.drawRect(sector_rect)
         
         # Draw ships
@@ -225,24 +237,24 @@ class SectorMapWidget(QWidget):
         is_hover = (ship == self._hover_ship and not is_dragging)
         
         # Ship rectangle
-        color = self._ship_colors.get(ship.sid, QColor(100, 100, 150))
+        color = self._ship_colors.get(ship.sid, SECTOR_MAP_SHIP_FALLBACK_COLOR)
         
         if is_dragging:
             painter.setBrush(QBrush(color.lighter(120)))
-            painter.setPen(QPen(QColor(255, 255, 255), 2))
+            painter.setPen(QPen(SECTOR_MAP_SHIP_DRAG_PEN_COLOR, 2))
         elif is_hover:
             painter.setBrush(QBrush(color.lighter(110)))
-            painter.setPen(QPen(QColor(200, 200, 255), 2))
+            painter.setPen(QPen(SECTOR_MAP_SHIP_HOVER_PEN_COLOR, 2))
         else:
             painter.setBrush(QBrush(color))
-            painter.setPen(QPen(QColor(50, 50, 60), 1))
+            painter.setPen(QPen(SECTOR_MAP_SHIP_NORMAL_PEN_COLOR, 1))
         
         painter.drawRect(rect)
         
         # Ship name label
         font = QFont("Arial", 10, QFont.Weight.Bold)
         painter.setFont(font)
-        painter.setPen(QColor(255, 255, 255))
+        painter.setPen(SECTOR_MAP_SHIP_NAME_TEXT_COLOR)
         
         # Draw name above ship if there's room, otherwise below
         fm = QFontMetrics(font)
@@ -256,10 +268,10 @@ class SectorMapWidget(QWidget):
             text_y = rect.bottom() + text_height
         
         # Draw text with black outline for readability
-        painter.setPen(QColor(0, 0, 0))
+        painter.setPen(SECTOR_MAP_SHIP_NAME_OUTLINE_COLOR)
         for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
             painter.drawText(QPointF(text_x + dx, text_y + dy), ship.name)
-        painter.setPen(QColor(255, 255, 255))
+        painter.setPen(SECTOR_MAP_SHIP_NAME_TEXT_COLOR)
         painter.drawText(QPointF(text_x, text_y), ship.name)
     
     def mousePressEvent(self, event: QMouseEvent) -> None:
