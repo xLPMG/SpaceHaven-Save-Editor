@@ -22,12 +22,16 @@ from lxml import etree
 from src.game_data import (
     ATTRIBUTE_IDS,
     CONDITION_IDS,
+    DOOR_TILE_IDS,
+    ENGINE_TILE_IDS,
+    HULL_TILE_IDS,
     SKILL_IDS,
     STAT_TAGS,
     STORAGE_IDS,
     TECH_IDS,
     TIMELINE_EVENT_NAMES,
     TRAIT_IDS,
+    WALL_TILE_IDS,
 )
 
 # ---------------------------------------------------------------------------
@@ -1007,6 +1011,91 @@ class SaveFile:
         if trait in char.traits:
             char.traits.remove(trait)
 
+    def _get_ship_faction(self, ship: Ship) -> str:
+        """Return the player faction ID for a new crew member.
+
+        Resolution order:
+        1. ``<settings f="...">`` in the game root (most reliable).
+        2. ``fac`` attribute of any existing character on *ship*.
+        3. ``fac`` attribute of any character anywhere in the game.
+        Falls back to ``"0"`` only if the save file has no faction data at all.
+        """
+        # Primary: authoritative faction stored in <settings f="...">
+        if self._root is not None:
+            settings = self._root.find("settings")
+            if settings is not None:
+                fac = settings.get("f")
+                if fac:
+                    return fac
+
+        # Secondary: copy from an existing character on this ship
+        chars_el = ship.element.find("characters")
+        if chars_el is not None:
+            for c in chars_el.findall("c"):
+                fac = c.get("fac")
+                if fac:
+                    return fac
+
+        # Tertiary: any character in the whole game
+        for c in self._root.iter("c") if self._root is not None else []:
+            fac = c.get("fac")
+            if fac and c.find("pers") is not None:
+                return fac
+
+        return "0"
+
+    def _find_spawn_position(self, ship: Ship) -> tuple[float, float]:
+        """Return a valid interior floor-tile position for a new character.
+
+        Prefers unoccupied tiles.  Falls back to any interior tile, then to
+        the ship's geometric centre if no tile data is available.
+        """
+        interior: set[tuple[int, int]] = set()
+        for e in ship.element.findall("e"):
+            x_str = e.get("x")
+            y_str = e.get("y")
+            m = e.get("m")
+            if x_str is None or y_str is None or m is None:
+                continue
+            try:
+                xi, yi = int(x_str), int(y_str)
+            except ValueError:
+                continue
+            if (
+                m not in HULL_TILE_IDS
+                and m not in WALL_TILE_IDS
+                and m not in DOOR_TILE_IDS
+                and m not in ENGINE_TILE_IDS
+                and m != "-2"
+            ):
+                interior.add((xi, yi))
+
+        if not interior:
+            # No tile data available – fall back to ship centre
+            cx = ship.sx // 2
+            cy = ship.sy // 2
+            return float(cx), float(cy)
+
+        # Exclude positions already occupied by other characters
+        occupied: set[tuple[int, int]] = set()
+        chars_el = ship.element.find("characters")
+        if chars_el is not None:
+            for c in chars_el.findall("c"):
+                cx_s = c.get("x")
+                cy_s = c.get("y")
+                if cx_s is not None and cy_s is not None:
+                    try:
+                        occupied.add((int(float(cx_s)), int(float(cy_s))))
+                    except ValueError:
+                        pass
+
+        available = interior - occupied
+        if not available:
+            available = interior  # allow overlap if every tile is taken
+
+        xi, yi = random.choice(sorted(available))
+        return float(xi), float(yi)
+
     def add_character(self, ship: Ship, first_name: str, last_name: str) -> Character:
         """Create a new crew member on *ship* with default stats and return it."""
         new_id = self._next_master_id()
@@ -1015,30 +1104,111 @@ class SaveFile:
         if chars_el is None:
             chars_el = etree.SubElement(ship.element, "characters")
 
+        spawn_x, spawn_y = self._find_spawn_position(ship)
+        fac = self._get_ship_faction(ship)
+
+        # Note: characters inside <characters> do NOT use objId; the game
+        # identifies them purely by their position in the XML and by the
+        # presence of the <pers> child element.
         c_el = etree.SubElement(chars_el, "c")
+        c_el.set("task", "Walk")
+        c_el.set("cid", "89")   # 89 = human character template in the game library
         c_el.set("entId", str(new_id))
-        c_el.set("objId", "89")  # Human/Android entity type
+        c_el.set("x", f"{spawn_x:.1f}")
+        c_el.set("y", f"{spawn_y:.1f}")
+        c_el.set("insx", str(int(spawn_x)))
+        c_el.set("insy", str(int(spawn_y)))
+        c_el.set("dir", "D1")
+        c_el.set("side", "Player")
+        c_el.set("fac", fac)
         c_el.set("name", first_name)
         c_el.set("lname", last_name)
-        c_el.set("cid", str(ship.sid))
+        # Body appearance (medium build; gender-neutral defaults)
+        c_el.set("bb", "m")
+        c_el.set("bs", "1")
+        c_el.set("bh", "m")
+        c_el.set("bp", "1")
+        c_el.set("orgColor", "2361")
+        c_el.set("colorSet", "4661")
 
-        # Default stats at full health
         props = etree.SubElement(c_el, "props")
         for tag in STAT_TAGS:
             el = etree.SubElement(props, tag)
-            el.set("v", "100")
+            if tag == "Comfort":
+                el.set("v", "0")
+            elif tag == "Oxygen":
+                el.set("v", "0")    # oxygen is maintained by ship atmosphere
+                el.set("oxs", "0")
+            else:
+                el.set("v", "100")
+        # Gas sensors (required by game; always zero at spawn)
+        for gas_tag in ("Co2Gas", "SmokeGas", "HazardousGas"):
+            etree.SubElement(props, gas_tag).set("v", "0")
 
-        # Personality/skills container
+        ai_el = etree.SubElement(c_el, "ai")
+        ai_el.set("bts", "100")
+        ai_el.set("suitOn", "0")
+        ai_el.set("bstx", "-1")
+        ai_el.set("bsty", "-1")
+        ai_el.set("bstsh", "0")
+        ai_el.set("hsid", str(ship.sid))
+        ai_el.set("rest", "0")
+        etree.SubElement(ai_el, "combatAI")
+
         pers = etree.SubElement(c_el, "pers")
+        pers.set("ret", "1")
+        pers.set("ret2", "1")
+        pers.set("bsid", "1776")   # "Teacher" as a neutral default occupation
+        pers.set("useGlobal", "false")
+        pers.set("globalSch", "1")
 
-        # Default attributes (mid-range)
+        # Attributes (mid-range)
         attr_el = etree.SubElement(pers, "attr")
         for attr_id in ATTRIBUTE_IDS:
             a = etree.SubElement(attr_el, "a")
             a.set("id", str(attr_id))
             a.set("points", "5")
 
-        # Default skills (level 0, max 10)
+        etree.SubElement(pers, "traits")
+        etree.SubElement(pers, "conditions")
+        sociality = etree.SubElement(pers, "sociality")
+        etree.SubElement(sociality, "relationships")
+
+        # Needs (personality needs tracking)
+        needs_el = etree.SubElement(pers, "needs")
+        ns_el = etree.SubElement(needs_el, "ns")
+        for tag, n_val, cv_val in (
+            ("nt", "10", "5"), ("ng", "10", "5"), ("pe", "10", "5"),
+            ("nm", "10", "5"), ("np", "0",  "0"), ("nd", "10", "5"),
+            ("nf", "0",  "0"), ("win","10", "5"), ("dec","10", "5"),
+        ):
+            el = etree.SubElement(ns_el, tag)
+            el.set("n", n_val)
+            el.set("cv", cv_val)
+        etree.SubElement(needs_el, "factors")
+
+        # Ship preferences
+        prefs_el = etree.SubElement(pers, "prefs")
+        c0 = etree.SubElement(prefs_el, "c")
+        c0.set("sid", "0")
+        c0.set("l", "0")
+        c0.set("med", "1")
+        c1 = etree.SubElement(prefs_el, "c")
+        c1.set("sid", str(ship.sid))
+        c1.set("med", "1")
+
+        # Job settings (all professions at Normal priority)
+        js_el = etree.SubElement(pers, "jobsetting")
+        for profession in (
+            "Navigate", "Gunner", "Shield", "Operations", "Fighter",
+            "Medical", "Farm", "Construct", "Maintenance", "Mine",
+            "Industry", "Research", "Logistics",
+        ):
+            j = etree.SubElement(js_el, "j")
+            j.set("profession", profession)
+            j.set("priority", "Normal")
+
+        # Skills (level 0, max 10)
         skills_el = etree.SubElement(pers, "skills")
         for skill_id in SKILL_IDS:
             s = etree.SubElement(skills_el, "s")
@@ -1048,10 +1218,45 @@ class SaveFile:
             s.set("exp", "0")
             s.set("expd", "0")
 
-        etree.SubElement(pers, "traits")
-        etree.SubElement(pers, "conditions")
-        sociality = etree.SubElement(pers, "sociality")
-        etree.SubElement(sociality, "relationships")
+        abilities_el = etree.SubElement(pers, "abilities")
+        etree.SubElement(abilities_el, "a").set("type", "CarryAbility")
+
+        sched = etree.SubElement(pers, "schedule")
+        sched.set("p0", "0")
+        sched.set("p1", "0")
+        sched.set("p2", "0")
+
+        sec = etree.SubElement(pers, "sec")
+        sec.set("s0", "0")
+        sec.set("s1", "0")
+        sec.set("s2", "0")
+
+        colors_el = etree.SubElement(c_el, "colors")
+        colors_el.set("glovesOff", "false")
+        colors_el.set("longSleeve", "false")
+        colors_el.set("pantsSet", "4664")
+        colors_el.set("shirtSet", "4663")
+        colors_el.set("skinSet", "4662")
+        colors_el.set("sp", "1")
+        colors_el.set("ss", "0")
+        colors_el.set("sr", "1")
+        colors_el.set("sh", "1")
+        colors_el.set("ssh", "1")
+        colors_el.set("sg", "0")
+        colors_el.set("sl", "0")
+
+        etree.SubElement(c_el, "inv")
+        loadout_el = etree.SubElement(c_el, "loadout")
+        loadout_el.set("headgear", "0")
+        loadout_el.set("armor", "0")
+        loadout_el.set("primary", "0")
+        loadout_el.set("attachment", "0")
+        loadout_el.set("secondary", "0")
+        loadout_el.set("pocket1", "0")
+        loadout_el.set("pocket2", "0")
+        loadout_el.set("pocket3", "0")
+        loadout_el.set("bestQArmor", "true")
+        loadout_el.set("bestQPrimary", "true")
 
         char = Character(
             ent_id=new_id,

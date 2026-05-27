@@ -785,8 +785,12 @@ class TestAddRemoveCharacter:
 
     def test_add_character_stats_default_to_100(self):
         char = self.sf.add_character(self.ship, "Healthy", "")
+        expected_defaults = {"Comfort": 0, "Oxygen": 0}
         for stat in char.stats:
-            assert stat.value == 100
+            expected = expected_defaults.get(stat.tag, 100)
+            assert stat.value == expected, (
+                f"{stat.tag} expected {expected}, got {stat.value}"
+            )
 
     def test_add_character_has_skills(self):
         char = self.sf.add_character(self.ship, "Skilled", "")

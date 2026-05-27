@@ -12,7 +12,6 @@ ATTRIBUTE_IDS: dict[int, str] = {
 
 # Skill IDs (skillId on <skill> elements inside <pers>).
 SKILL_IDS: dict[int, str] = {
-    1: "Construct",
     2: "Mining",
     3: "Botany",
     4: "Construction",
@@ -616,7 +615,7 @@ STAT_TAGS: tuple[str, ...] = (
     "Food",
     "Rest",
     "Comfort",
-    "Mood",
     "Oxygen",
+    "Mood",
     "Temperature",
 )
