@@ -42,6 +42,9 @@ PIP_EMPTY_COLOR = "#1E3A40"
 # Ship tab colours
 SHIP_TAB_SECTION_COLOR = QColor("#00D8F0")
 
+# Storage tab colours
+STORAGE_FILTER_ICON_COLOR = QColor("#3BBECE")
+
 # Research tab colors
 RESEARCH_DONE_COLOR = QColor("#04D912")
 RESEARCH_PROGRESS_COLOR = QColor("#FF8800")

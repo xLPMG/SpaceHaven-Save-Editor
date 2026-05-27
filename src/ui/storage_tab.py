@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship, StorageContainer, StorageItem
 
 from src.game_data import STORAGE_IDS
+from src.ui.styles import STORAGE_FILTER_ICON_COLOR
 
 
 class StorageTab(QWidget):
@@ -97,7 +98,9 @@ class StorageTab(QWidget):
         # Search/filter bar
         filter_row = QHBoxLayout()
         filter_row.setSpacing(8)
-        filter_icon = QLabel("🔍")
+        filter_icon = QLabel("⌕")
+        filter_icon.setObjectName("StorageFilterIcon")
+        filter_icon.setStyleSheet(f"color: {STORAGE_FILTER_ICON_COLOR.name()};")
         filter_row.addWidget(filter_icon)
         self._filter_edit = QLineEdit()
         self._filter_edit.setObjectName("FilterEdit")
@@ -119,9 +122,7 @@ class StorageTab(QWidget):
         )
         self._items_table.verticalHeader().setVisible(False)
         self._items_table.verticalHeader().setDefaultSectionSize(42)
-        self._items_table.itemSelectionChanged.connect(
-            lambda: self._remove_btn.setEnabled(bool(self._items_table.selectedItems()))
-        )
+        self._items_table.itemSelectionChanged.connect(self._sync_remove_enabled)
         rv.addWidget(self._items_table)
 
         # Toolbar: remove
@@ -158,10 +159,10 @@ class StorageTab(QWidget):
         self._add_qty_spin.setFixedWidth(90)
         add_row.addWidget(self._add_qty_spin)
 
-        add_btn = QPushButton("Add")
-        add_btn.setFixedWidth(60)
-        add_btn.clicked.connect(self._add_item)
-        add_row.addWidget(add_btn)
+        self._add_btn = QPushButton("Add")
+        self._add_btn.setFixedWidth(60)
+        self._add_btn.clicked.connect(self._add_item)
+        add_row.addWidget(self._add_btn)
 
         rv.addLayout(add_row)
 
@@ -179,6 +180,11 @@ class StorageTab(QWidget):
         self._save = save
         self._current_ship = None
         self._current_container = None
+        self._container_list.clear()
+        self._container_info.setText("")
+        self._items_table.setRowCount(0)
+        self._filter_edit.clear()
+        self._set_right_enabled(False)
 
         self._ship_combo.blockSignals(True)
         self._ship_combo.clear()
@@ -187,7 +193,9 @@ class StorageTab(QWidget):
         self._ship_combo.blockSignals(False)
 
         if save.ships:
+            self._ship_combo.blockSignals(True)
             self._ship_combo.setCurrentIndex(0)
+            self._ship_combo.blockSignals(False)
             self._on_ship_changed(0)
 
     def clear(self) -> None:
@@ -208,8 +216,22 @@ class StorageTab(QWidget):
 
     def _on_ship_changed(self, index: int) -> None:
         if self._save is None or index < 0:
+            self._current_ship = None
+            self._current_container = None
+            self._container_list.clear()
+            self._container_info.setText("")
+            self._items_table.setRowCount(0)
+            self._set_right_enabled(False)
             return
         ship: Ship = self._ship_combo.itemData(index)
+        if ship is None:
+            self._current_ship = None
+            self._current_container = None
+            self._container_list.clear()
+            self._container_info.setText("")
+            self._items_table.setRowCount(0)
+            self._set_right_enabled(False)
+            return
         self._current_ship = ship
         self._current_container = None
 
@@ -256,6 +278,7 @@ class StorageTab(QWidget):
         self._items_table.setRowCount(0)
         for storage_item in container.items:
             self._insert_item_row(storage_item)
+        self._sync_remove_enabled()
 
     def _insert_item_row(self, storage_item: StorageItem) -> int:
         """Append one row for storage_item and return its row index."""
@@ -296,11 +319,7 @@ class StorageTab(QWidget):
             return
         new_item = self._save.add_storage_item(self._current_container, item_id, qty)
         if new_item is not None:
-            # Genuinely new item — find its sorted position and insert one row
-            idx = self._current_container.items.index(new_item)
-            # Rebuild from idx onward is cheaper, but the list is sorted so we
-            # can just do a full repopulate only when the order changed; since
-            # add_storage_item re-sorts, rebuild is the safest single-path.
+            # add_storage_item re-sorts; rebuilding keeps table order in sync.
             self._populate_items(self._current_container)
         else:
             # Item was stacked — update the existing spinbox in-place
@@ -329,11 +348,15 @@ class StorageTab(QWidget):
             )
             return
         row = self._items_table.currentRow()
-        storage_item: StorageItem = self._items_table.item(row, 0).data(
-            Qt.ItemDataRole.UserRole
-        )
+        if row < 0:
+            return
+        name_cell = self._items_table.item(row, 0)
+        if name_cell is None:
+            return
+        storage_item: StorageItem = name_cell.data(Qt.ItemDataRole.UserRole)
         self._save.remove_storage_item(self._current_container, storage_item)
         self._items_table.removeRow(row)
+        self._sync_remove_enabled()
         self.status_message.emit(f"Removed {storage_item.name} (unsaved).")
 
     # ------------------------------------------------------------------
@@ -346,9 +369,28 @@ class StorageTab(QWidget):
             item = self._items_table.item(row, 0)
             match = query == "" or (item is not None and query in item.text().lower())
             self._items_table.setRowHidden(row, not match)
+        self._sync_remove_enabled()
+
+    def _sync_remove_enabled(self) -> None:
+        if not self._items_table.isEnabled():
+            self._remove_btn.setEnabled(False)
+            return
+        for row in range(self._items_table.rowCount()):
+            if self._items_table.isRowHidden(row):
+                continue
+            item = self._items_table.item(row, 0)
+            if item is not None and item.isSelected():
+                self._remove_btn.setEnabled(True)
+                return
+        self._remove_btn.setEnabled(False)
 
     def _set_right_enabled(self, enabled: bool) -> None:
         self._filter_edit.setEnabled(enabled)
         self._items_table.setEnabled(enabled)
         self._add_item_combo.setEnabled(enabled)
         self._add_qty_spin.setEnabled(enabled)
+        self._add_btn.setEnabled(enabled)
+        if not enabled:
+            self._remove_btn.setEnabled(False)
+        else:
+            self._sync_remove_enabled()
