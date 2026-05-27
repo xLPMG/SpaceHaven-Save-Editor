@@ -280,7 +280,7 @@ class ResearchTab(QWidget):
         )
         cap_lbl = QLabel(caption)
         cap_lbl.setStyleSheet(
-            f"color: {RESEARCH_NONE_COLOR.name()}; font-size: 9px; letter-spacing: 1px;"
+            f"color: {RESEARCH_TEXT_DIM.name()}; font-size: 10px; letter-spacing: 1px;"
         )
         v.addWidget(num_lbl)
         v.addWidget(cap_lbl)
