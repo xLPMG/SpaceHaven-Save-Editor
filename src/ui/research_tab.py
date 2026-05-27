@@ -50,8 +50,10 @@ if TYPE_CHECKING:
 class _TechDelegate(QStyledItemDelegate):
     """Paints each research entry as a styled row with accent strip + badge."""
 
+    _ROW_HEIGHT: int = 48
+
     def sizeHint(self, option: QStyleOptionViewItem, index) -> QSize:  # noqa: N802
-        return QSize(option.rect.width(), 48)
+        return QSize(option.rect.width(), self._ROW_HEIGHT)
 
     def paint(
         self, painter: QPainter, option: QStyleOptionViewItem, index

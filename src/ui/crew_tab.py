@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import Character, SaveFile, Ship, Trait
 
-from src.save_file import Condition
+from src.save_file import Condition, SKILL_HARD_MAX
 from src.game_data import TRAIT_BY_NAME, TRAIT_IDS
 from src.ui.styles import (
     ACTION_CLONE_COLOR,
@@ -45,6 +45,8 @@ from src.ui.styles import (
     PIP_FILLED_COLOR,
     PIP_EMPTY_COLOR,
 )
+
+MAX_ATTR_POINTS: int = 10  # UI edit cap for attribute points
 
 
 class _CrewDelegate(QStyledItemDelegate):
@@ -568,7 +570,6 @@ class CrewTab(QWidget):
     def _populate_attributes(self, char: Character) -> None:
         self._attr_table.setRowCount(0)
         for attr in sorted(char.attributes, key=lambda a: a.name):
-            MAX_ATTR_POINTS = 10
             # Clamp out-of-range values and persist the correction via _save,
             # matching the same pattern used in _populate_skills.
             if self._save is not None:
@@ -583,11 +584,11 @@ class CrewTab(QWidget):
             name_item.setData(Qt.ItemDataRole.UserRole, attr)
             self._attr_table.setItem(row, 0, name_item)
 
-            pip_lbl = self._skill_pip_label(attr.points, 10)
+            pip_lbl = self._skill_pip_label(attr.points, MAX_ATTR_POINTS)
             self._attr_table.setCellWidget(row, 1, pip_lbl)
 
             spin = QSpinBox()
-            spin.setRange(0, 10)
+            spin.setRange(0, MAX_ATTR_POINTS)
             spin.setValue(attr.points)
             spin.valueChanged.connect(
                 lambda v, a=attr, pl=pip_lbl: self._on_attr_spin_changed(a, pl, v)
@@ -611,10 +612,9 @@ class CrewTab(QWidget):
     def _populate_skills(self, char: Character) -> None:
         self._skills_table.setRowCount(0)
         for skill in char.skills:
-            MAX_SKILL_LEVEL = 10
             # Clamp out-of-range values and persist the correction via _save
             if self._save is not None:
-                clamped_max = max(0, min(skill.max_level, MAX_SKILL_LEVEL))
+                clamped_max = max(0, min(skill.max_level, SKILL_HARD_MAX))
                 if clamped_max != skill.max_level:
                     self._save.set_skill_max(skill, clamped_max)
                 clamped_level = max(0, min(skill.level, skill.max_level))
@@ -637,7 +637,7 @@ class CrewTab(QWidget):
             self._skills_table.setCellWidget(row, 2, level_spin)
 
             max_spin = QSpinBox()
-            max_spin.setRange(0, MAX_SKILL_LEVEL)
+            max_spin.setRange(0, SKILL_HARD_MAX)
             max_spin.setValue(skill.max_level)
             self._skills_table.setCellWidget(row, 3, max_spin)
 

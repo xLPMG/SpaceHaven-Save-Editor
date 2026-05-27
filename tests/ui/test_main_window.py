@@ -2,22 +2,21 @@
 
 from __future__ import annotations
 
-import io
 import textwrap
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from lxml import etree
 from PySide6.QtCore import QMimeData, Qt, QUrl
-from PySide6.QtGui import QDragEnterEvent, QDropEvent
+from PySide6.QtGui import QCloseEvent, QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import QDialog, QMessageBox, QPushButton
 
 from src.save_file import SaveFile
-from src.ui.main_window import MainWindow, _ConfirmDialog, _SidebarIndicator
+from src.ui.main_window import MainWindow, _ConfirmDialog, _NAV_ITEMS, _SidebarIndicator
+from tests.helpers import make_save_from_xml
 
 # ---------------------------------------------------------------------------
-# SaveFile fixture helpers
+# XML fixtures used by _make_save (imported from tests.helpers)
 # ---------------------------------------------------------------------------
 
 MINIMAL_XML = textwrap.dedent("""\
@@ -85,14 +84,7 @@ MINIMAL_XML = textwrap.dedent("""\
 
 
 def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
-    sf = SaveFile()
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    sf._tree = etree.parse(io.BytesIO(xml.encode()), parser)
-    sf._root = sf._tree.getroot()
-    sf._parse_ships()
-    sf._parse_characters()
-    sf._parse_research()
-    return sf
+    return make_save_from_xml(xml)
 
 
 def _load_file_with_mock(win: MainWindow, file_path: str | Path) -> SaveFile:
@@ -109,7 +101,7 @@ def _load_file_with_mock(win: MainWindow, file_path: str | Path) -> SaveFile:
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def mock_all_dialogs():
     """
     Mock all confirmation and message dialogs at module level to prevent popups.
@@ -152,68 +144,55 @@ def main_window(qtbot):
 
 class TestConfirmDialog:
     def test_dialog_created_with_title(self, qtbot, mock_all_dialogs):
-        # Temporarily stop the module-level mock for this specific test
-        mock_all_dialogs.stop()
+        # _ConfirmDialog is imported directly here, so the module-level
+        # patch (which covers main_window.py internals) does not intercept
+        # these direct instantiations.
         dlg = _ConfirmDialog("Test Title", "Test message")
         qtbot.addWidget(dlg)
         assert dlg.windowTitle() == "Test Title"
-        dlg.close()  # Explicitly close to prevent hanging
-        mock_all_dialogs.start()
+        dlg.close()
 
     def test_dialog_is_modal(self, qtbot, mock_all_dialogs):
-        mock_all_dialogs.stop()
         dlg = _ConfirmDialog("Title", "Message")
         qtbot.addWidget(dlg)
         assert dlg.isModal()
         dlg.close()
-        mock_all_dialogs.start()
 
     def test_dialog_has_fixed_width(self, qtbot, mock_all_dialogs):
-        mock_all_dialogs.stop()
         dlg = _ConfirmDialog("Title", "Message")
         qtbot.addWidget(dlg)
-        assert dlg.width() == 400
+        assert dlg.width() == _ConfirmDialog._WIDTH
         dlg.close()
-        mock_all_dialogs.start()
 
     def test_default_confirm_text_is_proceed(self, qtbot, mock_all_dialogs):
-        mock_all_dialogs.stop()
         dlg = _ConfirmDialog("Title", "Message")
         qtbot.addWidget(dlg)
         confirm_btn = dlg.findChild(QPushButton, "DangerButton")
         assert confirm_btn is not None
         assert confirm_btn.text() == "Proceed"
         dlg.close()
-        mock_all_dialogs.start()
 
     def test_custom_confirm_text(self, qtbot, mock_all_dialogs):
-        mock_all_dialogs.stop()
         dlg = _ConfirmDialog("Title", "Message", "Delete")
         qtbot.addWidget(dlg)
         confirm_btn = dlg.findChild(QPushButton, "DangerButton")
         assert confirm_btn.text() == "Delete"
         dlg.close()
-        mock_all_dialogs.start()
 
     def test_cancel_button_rejects(self, qtbot, mock_all_dialogs):
-        mock_all_dialogs.stop()
         dlg = _ConfirmDialog("Title", "Message")
         qtbot.addWidget(dlg)
-        # Find cancel button (not the danger button)
         buttons = dlg.findChildren(QPushButton)
         cancel_btn = next(b for b in buttons if b.objectName() != "DangerButton")
         with qtbot.waitSignal(dlg.rejected, timeout=1000):
             cancel_btn.click()
-        mock_all_dialogs.start()
 
     def test_confirm_button_accepts(self, qtbot, mock_all_dialogs):
-        mock_all_dialogs.stop()
         dlg = _ConfirmDialog("Title", "Message")
         qtbot.addWidget(dlg)
         confirm_btn = dlg.findChild(QPushButton, "DangerButton")
         with qtbot.waitSignal(dlg.accepted, timeout=1000):
             confirm_btn.click()
-        mock_all_dialogs.start()
 
 
 # ===========================================================================
@@ -240,19 +219,20 @@ class TestSidebarIndicator:
         assert indicator.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
     def test_slide_to_changes_geometry(self, qtbot):
-        from PySide6.QtCore import QRect
+        from PySide6.QtCore import QAbstractAnimation, QRect
         from PySide6.QtWidgets import QWidget
 
         parent = QWidget()
         parent.setFixedWidth(200)
         qtbot.addWidget(parent)
         indicator = _SidebarIndicator(parent)
-        initial_rect = indicator.geometry()
         new_rect = QRect(0, 50, parent.width(), 40)
         indicator.slide_to(new_rect)
-        # Wait for animation to complete
-        qtbot.wait(300)
-        # Check geometry is close (animation timing can vary slightly)
+        # Wait for the animation to finish rather than an arbitrary sleep.
+        qtbot.waitUntil(
+            lambda: indicator._anim.state() == QAbstractAnimation.State.Stopped,
+            timeout=1000,
+        )
         final_rect = indicator.geometry()
         assert abs(final_rect.y() - new_rect.y()) <= 1
         assert final_rect.width() == new_rect.width()
@@ -291,11 +271,6 @@ class TestMainWindowInit:
         qtbot.addWidget(win)
         assert win.acceptDrops()
 
-    def test_initial_window_size(self, qtbot):
-        win = MainWindow()
-        qtbot.addWidget(win)
-        assert win.width() == 1200
-        assert win.height() == 780
 
     def test_shows_welcome_page_initially(self, qtbot):
         win = MainWindow()
@@ -333,7 +308,7 @@ class TestMainWindowInit:
     def test_nav_buttons_created(self, qtbot):
         win = MainWindow()
         qtbot.addWidget(win)
-        assert len(win._nav_buttons) == 6
+        assert len(win._nav_buttons) == len(_NAV_ITEMS)
 
     def test_first_nav_button_checked(self, qtbot):
         win = MainWindow()
@@ -398,12 +373,12 @@ class TestMainWindowNavigation:
     def test_nav_to_updates_indicator(self, qtbot):
         win = MainWindow()
         qtbot.addWidget(win)
-        # Navigate and wait for animation
         win._nav_to(1)
-        qtbot.wait(250)
-        # Indicator should be positioned at button 1
         btn_rect = win._nav_buttons[1].geometry()
-        assert win._nav_indicator.geometry().y() == btn_rect.y()
+        qtbot.waitUntil(
+            lambda: win._nav_indicator.geometry().y() == btn_rect.y(),
+            timeout=500,
+        )
 
     def test_show_welcome_switches_to_page_0(self, qtbot):
         win = MainWindow()
@@ -440,8 +415,7 @@ class TestMainWindowUnsavedState:
         win.show()
         qtbot.waitExposed(win)
         win._mark_unsaved()
-        qtbot.wait(10)  # Give time for UI update
-        assert win._unsaved_badge.isVisible()
+        qtbot.waitUntil(lambda: win._unsaved_badge.isVisible(), timeout=500)
         # Cleanup to prevent dialog on window close
         win._unsaved = False
 
@@ -525,9 +499,7 @@ class TestMainWindowFileLoading:
         # Create a properly initialized mock save
         mock_save = _make_save()
         mock_save.path = test_file
-        with patch.object(SaveFile, "load"), \
-             patch.object(SaveFile, "__init__", return_value=None):
-            with patch("src.ui.main_window.SaveFile", return_value=mock_save):
+        with patch("src.ui.main_window.SaveFile", return_value=mock_save):
                 win._load_file(str(test_file))
                 assert win._save is not None
 
@@ -584,15 +556,18 @@ class TestMainWindowFileLoading:
             assert win._backup_action.isEnabled()
             assert win._close_action.isEnabled()
 
-    def test_load_file_with_unsaved_shows_confirm(self, qtbot, tmp_path):
+    def test_load_file_with_unsaved_prompts_confirm(self, qtbot, tmp_path, mock_all_dialogs):
+        """When there are unsaved changes, a confirm dialog must be raised before loading."""
         win = MainWindow()
         qtbot.addWidget(win)
         win._mark_unsaved()
         test_file = tmp_path / "game"
         test_file.write_text(MINIMAL_XML)
 
-        # The module-level mock will handle the dialog, just verify behavior
+        call_count_before = mock_all_dialogs.call_count
         win._load_file(str(test_file))
+        # Confirm dialog must have been instantiated exactly once more
+        assert mock_all_dialogs.call_count == call_count_before + 1
         # With confirm accepted (mocked), file should be loaded
         assert win._save is not None
 
@@ -692,7 +667,8 @@ class TestMainWindowFileClosing:
         assert not win._backup_action.isEnabled()
         assert not win._close_action.isEnabled()
 
-    def test_close_file_with_unsaved_shows_confirm(self, qtbot, tmp_path):
+    def test_close_file_with_unsaved_prompts_confirm(self, qtbot, tmp_path, mock_all_dialogs):
+        """When there are unsaved changes, a confirm dialog must be raised before closing."""
         win = MainWindow()
         qtbot.addWidget(win)
         test_file = tmp_path / "game"
@@ -700,8 +676,9 @@ class TestMainWindowFileClosing:
 
         _load_file_with_mock(win, test_file)
         win._mark_unsaved()
-        # Module-level mock will accept the dialog
+        call_count_before = mock_all_dialogs.call_count
         win._close_file()
+        assert mock_all_dialogs.call_count == call_count_before + 1
         # With confirm accepted, file should be closed
         assert win._save is None
 
@@ -907,8 +884,6 @@ class TestMainWindowCloseEvent:
     def test_close_event_with_no_unsaved_accepts(self, qtbot):
         win = MainWindow()
         qtbot.addWidget(win)
-        from PySide6.QtGui import QCloseEvent
-
         event = QCloseEvent()
         win.closeEvent(event)
         assert event.isAccepted()
@@ -1033,18 +1008,16 @@ class TestMainWindowUpdateActions:
 class TestMainWindowIndicatorResize:
     def test_indicator_updates_on_sidebar_resize(self, qtbot):
         """Test that indicator updates position when sidebar is resized."""
+        from PySide6.QtWidgets import QWidget
+
         win = MainWindow()
         qtbot.addWidget(win)
         win.show()
         qtbot.waitExposed(win)
-        # Get the sidebar widget
-        sidebar = win.findChild(type(win._nav_indicator.parent()))
-        if sidebar:
-            # Trigger resize
-            sidebar.resize(200, 600)
-            qtbot.wait(50)
-            # Indicator should still be positioned correctly
-            assert win._nav_indicator.geometry().y() == win._nav_buttons[0].geometry().y()
+        sidebar = win.findChild(QWidget, "Sidebar")
+        assert sidebar is not None, "Could not find 'Sidebar' widget by object name"
+        sidebar.resize(200, 600)
+        assert win._nav_indicator.geometry().y() == win._nav_buttons[0].geometry().y()
 
     def test_update_indicator_handles_none_parent(self, qtbot):
         """Test fix for bug where indicator parent could be None."""

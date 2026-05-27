@@ -23,6 +23,11 @@ if TYPE_CHECKING:
     from src.save_file import SaveFile
 
 
+_RESOURCE_SPIN_MAX: int = 2_000_000_000  # upper bound for credits / prestige spins
+_FILL_QTY_DEFAULT: int = 9_999           # default quantity for the Fill Storage action
+_FILL_QTY_MAX: int = 1_000_000           # maximum quantity for the Fill Storage spin
+
+
 def _sep() -> QFrame:
     line = QFrame()
     line.setFrameShape(QFrame.Shape.HLine)
@@ -45,7 +50,7 @@ class _EditCard(QWidget):
         layout.addWidget(name_lbl)
 
         self.spin = QSpinBox()
-        self.spin.setRange(0, 2_000_000_000)
+        self.spin.setRange(0, _RESOURCE_SPIN_MAX)
         self.spin.setObjectName("StatCardSpin")
         layout.addWidget(self.spin)
 
@@ -248,8 +253,8 @@ class GlobalsTab(QWidget):
         fill_row.addLayout(fill_text)
         fill_row.addStretch()
         self._fill_qty_spin = QSpinBox()
-        self._fill_qty_spin.setRange(1, 1_000_000)
-        self._fill_qty_spin.setValue(9999)
+        self._fill_qty_spin.setRange(1, _FILL_QTY_MAX)
+        self._fill_qty_spin.setValue(_FILL_QTY_DEFAULT)
         self._fill_qty_spin.setFixedWidth(90)
         fill_row.addWidget(self._fill_qty_spin)
         fill_btn = QPushButton("Fill Storage")

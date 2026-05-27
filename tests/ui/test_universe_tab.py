@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import io
 import textwrap
 
-from lxml import etree
 from PySide6.QtCore import Qt
 
 from src.save_file import SaveFile, Sector, TimelineEvent
 from src.ui.universe_tab import UniverseTab, _ro_item
+from tests.helpers import make_save_from_xml
 
 # ---------------------------------------------------------------------------
-# SaveFile fixture helpers
+# XML fixtures used by _make_save (imported from tests.helpers)
 # ---------------------------------------------------------------------------
 
 MINIMAL_XML = textwrap.dedent("""\
@@ -37,14 +36,7 @@ MINIMAL_XML = textwrap.dedent("""\
 
 
 def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
-    sf = SaveFile()
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    sf._tree = etree.parse(io.BytesIO(xml.encode()), parser)
-    sf._root = sf._tree.getroot()
-    sf._parse_ships()
-    sf._parse_characters()
-    sf._parse_research()
-    return sf
+    return make_save_from_xml(xml)
 
 
 def _seed_universe_data(sf: SaveFile) -> None:

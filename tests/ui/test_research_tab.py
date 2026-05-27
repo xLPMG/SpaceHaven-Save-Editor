@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
-import io
 import textwrap
 
-from lxml import etree
 from PySide6.QtCore import Qt
 
 from src.save_file import SaveFile
 from src.ui.research_tab import ResearchTab, _TechDelegate
+from src.game_data import TECH_IDS
+from tests.helpers import make_save_from_xml
+
+# Tech IDs used in fixtures and assertions
+# 2536 and 2537 are intentionally NOT in TECH_IDS (test the unknown-ID fallback path).
+_TECH_UNMAPPED_1 = 2536   # → "Unknown (2536)"
+_TECH_UNMAPPED_2 = 2537   # → "Unknown (2537)"
+_TECH_LARGE_STORAGE = next(k for k, v in TECH_IDS.items() if v == "Large Storage")  # 2538
 
 # ---------------------------------------------------------------------------
-# SaveFile fixture helpers
+# XML fixtures used by _make_save (imported from tests.helpers)
 # ---------------------------------------------------------------------------
 
 MINIMAL_XML = textwrap.dedent("""\
@@ -143,17 +149,6 @@ MANY_RESEARCH_XML = textwrap.dedent("""\
 """)
 
 
-def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
-    sf = SaveFile()
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    sf._tree = etree.parse(io.BytesIO(xml.encode()), parser)
-    sf._root = sf._tree.getroot()
-    sf._parse_ships()
-    sf._parse_characters()
-    sf._parse_research()
-    return sf
-
-
 # ===========================================================================
 # _TechDelegate
 # ===========================================================================
@@ -169,18 +164,25 @@ class TestTechDelegate:
     def test_size_hint_returns_fixed_height(self, qtbot):
         tab = ResearchTab()
         qtbot.addWidget(tab)
+        sf = _make_save()
+        tab.load(sf)
         delegate = tab._list.itemDelegate()
         from PySide6.QtWidgets import QStyleOptionViewItem
 
         option = QStyleOptionViewItem()
         option.rect.setWidth(500)
+        # Use a valid model index now that data has been loaded.
         size = delegate.sizeHint(option, tab._list.model().index(0, 0))
-        assert size.height() == 48
+        assert size.height() == _TechDelegate._ROW_HEIGHT
 
 
 # ===========================================================================
 # ResearchTab – load / clear
 # ===========================================================================
+
+
+def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
+    return make_save_from_xml(xml)
 
 
 class TestResearchTabLoad:
@@ -346,17 +348,28 @@ class TestResearchTabFiltering:
         assert not entry.in_progress
 
     def test_filter_buttons_checked_state(self, qtbot):
+        from PySide6.QtWidgets import QPushButton
+
         tab = ResearchTab()
         qtbot.addWidget(tab)
         sf = _make_save()
         tab.load(sf)
-        # Initially "all" should be checked
-        buttons = tab.findChildren(tab._complete_sel_btn.__class__)
-        all_btn = next(b for b in buttons if b.property("filterAttr") == "all")
+        # Collect only buttons that carry the filterAttr property.
+        filter_btns = [
+            b for b in tab.findChildren(QPushButton)
+            if b.property("filterAttr") is not None
+        ]
+        all_btn = next(
+            (b for b in filter_btns if b.property("filterAttr") == "all"), None
+        )
+        assert all_btn is not None, "Filter button with filterAttr='all' not found"
         assert all_btn.isChecked()
         # Switch to "done"
         tab._set_filter("done")
-        done_btn = next(b for b in buttons if b.property("filterAttr") == "done")
+        done_btn = next(
+            (b for b in filter_btns if b.property("filterAttr") == "done"), None
+        )
+        assert done_btn is not None, "Filter button with filterAttr='done' not found"
         assert done_btn.isChecked()
         assert not all_btn.isChecked()
 
@@ -395,24 +408,23 @@ class TestResearchTabSearch:
         qtbot.addWidget(tab)
         sf = _make_save(MANY_RESEARCH_XML)
         tab.load(sf)
-        initial_count = tab._list.count()
-        # Type partial tech name (assuming tech names contain numbers)
-        tab._search.setText("2536")
-        qtbot.wait(10)
-        assert tab._list.count() < initial_count
+        # _TECH_UNMAPPED_1 is not in TECH_IDS; it appears as "Unknown (2536)"
+        # so searching its numeric ID string must still find it.
+        tab._search.setText(str(_TECH_UNMAPPED_1))
+        assert tab._list.count() == 1
+        found = tab._list.item(0).data(Qt.ItemDataRole.UserRole)
+        assert found.tech_id == _TECH_UNMAPPED_1
 
     def test_search_case_insensitive(self, qtbot):
+        # _TECH_LARGE_STORAGE maps to "Large Storage"; uppercase search must match.
         tab = ResearchTab()
         qtbot.addWidget(tab)
         sf = _make_save()
         tab.load(sf)
-        # Get first entry name
-        entry = tab._list.item(0).data(Qt.ItemDataRole.UserRole)
-        name_part = entry.name[:4].upper()
-        tab._search.setText(name_part)
-        qtbot.wait(10)
-        # Should still find it
-        assert tab._list.count() >= 1
+        tab._search.setText("LARGE STORAGE")
+        assert tab._list.count() == 1
+        found = tab._list.item(0).data(Qt.ItemDataRole.UserRole)
+        assert found.tech_id == _TECH_LARGE_STORAGE
 
     def test_search_no_match(self, qtbot):
         tab = ResearchTab()
@@ -420,7 +432,6 @@ class TestResearchTabSearch:
         sf = _make_save()
         tab.load(sf)
         tab._search.setText("XYZNONEXISTENT")
-        qtbot.wait(10)
         assert tab._list.count() == 0
 
     def test_search_combines_with_filter(self, qtbot):
@@ -433,7 +444,6 @@ class TestResearchTabSearch:
         todo_count = tab._list.count()
         entry = tab._list.item(0).data(Qt.ItemDataRole.UserRole)
         tab._search.setText(entry.name[:4])
-        qtbot.wait(10)
         # Should show fewer results (filtered by both)
         assert tab._list.count() <= todo_count
 
@@ -444,9 +454,7 @@ class TestResearchTabSearch:
         tab.load(sf)
         original_count = tab._list.count()
         tab._search.setText("test")
-        qtbot.wait(10)
         tab._search.setText("")
-        qtbot.wait(10)
         assert tab._list.count() == original_count
 
 
@@ -701,9 +709,7 @@ class TestResearchTabEdgeCases:
         tab._set_filter("done")
         assert tab._active_filter == "done"
         tab._search.setText("test")
-        qtbot.wait(10)
         tab._search.setText("")
-        qtbot.wait(10)
         assert tab._active_filter == "done"
 
     def test_load_sorts_research_by_name(self, qtbot):

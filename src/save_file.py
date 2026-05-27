@@ -31,6 +31,12 @@ from src.game_data import (
 )
 
 # ---------------------------------------------------------------------------
+# Game-wide limits
+# ---------------------------------------------------------------------------
+
+SKILL_HARD_MAX: int = 10  # maximum skill level settable via the editor
+
+# ---------------------------------------------------------------------------
 # Coordinate conversion helpers (isometric <-> world)
 # Formula verified in validation_data/coordinate_formulas.py
 # ---------------------------------------------------------------------------
@@ -1104,12 +1110,12 @@ class SaveFile:
         return count
 
     def max_all_skills(self) -> int:
-        """Set all crew skills to level 20 / max 20. Returns number of skills changed."""
+        """Set all crew skills to SKILL_HARD_MAX. Returns number of skills changed."""
         count = 0
         for char in self.characters:
             for skill in char.skills:
-                self.set_skill_level(skill, 20)
-                self.set_skill_max(skill, 20)
+                self.set_skill_level(skill, SKILL_HARD_MAX)
+                self.set_skill_max(skill, SKILL_HARD_MAX)
                 count += 1
         return count
 

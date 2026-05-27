@@ -42,6 +42,15 @@ from src.ui.welcome_widget import WelcomeWidget
 
 _ICONS_DIR = Path(__file__).parent / "icons"
 
+_NAV_ITEMS: tuple[tuple[str, int, str], ...] = (
+    ("Overview", 0, "overview"),
+    ("Crew", 1, "crew"),
+    ("Storage", 2, "storage"),
+    ("Ships", 3, "ships"),
+    ("Research", 4, "research"),
+    ("Universe", 5, "universe"),
+)
+
 
 def _icon(name: str) -> QIcon:
     """Load an SVG icon from the icons directory; returns empty QIcon if missing."""
@@ -51,6 +60,8 @@ def _icon(name: str) -> QIcon:
 
 class _ConfirmDialog(QDialog):
     """A minimal dark-themed confirmation dialog."""
+
+    _WIDTH: int = 400
 
     def __init__(
         self,
@@ -62,7 +73,7 @@ class _ConfirmDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setModal(True)
-        self.setFixedWidth(400)
+        self.setFixedWidth(self._WIDTH)
         self._accepted = False
 
         layout = QVBoxLayout(self)
@@ -277,17 +288,8 @@ class MainWindow(QMainWindow):
         self._nav_group = QButtonGroup(self)
         self._nav_group.setExclusive(True)
 
-        nav_items = [
-            ("Overview", 0, "overview"),
-            ("Crew", 1, "crew"),
-            ("Storage", 2, "storage"),
-            ("Ships", 3, "ships"),
-            ("Research", 4, "research"),
-            ("Universe", 5, "universe"),
-        ]
-
         self._nav_buttons: list[QPushButton] = []
-        for label, page_idx, icon_name in nav_items:
+        for label, page_idx, icon_name in _NAV_ITEMS:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.setObjectName("NavButton")

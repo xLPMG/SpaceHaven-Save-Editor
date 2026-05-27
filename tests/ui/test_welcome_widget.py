@@ -47,7 +47,7 @@ class TestWelcomeWidgetConstruction:
 
         assert widget._starfield._timer.isActive()
         assert widget._drop_zone._pulse_timer.isActive()
-        assert len(widget._starfield._stars) == 90
+        assert len(widget._starfield._stars) == _StarfieldWidget._N_STARS
 
     def test_timers_stop_on_hide_event(self, qtbot):
         widget = WelcomeWidget()
@@ -161,6 +161,31 @@ class TestWelcomeWidgetDragDrop:
 # ===========================================================================
 # WelcomeWidget – browse menu
 # ===========================================================================
+# Helpers
+# ===========================================================================
+
+
+def _fake_menu_class(action_index: int | None):
+    """Return a FakeMenu class that selects the nth action (or None to cancel)."""
+
+    class FakeMenu:
+        def __init__(self, parent=None) -> None:
+            self._actions: list[object] = []
+
+        def addAction(self, _text: str):
+            action = object()
+            self._actions.append(action)
+            return action
+
+        def exec(self, _pos):
+            if action_index is None:
+                return None
+            return self._actions[action_index]
+
+    return FakeMenu
+
+
+# ===========================================================================
 
 
 class TestWelcomeWidgetBrowse:
@@ -173,19 +198,7 @@ class TestWelcomeWidgetBrowse:
         received: list[str] = []
         widget.file_selected.connect(received.append)
 
-        class FakeMenu:
-            def __init__(self, parent=None) -> None:
-                self._actions: list[object] = []
-
-            def addAction(self, _text: str):
-                action = object()
-                self._actions.append(action)
-                return action
-
-            def exec(self, _pos):
-                return self._actions[0]
-
-        monkeypatch.setattr("src.ui.welcome_widget.QMenu", FakeMenu)
+        monkeypatch.setattr("src.ui.welcome_widget.QMenu", _fake_menu_class(0))
         monkeypatch.setattr(
             "src.ui.welcome_widget.QFileDialog.getExistingDirectory",
             lambda *args, **kwargs: str(target_dir),
@@ -204,19 +217,7 @@ class TestWelcomeWidgetBrowse:
         received: list[str] = []
         widget.file_selected.connect(received.append)
 
-        class FakeMenu:
-            def __init__(self, parent=None) -> None:
-                self._actions: list[object] = []
-
-            def addAction(self, _text: str):
-                action = object()
-                self._actions.append(action)
-                return action
-
-            def exec(self, _pos):
-                return self._actions[1]
-
-        monkeypatch.setattr("src.ui.welcome_widget.QMenu", FakeMenu)
+        monkeypatch.setattr("src.ui.welcome_widget.QMenu", _fake_menu_class(1))
         monkeypatch.setattr(
             "src.ui.welcome_widget.QFileDialog.getOpenFileName",
             lambda *args, **kwargs: (str(target_file), ""),
@@ -233,19 +234,7 @@ class TestWelcomeWidgetBrowse:
         received: list[str] = []
         widget.file_selected.connect(received.append)
 
-        class FakeMenu:
-            def __init__(self, parent=None) -> None:
-                self._actions: list[object] = []
-
-            def addAction(self, _text: str):
-                action = object()
-                self._actions.append(action)
-                return action
-
-            def exec(self, _pos):
-                return None
-
-        monkeypatch.setattr("src.ui.welcome_widget.QMenu", FakeMenu)
+        monkeypatch.setattr("src.ui.welcome_widget.QMenu", _fake_menu_class(None))
 
         with patch(
             "src.ui.welcome_widget.QFileDialog.getExistingDirectory"

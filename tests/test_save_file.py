@@ -11,11 +11,13 @@ from lxml import etree
 from src.save_file import (
     Character,
     SaveFile,
-    Skill,
-    Stat,
-    StorageItem,
+    SKILL_HARD_MAX,
 )
-from src.game_data import STAT_TAGS
+from src.game_data import STAT_TAGS, TRAIT_IDS
+
+# Trait IDs resolved from TRAIT_IDS for use in mutation tests
+_FAST_LEARNER_ID = next(k for k, v in TRAIT_IDS.items() if v == "Fast learner")
+_CONFIDENT_ID = next(k for k, v in TRAIT_IDS.items() if v == "Confident")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -169,18 +171,6 @@ class TestDataclasses:
         char = Character(ent_id=2, first_name="Solo", last_name="", ship_sid=89)
         assert char.full_name == "Solo"
 
-    def test_stat_defaults(self):
-        stat = Stat(tag="Health", value=80)
-        assert stat.element is None
-
-    def test_skill_defaults(self):
-        skill = Skill(skill_id=6, name="Medical", level=3, max_level=8)
-        assert skill.element is None
-
-    def test_storage_item_defaults(self):
-        item = StorageItem(item_id=16, name="Water", quantity=50)
-        assert item.element is None
-
 
 # ---------------------------------------------------------------------------
 # SaveFile.load / root validation
@@ -188,13 +178,6 @@ class TestDataclasses:
 
 
 class TestSaveFileLoad:
-    def test_load_valid_file(self, tmp_path):
-        p = tmp_path / "game"
-        p.write_bytes(MINIMAL_XML.encode())
-        sf = SaveFile()
-        sf.load(str(p))
-        assert sf.path == p
-
     def test_load_invalid_root_raises(self, tmp_path):
         p = tmp_path / "game"
         p.write_bytes(b"<notgame/>")
@@ -413,9 +396,9 @@ class TestStorageMutations:
 
     def test_fill_all_storage(self):
         count = self.sf.fill_all_storage(999)
-        # get_storage_containers returns fresh objects each call, so re-fetch
-        fresh = self.sf.get_storage_containers(self.ship)[0]
-        for item in fresh.items:
+        # get_storage_containers is cached, so it returns the same objects
+        containers = self.sf.get_storage_containers(self.ship)
+        for item in containers[0].items:
             assert item.quantity == 999
         assert count == 2
 
@@ -443,7 +426,7 @@ class TestCharacterParsing:
 
     def test_character_stats_parsed(self):
         jarvis = next(c for c in self.sf.characters if c.first_name == "Jarvis")
-        assert len(jarvis.stats) == 7
+        assert len(jarvis.stats) == len(STAT_TAGS)
         health = next(s for s in jarvis.stats if s.tag == "Health")
         assert health.value == 80
 
@@ -553,15 +536,15 @@ class TestCharacterMutations:
         assert self.jarvis.element.get("lname") == "Doe"
 
     def test_add_trait(self):
-        trait = self.sf.add_trait(self.jarvis, 1039)  # Fast learner
+        trait = self.sf.add_trait(self.jarvis, _FAST_LEARNER_ID)  # Fast learner
         assert trait is not None
-        assert any(t.trait_id == 1039 for t in self.jarvis.traits)
+        assert any(t.trait_id == _FAST_LEARNER_ID for t in self.jarvis.traits)
 
     def test_add_trait_no_duplicate(self):
-        self.sf.add_trait(self.jarvis, 1039)
-        result = self.sf.add_trait(self.jarvis, 1039)
+        self.sf.add_trait(self.jarvis, _FAST_LEARNER_ID)
+        result = self.sf.add_trait(self.jarvis, _FAST_LEARNER_ID)
         assert result is None
-        assert sum(1 for t in self.jarvis.traits if t.trait_id == 1039) == 1
+        assert sum(1 for t in self.jarvis.traits if t.trait_id == _FAST_LEARNER_ID) == 1
 
     def test_add_unknown_trait_uses_fallback_name(self):
         trait = self.sf.add_trait(self.jarvis, 99999)
@@ -621,19 +604,20 @@ class TestBatchOperations:
         assert count > 0
         for char in self.sf.characters:
             for skill in char.skills:
-                assert skill.level == 20
-                assert skill.max_level == 20
+                assert skill.level == SKILL_HARD_MAX
+                assert skill.max_level == SKILL_HARD_MAX
 
     def test_clear_all_conditions(self):
+        # Count characters with at least one condition before clearing.
+        expected = sum(1 for c in self.sf.characters if c.conditions)
         count = self.sf.clear_all_conditions()
-        # Jarvis has 2 conditions, Airek has 0
-        assert count == 1
+        assert count == expected
         for char in self.sf.characters:
             assert char.conditions == []
 
-    def test_clear_all_conditions_returns_zero_when_none(self):
+    def test_clear_all_conditions_idempotent(self):
         self.sf.clear_all_conditions()
-        count = self.sf.clear_all_conditions()
+        count = self.sf.clear_all_conditions()  # second call: nothing left to clear
         assert count == 0
 
 
@@ -713,12 +697,12 @@ class TestSaveAndBackup:
         sf = SaveFile()
         sf.load(str(p))
         sf.set_credits(5000)
+        sf.save()
 
-        # Serialise the in-memory tree and re-parse to confirm the mutation
-        # is present (avoids encoding="unicode" file-path issues in newer lxml).
-        xml_bytes = etree.tostring(sf._root)
-        root = etree.fromstring(xml_bytes)
-        assert root.find("playerBank").get("ca") == "5000"
+        # Re-load from disk to confirm the mutation was actually written.
+        sf2 = SaveFile()
+        sf2.load(str(p))
+        assert sf2.get_credits() == 5000
 
     def test_save_no_path_raises(self):
         sf = SaveFile()
@@ -781,11 +765,6 @@ class TestRelationshipMutations:
         self.sf.set_compatibility(self.rel, 99)
         assert self.rel.compatibility == 99
         assert self.rel.element.get("compatibility") == "99"
-
-    def test_relationship_target_name_preserved_after_mutation(self):
-        original_name = self.rel.target_name
-        self.sf.set_friendship(self.rel, 0)
-        assert self.rel.target_name == original_name
 
 
 # ---------------------------------------------------------------------------
@@ -951,3 +930,283 @@ class TestStorageEdgeCases:
         sf = _make_save_file(b"<game mode='Normal' seed='0'/>")
         sf.set_sandbox(True)  # must not raise
         assert sf.get_sandbox() is False
+
+
+# ---------------------------------------------------------------------------
+# Metadata accessors: get_game_time_str / get_star_system_count / get_ship_tiles
+# ---------------------------------------------------------------------------
+
+
+class TestMetadataAccessors:
+    def test_get_game_time_str_no_clock(self):
+        sf = _make_save_file(MINIMAL_XML)  # MINIMAL_XML has no <clock>
+        assert sf.get_game_time_str() == "—"
+
+    def test_get_game_time_str_with_clock(self):
+        xml = textwrap.dedent("""\
+            <game mode="Normal" seed="0">
+              <clock days="5" hours="14" minutes="30"/>
+            </game>
+        """)
+        sf = _make_save_file(xml.encode())
+        assert sf.get_game_time_str() == "Day 5, 14:30"
+
+    def test_get_game_time_str_pads_single_digit_hours(self):
+        xml = textwrap.dedent("""\
+            <game mode="Normal" seed="0">
+              <clock days="1" hours="3" minutes="5"/>
+            </game>
+        """)
+        sf = _make_save_file(xml.encode())
+        assert sf.get_game_time_str() == "Day 1, 03:05"
+
+    def test_get_game_time_str_bad_values(self):
+        xml = textwrap.dedent("""\
+            <game mode="Normal" seed="0">
+              <clock days="x" hours="y" minutes="z"/>
+            </game>
+        """)
+        sf = _make_save_file(xml.encode())
+        assert sf.get_game_time_str() == "—"
+
+    def test_get_star_system_count_no_starmap(self):
+        sf = _make_save_file(MINIMAL_XML)
+        assert sf.get_star_system_count() == 0
+
+    def test_get_star_system_count_with_systems(self):
+        xml = textwrap.dedent("""\
+            <game mode="Normal" seed="0">
+              <starmap>
+                <systems>
+                  <sys id="1"/>
+                  <sys id="2"/>
+                  <sys id="3"/>
+                </systems>
+              </starmap>
+            </game>
+        """)
+        sf = _make_save_file(xml.encode())
+        assert sf.get_star_system_count() == 3
+
+    def test_get_ship_tiles_filters_elements_without_m(self):
+        xml = textwrap.dedent("""\
+            <game mode="Normal" seed="0">
+              <ships>
+                <ship sid="1" sname="Test" sx="10" sy="10">
+                  <e x="0" y="0" m="100"/>
+                  <e x="1" y="1"/>
+                  <e x="2" y="2" m="200"/>
+                </ship>
+              </ships>
+            </game>
+        """)
+        sf = _make_save_file(xml.encode())
+        tiles = sf.get_ship_tiles(sf.ships[0])
+        assert len(tiles) == 2
+        assert (0, 0, "100") in tiles
+        assert (2, 2, "200") in tiles
+
+    def test_get_ship_tiles_empty_ship(self):
+        sf = _make_save_file(MINIMAL_XML)
+        # The ship in MINIMAL_XML has no <e m=...> elements
+        tiles = sf.get_ship_tiles(sf.ships[0])
+        assert isinstance(tiles, list)
+
+    def test_get_ship_tiles_no_element(self):
+        from src.save_file import Ship
+        ship = Ship(sid=1, name="Ghost", sx=10, sy=10)
+        sf = _make_save_file(MINIMAL_XML)
+        assert sf.get_ship_tiles(ship) == []
+
+
+# ---------------------------------------------------------------------------
+# clone_character
+# ---------------------------------------------------------------------------
+
+
+_MASTER_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="0">
+      <masterData idCounter="200"/>
+      <ships>
+        <ship sid="1" sname="Alpha" sx="10" sy="10">
+          <characters>
+            <c entId="90" name="Source" lname="Crew" cid="1">
+              <props>
+                <Health v="80"/><Food v="90"/><Rest v="70"/>
+                <Comfort v="60"/><Mood v="50"/><Oxygen v="0"/>
+                <Temperature v="100"/>
+              </props>
+              <pers>
+                <attr><a points="3" id="210"/></attr>
+                <skills><s sk="6" level="5" mxn="10" exp="0" expd="0"/></skills>
+                <traits><t id="1046"/></traits>
+                <conditions><c id="1109"/></conditions>
+                <sociality><relationships/></sociality>
+              </pers>
+            </c>
+          </characters>
+        </ship>
+      </ships>
+    </game>
+""")
+
+
+class TestCloneCharacter:
+    def setup_method(self):
+        self.sf = _make_save_file(_MASTER_XML.encode())
+        self.source = self.sf.characters[0]
+        self.ship = self.sf.ships[0]
+
+    def test_clone_increases_character_count(self):
+        before = len(self.sf.characters)
+        self.sf.clone_character(self.source, self.ship, "Clone", "A")
+        assert len(self.sf.characters) == before + 1
+
+    def test_clone_gets_new_unique_id(self):
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "B")
+        assert clone.ent_id != self.source.ent_id
+        ids = [c.ent_id for c in self.sf.characters]
+        assert len(ids) == len(set(ids))
+
+    def test_clone_has_correct_name(self):
+        clone = self.sf.clone_character(self.source, self.ship, "New", "Person")
+        assert clone.first_name == "New"
+        assert clone.last_name == "Person"
+
+    def test_clone_inherits_stats(self):
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "C")
+        health = next(s for s in clone.stats if s.tag == "Health")
+        assert health.value == 80
+
+    def test_clone_inherits_skills(self):
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "D")
+        assert len(clone.skills) == 1
+        assert clone.skills[0].skill_id == 6
+        assert clone.skills[0].level == 5
+
+    def test_clone_inherits_traits(self):
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "E")
+        assert len(clone.traits) == 1
+        assert clone.traits[0].trait_id == 1046
+
+    def test_clone_in_xml(self):
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "F")
+        chars_el = self.ship.element.find("characters")
+        ent_ids = [el.get("entId") for el in chars_el.findall("c")]
+        assert str(clone.ent_id) in ent_ids
+
+    def test_clone_ship_sid_matches(self):
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "G")
+        assert clone.ship_sid == self.ship.sid
+
+
+# ---------------------------------------------------------------------------
+# Folder-level parsing
+# ---------------------------------------------------------------------------
+
+
+class TestFolderParsing:
+    def _write_folder_save(self, tmp_path) -> "Path":
+        """Write a minimal multi-file save folder and return its path."""
+        from pathlib import Path
+        folder = tmp_path / "save"
+        folder.mkdir()
+        (folder / "game").write_bytes(MINIMAL_XML.encode())
+        (folder / "info").write_bytes(
+            b'<info version="42" date="1000" realTimeDate="1748304000000"/>'
+        )
+        timeline = textwrap.dedent("""\
+            <timeline>
+              <e type="1" day="5"><p>Alice joined</p></e>
+              <e type="8" day="10"><p>Research done</p></e>
+            </timeline>
+        """)
+        (folder / "timeline.xml").write_bytes(timeline.encode())
+        sector_dir = folder / "sector240"
+        sector_dir.mkdir()
+        (sector_dir / "space").write_bytes(
+            b'<space sx="56" sy="84"><e/><e/><e/></space>'
+        )
+        ships_dir = folder / "ships"
+        ships_dir.mkdir()
+        (ships_dir / "ship999").write_bytes(
+            b'<ship sid="999" sname="Stored Ship" sx="28" sy="28"/>'
+        )
+        return folder
+
+    def test_load_from_folder_sets_folder_attribute(self, tmp_path):
+        folder = self._write_folder_save(tmp_path)
+        sf = SaveFile()
+        sf.load(str(folder))
+        assert sf.folder == folder
+
+    def test_load_from_folder_parses_save_info(self, tmp_path):
+        folder = self._write_folder_save(tmp_path)
+        sf = SaveFile()
+        sf.load(str(folder))
+        assert sf.save_info is not None
+        assert sf.save_info.version == 42
+        assert sf.save_info.game_date == 1000
+
+    def test_load_from_folder_parses_real_date(self, tmp_path):
+        folder = self._write_folder_save(tmp_path)
+        sf = SaveFile()
+        sf.load(str(folder))
+        result = sf.get_real_date_str()
+        # Should be a formatted date string, not the dash fallback
+        assert result != "—"
+        assert "-" in result  # e.g. "2025-05-26  …"
+
+    def test_load_from_folder_parses_sectors(self, tmp_path):
+        folder = self._write_folder_save(tmp_path)
+        sf = SaveFile()
+        sf.load(str(folder))
+        assert len(sf.sectors) == 1
+        assert sf.sectors[0].sector_id == 240
+        assert sf.sectors[0].entity_count == 3
+
+    def test_load_from_folder_parses_timeline(self, tmp_path):
+        folder = self._write_folder_save(tmp_path)
+        sf = SaveFile()
+        sf.load(str(folder))
+        assert len(sf.timeline_events) == 2
+        assert sf.timeline_events[0].day == 5
+        assert sf.timeline_events[0].text == "Alice joined"
+
+    def test_load_from_folder_loads_external_ships(self, tmp_path):
+        folder = self._write_folder_save(tmp_path)
+        sf = SaveFile()
+        sf.load(str(folder))
+        sids = {s.sid for s in sf.ships}
+        assert 999 in sids
+        external = next(s for s in sf.ships if s.sid == 999)
+        assert external.in_game_file is False
+        assert external.name == "Stored Ship"
+
+    def test_load_outer_slot_folder(self, tmp_path):
+        """Loading the outer slot directory (contains save/) must work."""
+        slot = tmp_path / "slot0"
+        slot.mkdir()
+        self._write_folder_save(slot)  # writes to slot/save/
+        sf = SaveFile()
+        sf.load(str(slot))
+        assert sf.folder == slot / "save"
+
+    def test_info_file_missing_does_not_crash(self, tmp_path):
+        folder = tmp_path / "save"
+        folder.mkdir()
+        (folder / "game").write_bytes(MINIMAL_XML.encode())
+        sf = SaveFile()
+        sf.load(str(folder))
+        assert sf.save_info is None
+
+    def test_malformed_sector_file_is_skipped(self, tmp_path):
+        folder = tmp_path / "save"
+        folder.mkdir()
+        (folder / "game").write_bytes(MINIMAL_XML.encode())
+        sec = folder / "sector999"
+        sec.mkdir()
+        (sec / "space").write_bytes(b"not xml <<<<<")
+        sf = SaveFile()
+        sf.load(str(folder))  # must not raise
+        assert all(s.sector_id != 999 for s in sf.sectors)

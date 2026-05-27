@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
-import io
 import textwrap
 
-from lxml import etree
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QLineEdit, QSpinBox
 
-from src.save_file import SaveFile
-from src.ui.crew_tab import CrewTab, _pip_html, _AvatarLabel
+from src.save_file import SaveFile, SKILL_HARD_MAX
+from src.ui.crew_tab import CrewTab, _pip_html, _AvatarLabel, MAX_ATTR_POINTS
+from src.game_data import TRAIT_IDS
+from tests.helpers import make_save_from_xml
+
+# Trait IDs resolved from game data to avoid magic numbers in assertions
+_HERO_ID = next(k for k, v in TRAIT_IDS.items() if v == "Hero")
+_CONFIDENT_ID = next(k for k, v in TRAIT_IDS.items() if v == "Confident")
 
 # ---------------------------------------------------------------------------
-# SaveFile fixture helpers  (shared with test_save_file.py pattern)
+# XML fixtures used by _make_save (imported from tests.helpers)
 # ---------------------------------------------------------------------------
 
 MINIMAL_XML = textwrap.dedent("""\
@@ -184,17 +188,6 @@ TWO_CREW_SHIPS_XML = textwrap.dedent("""\
 """)
 
 
-def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
-    sf = SaveFile()
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    sf._tree = etree.parse(io.BytesIO(xml.encode()), parser)
-    sf._root = sf._tree.getroot()
-    sf._parse_ships()
-    sf._parse_characters()
-    sf._parse_research()
-    return sf
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -257,29 +250,34 @@ class TestAvatarLabel:
         assert lbl._initials == "?"
 
     def test_color_is_deterministic(self, qtbot):
+        """Same arguments always produce the same color (pure function of inputs)."""
         lbl = _AvatarLabel()
         qtbot.addWidget(lbl)
         lbl.set_character("Alice", "Smith")
         color1 = lbl._color
-        lbl.set_character("Alice", "Jones")
-        assert lbl._color == color1  # same first letter → same color
+        lbl.set_character("Bob", "Jones")  # change to a different character
+        lbl.set_character("Alice", "Smith")  # restore original
+        assert lbl._color == color1  # same input must always produce the same color
 
-    def test_different_first_letters_may_differ(self, qtbot):
+    def test_set_character_returns_string_color(self, qtbot):
+        """set_character always assigns a non-empty string to _color."""
         lbl = _AvatarLabel()
         qtbot.addWidget(lbl)
         lbl.set_character("Alice", "X")
         c_a = lbl._color
         lbl.set_character("Zoey", "X")
         c_z = lbl._color
-        # A and Z are unlikely to map to the same palette slot; the test
-        # is mainly that no exception is raised and both are valid strings.
-        assert isinstance(c_a, str)
-        assert isinstance(c_z, str)
+        assert isinstance(c_a, str) and c_a
+        assert isinstance(c_z, str) and c_z
 
 
 # ===========================================================================
 # CrewTab – load / clear
 # ===========================================================================
+
+
+def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
+    return make_save_from_xml(xml)
 
 
 class TestCrewTabLoad:
@@ -601,8 +599,8 @@ class TestSkillClamping:
         assert tab._skills_table.rowCount() == 1
         level_spin: QSpinBox = tab._skills_table.cellWidget(0, 2)
         max_spin: QSpinBox = tab._skills_table.cellWidget(0, 3)
-        assert max_spin.value() == 10
-        assert level_spin.value() == 10
+        assert max_spin.value() == SKILL_HARD_MAX
+        assert level_spin.value() == SKILL_HARD_MAX
 
     def test_over_max_skill_persisted_to_model(self, qtbot):
         tab = CrewTab()
@@ -610,8 +608,8 @@ class TestSkillClamping:
         sf = _make_save(OVER_MAX_XML)
         tab.load(sf)
         char = sf.characters[0]
-        assert char.skills[0].max_level == 10
-        assert char.skills[0].level == 10
+        assert char.skills[0].max_level == SKILL_HARD_MAX
+        assert char.skills[0].level == SKILL_HARD_MAX
 
 
 # ===========================================================================
@@ -625,10 +623,10 @@ class TestAttributeClamping:
         qtbot.addWidget(tab)
         sf = _make_save(OVER_MAX_ATTR_XML)
         tab.load(sf)
-        # points=15 → clamped to spin max of 10
+        # points=15 → clamped to spin max of MAX_ATTR_POINTS
         assert tab._attr_table.rowCount() == 1
         spin: QSpinBox = tab._attr_table.cellWidget(0, 2)
-        assert spin.value() == 10
+        assert spin.value() == MAX_ATTR_POINTS
 
     def test_over_max_attr_persisted_to_model(self, qtbot):
         tab = CrewTab()
@@ -636,7 +634,7 @@ class TestAttributeClamping:
         sf = _make_save(OVER_MAX_ATTR_XML)
         tab.load(sf)
         char = sf.characters[0]
-        assert char.attributes[0].points == 10
+        assert char.attributes[0].points == MAX_ATTR_POINTS
 
 
 # ===========================================================================
@@ -736,7 +734,7 @@ class TestStatEditing:
         tab._crew_list.setCurrentRow(0)  # Alice
         char = tab._current_char
         stat_map = {s.tag: s for s in char.stats}
-        for tag in ("Health", "Food", "Rest", "Comfort", "Mood", "Temperature"):
+        for tag in ("Health", "Food", "Rest", "Comfort", "Mood", "Oxygen", "Temperature"):
             stat = stat_map[tag]
             old = stat.value
             new_val = (old + 1) % 101
@@ -867,8 +865,8 @@ class TestTraitEditing:
         tab = CrewTab()
         qtbot.addWidget(tab)
         tab.load(_make_save())
-        tab._crew_list.setCurrentRow(0)  # Alice has 1 trait (Confident 1046)
-        self._select_trait(tab, 191)  # Hero – not yet present
+        tab._crew_list.setCurrentRow(0)  # Alice has 1 trait (Confident)
+        self._select_trait(tab, _HERO_ID)  # Hero – not yet present
         tab._add_trait()
         assert tab._traits_list.count() == 2
 
@@ -878,17 +876,17 @@ class TestTraitEditing:
         tab.load(_make_save())
         tab._crew_list.setCurrentRow(0)
         char = tab._current_char
-        self._select_trait(tab, 191)
+        self._select_trait(tab, _HERO_ID)
         tab._add_trait()
-        assert any(t.trait_id == 191 for t in char.traits)
+        assert any(t.trait_id == _HERO_ID for t in char.traits)
 
     def test_add_duplicate_trait_no_growth(self, qtbot, monkeypatch):
         tab = CrewTab()
         qtbot.addWidget(tab)
         tab.load(_make_save())
-        tab._crew_list.setCurrentRow(0)  # Alice already has Confident (1046)
+        tab._crew_list.setCurrentRow(0)  # Alice already has Confident
         monkeypatch.setattr("src.ui.crew_tab.QMessageBox.information", lambda *a: None)
-        self._select_trait(tab, 1046)
+        self._select_trait(tab, _CONFIDENT_ID)
         tab._add_trait()
         assert tab._traits_list.count() == 1
 
@@ -899,7 +897,7 @@ class TestTraitEditing:
         tab._crew_list.setCurrentRow(0)
         messages = []
         tab.status_message.connect(messages.append)
-        self._select_trait(tab, 191)
+        self._select_trait(tab, _HERO_ID)
         tab._add_trait()
         assert any("trait" in m.lower() for m in messages)
 
@@ -931,7 +929,7 @@ class TestTraitEditing:
         messages = []
         tab.status_message.connect(messages.append)
         tab._remove_trait()
-        assert messages
+        assert any("trait" in m.lower() or "removed" in m.lower() for m in messages)
 
     def test_remove_trait_no_selection_shows_message(self, qtbot, monkeypatch):
         tab = CrewTab()

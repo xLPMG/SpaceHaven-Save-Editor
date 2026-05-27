@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import io
 import textwrap
 
-from lxml import etree
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 
-from src.save_file import SaveFile
-from src.ui.globals_tab import GlobalsTab, _EditCard
+from src.save_file import SaveFile, SKILL_HARD_MAX
+from src.ui.globals_tab import GlobalsTab, _EditCard, _FILL_QTY_DEFAULT, _FILL_QTY_MAX, _RESOURCE_SPIN_MAX
+from tests.helpers import make_save_from_xml
 
 # ---------------------------------------------------------------------------
-# SaveFile fixture helpers
+# XML fixtures used by _make_save (imported from tests.helpers)
 # ---------------------------------------------------------------------------
 
 MINIMAL_XML = textwrap.dedent("""\
@@ -94,16 +94,38 @@ SANDBOX_XML = textwrap.dedent("""\
     </game>
 """)
 
+# XML with storage containers in the format save_file.get_storage_containers() understands.
+WITH_STORAGE_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="42">
+      <playerBank ca="1000" cr="0"/>
+      <settings><diff sandbox="false"/></settings>
+      <questLines><questLines>
+        <l type="ExodusFleet" playerPrestigePoints="8"/>
+      </questLines></questLines>
+      <ships>
+        <ship sid="10" sname="HSS ALPHA" sx="56" sy="56">
+          <characters/>
+          <e entId="500" objId="9001">
+            <feat eatAllowed="1">
+              <inv>
+                <s elementaryId="157" inStorage="100" onTheWayIn="0" onTheWayOut="0"/>
+                <s elementaryId="158" inStorage="200" onTheWayIn="0" onTheWayOut="0"/>
+              </inv>
+            </feat>
+          </e>
+        </ship>
+        <ship sid="20" sname="HSS BETA" sx="28" sy="28">
+          <characters/>
+        </ship>
+      </ships>
+      <research treeId="2535"><states/></research>
+    </game>
+""")
+
+
 
 def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
-    sf = SaveFile()
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    sf._tree = etree.parse(io.BytesIO(xml.encode()), parser)
-    sf._root = sf._tree.getroot()
-    sf._parse_ships()
-    sf._parse_characters()
-    sf._parse_research()
-    return sf
+    return make_save_from_xml(xml)
 
 
 # ===========================================================================
@@ -115,25 +137,20 @@ class TestEditCard:
     def test_label_displayed(self, qtbot):
         card = _EditCard("Test Label", "Test description")
         qtbot.addWidget(card)
-        # Find the label widget by its ObjectName
-        labels = card.findChildren(type(card).staticMetaObject.__class__)
-        names = [
-            w.text()
-            for w in card.findChildren(card.layout().itemAt(0).widget().__class__)
-        ]
+        names = [w.text() for w in card.findChildren(QLabel)]
         assert "Test Label" in names
 
     def test_spin_range_set(self, qtbot):
         card = _EditCard("Test", "Desc")
         qtbot.addWidget(card)
         assert card.spin.minimum() == 0
-        assert card.spin.maximum() == 2_000_000_000
+        assert card.spin.maximum() == _RESOURCE_SPIN_MAX
 
     def test_spin_accepts_value(self, qtbot):
         card = _EditCard("Test", "Desc")
         qtbot.addWidget(card)
-        card.spin.setValue(12345)
-        assert card.spin.value() == 12345
+        card.spin.setValue(_RESOURCE_SPIN_MAX)
+        assert card.spin.value() == _RESOURCE_SPIN_MAX
 
 
 # ===========================================================================
@@ -321,10 +338,10 @@ class TestGlobalsTabEditing:
         """Changing values before load should not emit signals or crash."""
         tab = GlobalsTab()
         qtbot.addWidget(tab)
-        # These should not crash or emit signals
-        tab._credits_card.spin.setValue(1000)
-        tab._prestige_card.spin.setValue(50)
-        tab._sandbox_check.setChecked(True)
+        with qtbot.assertNotEmitted(tab.status_message):
+            tab._credits_card.spin.setValue(1000)
+            tab._prestige_card.spin.setValue(50)
+            tab._sandbox_check.setChecked(True)
 
     def test_load_does_not_trigger_signals(self, qtbot):
         """Loading a save should not emit status_message (uses blockSignals)."""
@@ -371,7 +388,7 @@ class TestGlobalsTabQuickActions:
         sf = _make_save()
         tab.load(sf)
         # Bob has Health=50, should be healed to 100
-        bob = sf.characters[1]
+        bob = next(c for c in sf.characters if c.first_name == "Bob")
         health_stat = next(s for s in bob.stats if s.tag == "Health")
         assert health_stat.value == 50
         tab._heal_all_crew()
@@ -386,19 +403,16 @@ class TestGlobalsTabQuickActions:
             tab._heal_all_crew()
         msg = blocker.args[0]
         assert "healed" in msg.lower()
-        assert "2" in msg  # 2 crew members
+        assert str(len(sf.characters)) in msg
 
     def test_max_all_skills(self, qtbot):
         tab = GlobalsTab()
         qtbot.addWidget(tab)
         sf = _make_save()
         tab.load(sf)
-        # Alice has skills at level 3 and 5
-        alice = sf.characters[0]
-        assert alice.skills[0].level == 3
+        alice = next(c for c in sf.characters if c.first_name == "Alice")
         tab._max_all_skills()
-        assert alice.skills[0].level == 20
-        assert alice.skills[0].max_level == 20
+        assert all(s.level == SKILL_HARD_MAX and s.max_level == SKILL_HARD_MAX for s in alice.skills)
 
     def test_max_all_skills_emits_status(self, qtbot):
         tab = GlobalsTab()
@@ -416,9 +430,10 @@ class TestGlobalsTabQuickActions:
         sf = _make_save()
         tab.load(sf)
         # Alice has 1 condition
-        assert len(sf.characters[0].conditions) == 1
+        alice = next(c for c in sf.characters if c.first_name == "Alice")
+        assert len(alice.conditions) == 1
         tab._clear_all_conditions()
-        assert len(sf.characters[0].conditions) == 0
+        assert len(alice.conditions) == 0
 
     def test_clear_all_conditions_emits_status(self, qtbot):
         tab = GlobalsTab()
@@ -433,16 +448,15 @@ class TestGlobalsTabQuickActions:
     def test_fill_all_storage(self, qtbot):
         tab = GlobalsTab()
         qtbot.addWidget(tab)
-        sf = _make_save()
+        sf = _make_save(WITH_STORAGE_XML)
         tab.load(sf)
-        # Storage has items with amount 100 and 200
-        tab._fill_qty_spin.setValue(9999)
+        tab._fill_qty_spin.setValue(_FILL_QTY_DEFAULT)
         tab._fill_all_storage()
-        # Verify by checking the model
         containers = sf.get_storage_containers(sf.ships[0])
+        assert containers, "Expected at least one storage container in WITH_STORAGE_XML"
         for container in containers:
             for item in container.items:
-                assert item.amount == 9999
+                assert item.quantity == _FILL_QTY_DEFAULT
 
     def test_fill_all_storage_emits_status(self, qtbot):
         tab = GlobalsTab()
@@ -459,15 +473,15 @@ class TestGlobalsTabQuickActions:
     def test_fill_storage_with_custom_quantity(self, qtbot):
         tab = GlobalsTab()
         qtbot.addWidget(tab)
-        sf = _make_save()
+        sf = _make_save(WITH_STORAGE_XML)
         tab.load(sf)
         tab._fill_qty_spin.setValue(123)
         tab._fill_all_storage()
-        # Verify by checking the model
         containers = sf.get_storage_containers(sf.ships[0])
+        assert containers, "Expected at least one storage container in WITH_STORAGE_XML"
         for container in containers:
             for item in container.items:
-                assert item.amount == 123
+                assert item.quantity == 123
 
     def test_quick_actions_no_crash_without_save(self, qtbot):
         """Quick actions should not crash when called without a loaded save."""
@@ -489,13 +503,13 @@ class TestGlobalsTabFillStorage:
     def test_fill_qty_spin_default_value(self, qtbot):
         tab = GlobalsTab()
         qtbot.addWidget(tab)
-        assert tab._fill_qty_spin.value() == 9999
+        assert tab._fill_qty_spin.value() == _FILL_QTY_DEFAULT
 
     def test_fill_qty_spin_range(self, qtbot):
         tab = GlobalsTab()
         qtbot.addWidget(tab)
         assert tab._fill_qty_spin.minimum() == 1
-        assert tab._fill_qty_spin.maximum() == 1_000_000
+        assert tab._fill_qty_spin.maximum() == _FILL_QTY_MAX
 
     def test_fill_qty_spin_disabled_initially(self, qtbot):
         tab = GlobalsTab()
@@ -547,11 +561,12 @@ class TestGlobalsTabInfoLabels:
         assert flags & Qt.TextInteractionFlag.TextSelectableByMouse
 
     def test_no_sectors_shows_dash(self, qtbot):
-        """When sectors is None or empty, show dash."""
+        """When sectors list is empty (no folder parsed), show dash."""
         tab = GlobalsTab()
         qtbot.addWidget(tab)
         sf = _make_save()
-        sf.sectors = None
+        # _make_save() parses no folder, so sectors is already []; be explicit.
+        assert sf.sectors == []
         tab.load(sf)
         assert tab._info_labels["sectors"].text() == "—"
 

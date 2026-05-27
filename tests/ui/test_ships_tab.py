@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import io
 import textwrap
 from pathlib import Path
 
-from lxml import etree
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 
 from src.save_file import SaveFile
 from src.ui.ships_tab import ShipsTab, _ShipDelegate
+from tests.helpers import make_save_from_xml
 
 # ---------------------------------------------------------------------------
-# SaveFile fixture helpers
+# XML fixtures used by _make_save (imported from tests.helpers)
 # ---------------------------------------------------------------------------
 
 MINIMAL_XML = textwrap.dedent("""\
@@ -77,14 +76,7 @@ ONE_SHIP_XML = textwrap.dedent("""\
 
 
 def _make_save(xml: str = MINIMAL_XML) -> SaveFile:
-    sf = SaveFile()
-    parser = etree.XMLParser(remove_blank_text=False, recover=True)
-    sf._tree = etree.parse(io.BytesIO(xml.encode()), parser)
-    sf._root = sf._tree.getroot()
-    sf._parse_ships()
-    sf._parse_characters()
-    sf._parse_research()
-    return sf
+    return make_save_from_xml(xml)
 
 
 def _make_ship_fixture() -> SaveFile:
