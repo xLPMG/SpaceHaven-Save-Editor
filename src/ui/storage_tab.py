@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from collections import Counter
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -39,6 +41,7 @@ class StorageTab(QWidget):
         self._save: SaveFile | None = None
         self._current_ship: Ship | None = None
         self._current_container: StorageContainer | None = None
+        self._container_base_labels: dict[int, str] = {}
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -237,10 +240,23 @@ class StorageTab(QWidget):
 
         containers = self._save.get_storage_containers(ship)
 
+        # Assign per-type sequential numbers only when the same name appears more than once
+        sorted_containers = sorted(containers, key=lambda c: c.display_name)
+        name_counts = Counter(c.display_name for c in sorted_containers)
+        name_seen: dict[str, int] = {}
+        self._container_base_labels = {}
+        for container in sorted_containers:
+            name = container.display_name
+            if name_counts[name] > 1:
+                name_seen[name] = name_seen.get(name, 0) + 1
+                self._container_base_labels[id(container)] = f"{name} #{name_seen[name]}"
+            else:
+                self._container_base_labels[id(container)] = name
+
         self._container_list.blockSignals(True)
         self._container_list.clear()
-        for container in sorted(containers, key=lambda c: c.display_name):
-            item = QListWidgetItem(container.display_name)
+        for container in sorted_containers:
+            item = QListWidgetItem(self._container_label(container))
             item.setData(Qt.ItemDataRole.UserRole, container)
             self._container_list.addItem(item)
         self._container_list.blockSignals(False)
@@ -322,10 +338,25 @@ class StorageTab(QWidget):
         if item_id is None:
             QMessageBox.warning(self, "Add Item", "Please select a valid item.")
             return
+        container = self._current_container
+        already_present = any(i.item_id == item_id for i in container.items)
+        if (
+            not already_present
+            and container.capacity > 0
+            and len(container.items) >= container.capacity
+        ):
+            QMessageBox.warning(
+                self,
+                "Storage Full",
+                f"This container is full ({container.capacity} item type slots).\n"
+                "Remove an existing item first.",
+            )
+            return
         self._save.add_storage_item(self._current_container, item_id, qty)
         # Always rebuild the table so sort order and spinbox values are correct
         # regardless of whether the item was new or stacked onto an existing one.
         self._populate_items(self._current_container)
+        self._refresh_container_label()
         self.status_message.emit(
             f"Added {qty}x {STORAGE_IDS.get(item_id, str(item_id))} (unsaved)."
         )
@@ -349,11 +380,29 @@ class StorageTab(QWidget):
         self._save.remove_storage_item(self._current_container, storage_item)
         self._items_table.removeRow(row)
         self._sync_remove_enabled()
+        self._refresh_container_label()
         self.status_message.emit(f"Removed {storage_item.name} (unsaved).")
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _container_label(self, container: StorageContainer) -> str:
+        """Return the list display string for a container."""
+        base = self._container_base_labels.get(id(container), container.display_name)
+        n = len(container.items)
+        if container.capacity > 0:
+            return f"{base}  —  {n} / {container.capacity}"
+        return f"{base}  ({n})"
+
+    def _refresh_container_label(self) -> None:
+        """Update the list item text for the currently selected container."""
+        row = self._container_list.currentRow()
+        if row < 0 or self._current_container is None:
+            return
+        list_item = self._container_list.item(row)
+        if list_item is not None:
+            list_item.setText(self._container_label(self._current_container))
 
     def _apply_filter(self, text: str) -> None:
         query = text.strip().lower()

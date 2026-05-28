@@ -34,6 +34,9 @@ from src.game_data import (
     SKILL_IDS,
     STAT_TAGS,
     STORAGE_IDS,
+    COMPOSITE_STORAGE_MODULES,
+    STORAGE_MODULE_CAPACITIES,
+    STORAGE_MODULE_NAMES,
     TECH_IDS,
     TIMELINE_EVENT_NAMES,
     TRAIT_IDS,
@@ -149,6 +152,7 @@ class StorageItem:
 @dataclass
 class StorageContainer:
     display_name: str
+    capacity: int = 0
     items: list[StorageItem] = field(default_factory=list)
     feat_element: object = field(repr=False, default=None)  # <feat> element
     inv_element: object = field(repr=False, default=None)  # <inv> element
@@ -708,21 +712,43 @@ class SaveFile:
             if not items:
                 idx += 1
                 continue
-            # Generate a display name from ancestor <e> entId / objId
-            parent_e = feat.getparent()
-            while parent_e is not None and parent_e.tag != "e":
-                parent_e = parent_e.getparent()
+
+            # Resolve the storage module type ID.
+            # Normal case: <feat> is a child of <upMi m="...">.
+            # Composite-room case: <feat> is a child of <l ind="N"> inside <e m="...">.
+            upmi = feat.getparent()
+            if upmi is not None and upmi.tag == "l":
+                ind_str = upmi.get("ind")
+                ind = int(ind_str) if ind_str is not None else -1
+                parent_e = upmi.getparent()
+                while parent_e is not None and parent_e.tag != "e":
+                    parent_e = parent_e.getparent()
+                composite_mid_str = parent_e.get("m") if parent_e is not None else None
+                composite_mid = int(composite_mid_str) if composite_mid_str else 0
+                resolved = COMPOSITE_STORAGE_MODULES.get(composite_mid, {}).get(ind)
+                mod_id_str = str(resolved) if resolved is not None else None
+            else:
+                mod_id_str = upmi.get("m") if upmi is not None else None
+                parent_e = upmi.getparent() if upmi is not None else None
+                while parent_e is not None and parent_e.tag != "e":
+                    parent_e = parent_e.getparent()
             ent_id = parent_e.get("entId") if parent_e is not None else None
             obj_id = parent_e.get("objId") if parent_e is not None else None
-            if ent_id and ent_id != "0":
+            mod_id = int(mod_id_str) if mod_id_str else None
+            cap = STORAGE_MODULE_CAPACITIES.get(mod_id, 0) if mod_id is not None else 0
+            mod_name = STORAGE_MODULE_NAMES.get(mod_id) if mod_id is not None else None
+            if mod_name:
+                display = mod_name
+            elif ent_id and ent_id != "0":
                 display = f"Container (ID: {ent_id})"
             elif obj_id:
-                display = f"Storage (Type: {obj_id}) #{idx + 1}"
+                display = f"Storage (Type: {obj_id})"
             else:
-                display = f"Storage Bay #{idx + 1}"
+                display = "Storage Bay"
             containers.append(
                 StorageContainer(
                     display_name=display,
+                    capacity=cap,
                     items=sorted(items, key=lambda i: i.name),
                     feat_element=feat,
                     inv_element=inv,

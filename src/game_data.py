@@ -648,6 +648,72 @@ TRAIT_BY_NAME: dict[str, int] = {
     v: k for k, v in sorted(TRAIT_IDS.items(), key=lambda x: x[1])
 }
 
+# Storage module capacities extracted from library/haven <stores capacity="..."> elements.
+# Key: module type ID (attribute "m" on parent <e> element in save file).
+# Value: max total item quantity for that container type (0 = unlimited / not defined).
+STORAGE_MODULE_CAPACITIES: dict[int, int] = {
+    23: 50,
+    82: 50,
+    469: 5,
+    789: 250,
+    912: 0,
+    2271: 5,
+    2707: 5,
+    2782: 5,
+    3063: 20,
+    3065: 20,
+    3636: 5,
+    3923: 8,
+    3978: 1,
+    3982: 1,
+    4304: 5,
+    4365: 50,
+    4367: 250,
+    4630: 5,
+}
+
+# Human-readable names for storage module types, derived from library/haven
+# (aid graphics names + name text IDs + stores element structure).
+STORAGE_MODULE_NAMES: dict[int, str] = {
+    23: "Small Storage",  # storageTile1
+    82: "Small Storage",  # name_tid=1344
+    469: "Shield Generator",  # shieldGenBase4 ammo reserve
+    789: "Large Storage",  # storage2f
+    912: "Starter Storage",  # storage1F, unlimited
+    2271: "Energy Turret",  # turret1Base2 ammo reserve
+    2707: "Energy Turret",  # turret1Base2 variant
+    2782: "Rocket Turret",  # turret4Base2 ammo reserve
+    3063: "Body Storage",  # corpsesOnly: monster+human
+    3065: "Robot Storage",  # corpsesOnly: android+robot
+    3636: "Point Defense",  # turretPoint1base2 ammo reserve
+    3923: "Medical Cabinet",  # name_tid=7726
+    3978: "Hidden Vent",  # hiddenVentOpen, cap=1
+    3982: "Hidden Stash",  # hiddenObject1Open, cap=1
+    4304: "Point Defense",  # tactical projectile reserve
+    4365: "Small Storage",  # name_tid=1344, solar variant
+    4367: "Large Storage",  # solar variant
+    4630: "Point Defense",  # tactical projectile reserve (variant)
+}
+
+# Composite room module types that embed a storage bay in their linked list.
+# Key: composite module type ID ("m" on parent <e>).
+# Value: {linked-list index -> storage module type ID}.
+# The linked-list index matches the "ind" attribute on <l> elements in the save file.
+COMPOSITE_STORAGE_MODULES: dict[int, dict[int, int]] = {
+    470: {1: 469},  # Shield Generator room
+    632: {3: 789},  # Large Storage room
+    1073: {3: 789},  # Large Storage room (variant)
+    2242: {4: 2271},  # Energy Turret room
+    2708: {4: 2707},  # Energy Turret room (variant)
+    2783: {0: 2782},  # Rocket Turret room
+    3062: {3: 3063},  # Body Storage room
+    3068: {1: 3065},  # Robot Storage room
+    3638: {0: 3636},  # Point Defense room
+    4306: {0: 4304},  # Point Defense room (variant)
+    4366: {3: 4367},  # Large Storage room (DLC)
+    4629: {0: 4630},  # Point Defense room (DLC variant)
+}
+
 # Ship tile module IDs (attribute "m" on <e> tile elements inside a <ship>).
 # Hull blocks form the outer shell; walls divide interior space.
 HULL_TILE_IDS: frozenset[str] = frozenset(
@@ -703,7 +769,10 @@ WALL_TILE_IDS: frozenset[str] = frozenset(
 
 DOOR_TILE_IDS: frozenset[str] = frozenset({"25", "424", "905", "2755"})
 ENGINE_TILE_IDS: frozenset[str] = frozenset({"2655", "851"})
-STORAGE_TILE_IDS: frozenset[str] = frozenset({"82", "632"})
+# All module type IDs that represent storage (direct storage module or a composite room that embeds one)
+STORAGE_TILE_IDS: frozenset[str] = frozenset(
+    str(k) for k in (*STORAGE_MODULE_CAPACITIES, *COMPOSITE_STORAGE_MODULES)
+)
 
 # Timeline event type IDs (type attribute on <e> elements in timeline.xml).
 TIMELINE_EVENT_NAMES: dict[int, str] = {

@@ -1213,3 +1213,168 @@ class TestFolderParsing:
         sf = SaveFile()
         sf.load(str(folder))  # must not raise
         assert all(s.sector_id != 999 for s in sf.sectors)
+
+
+# ---------------------------------------------------------------------------
+# Storage module name / capacity resolution
+# ---------------------------------------------------------------------------
+
+# Ship with a named storage module (m=82 -> Small Storage, cap=50)
+_NAMED_MODULE_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="42">
+      <playerBank ca="0" cr="0"/>
+      <settings><diff sandbox="false"/></settings>
+      <questLines><questLines>
+        <l type="ExodusFleet" playerPrestigePoints="0"/>
+      </questLines></questLines>
+      <ships>
+        <ship sid="1" sname="TEST" sx="28" sy="28">
+          <characters/>
+          <e m="43">
+            <wm>
+              <up m="82">
+                <feat eatAllowed="1">
+                  <inv>
+                    <s elementaryId="157" inStorage="10" onTheWayIn="0" onTheWayOut="0"/>
+                  </inv>
+                </feat>
+              </up>
+            </wm>
+          </e>
+        </ship>
+      </ships>
+      <research treeId="2535"><states/></research>
+    </game>
+""")
+
+# Ship with a composite room (m=632 -> Large Storage room, linked index 3 -> m=789)
+_COMPOSITE_ROOM_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="42">
+      <playerBank ca="0" cr="0"/>
+      <settings><diff sandbox="false"/></settings>
+      <questLines><questLines>
+        <l type="ExodusFleet" playerPrestigePoints="0"/>
+      </questLines></questLines>
+      <ships>
+        <ship sid="1" sname="TEST" sx="28" sy="28">
+          <characters/>
+          <e m="632">
+            <l ind="3">
+              <feat eatAllowed="1">
+                <inv>
+                  <s elementaryId="157" inStorage="5" onTheWayIn="0" onTheWayOut="0"/>
+                </inv>
+              </feat>
+            </l>
+          </e>
+        </ship>
+      </ships>
+      <research treeId="2535"><states/></research>
+    </game>
+""")
+
+# Ship with an unknown module ID (no entry in STORAGE_MODULE_NAMES)
+_UNKNOWN_MODULE_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="42">
+      <playerBank ca="0" cr="0"/>
+      <settings><diff sandbox="false"/></settings>
+      <questLines><questLines>
+        <l type="ExodusFleet" playerPrestigePoints="0"/>
+      </questLines></questLines>
+      <ships>
+        <ship sid="1" sname="TEST" sx="28" sy="28">
+          <characters/>
+          <e m="43">
+            <wm>
+              <up m="9999">
+                <feat eatAllowed="1">
+                  <inv>
+                    <s elementaryId="157" inStorage="3" onTheWayIn="0" onTheWayOut="0"/>
+                  </inv>
+                </feat>
+              </up>
+            </wm>
+          </e>
+        </ship>
+      </ships>
+      <research treeId="2535"><states/></research>
+    </game>
+""")
+
+# Ship with the unlimited starter storage (m=912, capacity=0)
+_UNLIMITED_MODULE_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="42">
+      <playerBank ca="0" cr="0"/>
+      <settings><diff sandbox="false"/></settings>
+      <questLines><questLines>
+        <l type="ExodusFleet" playerPrestigePoints="0"/>
+      </questLines></questLines>
+      <ships>
+        <ship sid="1" sname="TEST" sx="28" sy="28">
+          <characters/>
+          <e m="43">
+            <wm>
+              <up m="912">
+                <feat eatAllowed="1">
+                  <inv>
+                    <s elementaryId="157" inStorage="1" onTheWayIn="0" onTheWayOut="0"/>
+                  </inv>
+                </feat>
+              </up>
+            </wm>
+          </e>
+        </ship>
+      </ships>
+      <research treeId="2535"><states/></research>
+    </game>
+""")
+
+
+class TestStorageModuleResolution:
+    """Tests for display_name and capacity derived from module type IDs."""
+
+    def test_named_module_display_name(self):
+        """A container whose parent element has m=82 gets display_name 'Small Storage'."""
+        sf = _make_save_file(_NAMED_MODULE_XML)
+        containers = sf.get_storage_containers(sf.ships[0])
+        assert len(containers) == 1
+        assert containers[0].display_name == "Small Storage"
+
+    def test_named_module_capacity(self):
+        """m=82 maps to capacity 50 from STORAGE_MODULE_CAPACITIES."""
+        sf = _make_save_file(_NAMED_MODULE_XML)
+        containers = sf.get_storage_containers(sf.ships[0])
+        assert containers[0].capacity == 50
+
+    def test_composite_room_display_name(self):
+        """A feat inside <l ind=3> of <e m=632> resolves to 'Large Storage'."""
+        sf = _make_save_file(_COMPOSITE_ROOM_XML)
+        containers = sf.get_storage_containers(sf.ships[0])
+        assert len(containers) == 1
+        assert containers[0].display_name == "Large Storage"
+
+    def test_composite_room_capacity(self):
+        """Composite room m=632, linked index 3 -> inner module m=789 -> capacity 250."""
+        sf = _make_save_file(_COMPOSITE_ROOM_XML)
+        containers = sf.get_storage_containers(sf.ships[0])
+        assert containers[0].capacity == 250
+
+    def test_unknown_module_fallback_display_name(self):
+        """An unrecognised module ID falls back to 'Storage Bay'."""
+        sf = _make_save_file(_UNKNOWN_MODULE_XML)
+        containers = sf.get_storage_containers(sf.ships[0])
+        assert containers[0].display_name == "Storage Bay"
+
+    def test_unknown_module_fallback_capacity(self):
+        """An unrecognised module ID has capacity 0 (unknown / unlimited)."""
+        sf = _make_save_file(_UNKNOWN_MODULE_XML)
+        containers = sf.get_storage_containers(sf.ships[0])
+        assert containers[0].capacity == 0
+
+    def test_unlimited_module_capacity_is_zero(self):
+        """m=912 (Starter Storage) has capacity 0, meaning unlimited."""
+        sf = _make_save_file(_UNLIMITED_MODULE_XML)
+        containers = sf.get_storage_containers(sf.ships[0])
+        assert containers[0].capacity == 0
+        assert containers[0].display_name == "Starter Storage"
+
