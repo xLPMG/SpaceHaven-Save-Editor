@@ -57,8 +57,9 @@ class ShipMapWidget(QWidget):
         self._tiles: list[tuple[int, int, str]] = []  # (x, y, m)
         self._grid_w = 0
         self._grid_h = 0
-        self.setMinimumSize(200, 140)
+        self.setMinimumSize(300, 200)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
     # ------------------------------------------------------------------
     # Public API
@@ -89,7 +90,7 @@ class ShipMapWidget(QWidget):
         self.update()
 
     def sizeHint(self) -> QSize:
-        return QSize(400, 260)
+        return QSize(560, 380)
 
     # ------------------------------------------------------------------
     # Painting
@@ -140,10 +141,9 @@ class ShipMapWidget(QWidget):
             color = _tile_color(m)
             if color is None:
                 continue
-            # Flip 180 deg: mirror both axes
-            flipped_gx = (self._grid_w - 1) - gx
+            # Flip Y axis (game Y up -> screen Y down)
             flipped_gy = (self._grid_h - 1) - gy
-            px = off_x + flipped_gx * (cell + self._GAP)
+            px = off_x + gx * (cell + self._GAP)
             py = off_y + flipped_gy * (cell + self._GAP)
             painter.fillRect(px, py, cell, cell, color)
 
