@@ -12,9 +12,9 @@ If you run into issues, please report them on the [Issues](../../issues) page wi
 
 ## What you can edit
 
-- **Globals** – change game-wide values such as credits
-- **Crew** – rename characters, adjust stats (health, food, rest, mood, and more), skills, traits, conditions, and inter-crew relationships
-- **Ships** – rename ships, adjust grid dimensions, and add or remove ships from your fleet
+- **Globals** – change game-wide values such as credits and prestige points
+- **Crew** – rename, duplicate or create/remove new characters, adjust stats (health, food, rest, mood, and more), skills, traits, conditions, and inter-crew relationships
+- **Ships** – rename, duplicate or remove ships, adjust grid dimensions, view the tile map
 - **Storage** – browse each ship's storage containers and change item quantities
 - **Research** – view the state of every technology and mark any of them as complete
 - **Universe** – view the sector map, move ships in the current sector interactively, browse discovered sectors, and inspect the game timeline
