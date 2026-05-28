@@ -217,7 +217,7 @@ class UniverseTab(QWidget):
         self._sector_map.load(save)
 
     def _on_ship_moved(self, ship, new_ox: int, new_oy: int) -> None:
-        """Handle ship moved signal - persist the new position to the XML tree."""
+        """Handle ship moved signal to persist the new position to the XML tree."""
         if self._save and ship.element is not None:
             ship.element.set("ox", str(new_ox))
             ship.element.set("oy", str(new_oy))

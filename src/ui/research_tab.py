@@ -80,7 +80,7 @@ class _TechDelegate(QStyledItemDelegate):
                 r, RESEARCH_BG_EVEN if index.row() % 2 == 0 else RESEARCH_BG_ODD
             )
 
-        # Left accent strip (4 px)
+        # Left accent strip
         accent = (
             RESEARCH_DONE_COLOR
             if entry.done

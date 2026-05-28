@@ -48,7 +48,6 @@ SKILL_HARD_MAX: int = 10  # maximum skill level settable via the editor
 
 # ---------------------------------------------------------------------------
 # Coordinate conversion helpers (isometric <-> world)
-# Formula verified in validation_data/coordinate_formulas.py
 # ---------------------------------------------------------------------------
 
 
@@ -282,7 +281,7 @@ class SaveFile:
         self.folder = folder  # restore after _load_game_file resets it
 
         # Parse supplementary files (errors are silently ignored so a
-        # partially-written save still opens as much as possible).
+        # partially-written save still opens as much as possible)
         self._parse_info_file()
         self._parse_external_ships()
         self._parse_sectors()
@@ -616,7 +615,7 @@ class SaveFile:
     # ------------------------------------------------------------------
 
     def _parse_sector_size(self) -> None:
-        """Read sector dimensions from the <space> element (defaults: 382×382)."""
+        """Read sector dimensions from the <space> element (defaults: 382x382)."""
         space_el = self._root.find("space")
         if space_el is not None:
             self.sector_sx = int(space_el.get("sx", "382"))
@@ -657,7 +656,7 @@ class SaveFile:
 
         Each ``<e>`` child element of the ship element that carries both ``x``/``y``
         grid coordinates and an ``m`` module-type attribute is included.  The ``m``
-        value identifies the kind of block (hull, wall, door, engine, storage, …).
+        value identifies the kind of block (hull, wall, door, engine, storage, etc.).
         """
         if ship.element is None:
             return []
@@ -1021,10 +1020,10 @@ class SaveFile:
         """Return the player faction ID for a new crew member.
 
         Resolution order:
-        1. ``<settings f="...">`` in the game root (most reliable).
-        2. ``fac`` attribute of any existing character on *ship*.
-        3. ``fac`` attribute of any character anywhere in the game.
-        Falls back to ``"0"`` only if the save file has no faction data at all.
+        1. ``<settings f="...">`` in the game root
+        2. ``fac`` attribute of any existing character on *ship*
+        3. ``fac`` attribute of any character anywhere in the game
+        Falls back to ``"0"`` only if the save file has no faction data at all
         """
         # Primary: authoritative faction stored in <settings f="...">
         if self._root is not None:
@@ -1077,7 +1076,7 @@ class SaveFile:
                 interior.add((xi, yi))
 
         if not interior:
-            # No tile data available – fall back to ship centre
+            # No tile data available - fall back to ship centre
             cx = ship.sx // 2
             cy = ship.sy // 2
             return float(cx), float(cy)
@@ -1118,7 +1117,7 @@ class SaveFile:
         # presence of the <pers> child element.
         c_el = etree.SubElement(chars_el, "c")
         c_el.set("task", "Walk")
-        c_el.set("cid", "89")   # 89 = human character template in the game library
+        c_el.set("cid", "89")  # 89 = human character template in the game library
         c_el.set("entId", str(new_id))
         c_el.set("x", f"{spawn_x:.1f}")
         c_el.set("y", f"{spawn_y:.1f}")
@@ -1143,7 +1142,7 @@ class SaveFile:
             if tag == "Comfort":
                 el.set("v", "0")
             elif tag == "Oxygen":
-                el.set("v", "0")    # oxygen is maintained by ship atmosphere
+                el.set("v", "0")  # oxygen is maintained by ship atmosphere
                 el.set("oxs", "0")
             else:
                 el.set("v", "100")
@@ -1164,11 +1163,11 @@ class SaveFile:
         pers = etree.SubElement(c_el, "pers")
         pers.set("ret", "1")
         pers.set("ret2", "1")
-        pers.set("bsid", "1776")   # "Teacher" as a neutral default occupation
+        pers.set("bsid", "1776")
         pers.set("useGlobal", "false")
         pers.set("globalSch", "1")
 
-        # Attributes (mid-range)
+        # Attributes
         attr_el = etree.SubElement(pers, "attr")
         for attr_id in ATTRIBUTE_IDS:
             a = etree.SubElement(attr_el, "a")
@@ -1180,13 +1179,19 @@ class SaveFile:
         sociality = etree.SubElement(pers, "sociality")
         etree.SubElement(sociality, "relationships")
 
-        # Needs (personality needs tracking)
+        # Needs
         needs_el = etree.SubElement(pers, "needs")
         ns_el = etree.SubElement(needs_el, "ns")
         for tag, n_val, cv_val in (
-            ("nt", "10", "5"), ("ng", "10", "5"), ("pe", "10", "5"),
-            ("nm", "10", "5"), ("np", "0",  "0"), ("nd", "10", "5"),
-            ("nf", "0",  "0"), ("win","10", "5"), ("dec","10", "5"),
+            ("nt", "10", "5"),
+            ("ng", "10", "5"),
+            ("pe", "10", "5"),
+            ("nm", "10", "5"),
+            ("np", "0", "0"),
+            ("nd", "10", "5"),
+            ("nf", "0", "0"),
+            ("win", "10", "5"),
+            ("dec", "10", "5"),
         ):
             el = etree.SubElement(ns_el, tag)
             el.set("n", n_val)
@@ -1203,12 +1208,22 @@ class SaveFile:
         c1.set("sid", str(ship.sid))
         c1.set("med", "1")
 
-        # Job settings (all professions at Normal priority)
+        # Job settings
         js_el = etree.SubElement(pers, "jobsetting")
         for profession in (
-            "Navigate", "Gunner", "Shield", "Operations", "Fighter",
-            "Medical", "Farm", "Construct", "Maintenance", "Mine",
-            "Industry", "Research", "Logistics",
+            "Navigate",
+            "Gunner",
+            "Shield",
+            "Operations",
+            "Fighter",
+            "Medical",
+            "Farm",
+            "Construct",
+            "Maintenance",
+            "Mine",
+            "Industry",
+            "Research",
+            "Logistics",
         ):
             j = etree.SubElement(js_el, "j")
             j.set("profession", profession)
@@ -1429,8 +1444,8 @@ class SaveFile:
         fleet, and return the new Ship object."""
         new_ship_el = copy.deepcopy(source_ship.element)
 
-        # Derive a new unique SID from masterData.idCounter (same source the
-        # game uses), falling back to max-existing-SID + 1.
+        # Derive a new unique SID from masterData.idCounter,
+        # falling back to max-existing-SID + 1
         new_sid = self._next_master_id()
         new_ship_el.set("sid", str(new_sid))
         new_ship_el.set("sname", name)
@@ -1441,8 +1456,7 @@ class SaveFile:
             new_ship_el.remove(chars_el)
         etree.SubElement(new_ship_el, "characters")
 
-        # Remap all entity IDs inside the cloned ship so they are globally
-        # unique (mirrors what the reference editor does).
+        # Remap all entity IDs inside the cloned ship so they are globally unique
         self._remap_entity_ids(new_ship_el)
 
         # Place the clone in a valid position (within bounds, no overlap)
@@ -1499,8 +1513,12 @@ class SaveFile:
             for ship in self.ships:
                 ship_wx, ship_wy = ox_oy_to_world(ship.ox, ship.oy)
                 # AABB intersection test
-                if not (wx + sx <= ship_wx or wx >= ship_wx + ship.sx or
-                        wy + sy <= ship_wy or wy >= ship_wy + ship.sy):
+                if not (
+                    wx + sx <= ship_wx
+                    or wx >= ship_wx + ship.sx
+                    or wy + sy <= ship_wy
+                    or wy >= ship_wy + ship.sy
+                ):
                     return False
             return True
 
@@ -1544,7 +1562,7 @@ class SaveFile:
                 return current + 1
             except ValueError:
                 pass
-        # No masterData: derive a collision-free ID from the whole document.
+        # No masterData: derive a collision-free ID from the whole document
         max_ent = max(
             (
                 int(el.get("entId"))

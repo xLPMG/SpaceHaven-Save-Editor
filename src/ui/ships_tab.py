@@ -23,7 +23,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.ui.styles import ACTION_CLONE_COLOR, ACTION_REMOVE_COLOR, SHIP_TAB_SECTION_COLOR
+from src.ui.styles import (
+    ACTION_CLONE_COLOR,
+    ACTION_REMOVE_COLOR,
+    SHIP_TAB_SECTION_COLOR,
+)
 
 if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship
@@ -265,7 +269,9 @@ class ShipsTab(QWidget):
         self._ship_list.clear()
 
         active = [s for s in self._save.ships if s.in_game_file] if self._save else []
-        stored = [s for s in self._save.ships if not s.in_game_file] if self._save else []
+        stored = (
+            [s for s in self._save.ships if not s.in_game_file] if self._save else []
+        )
 
         if active:
             self._add_section_header("CURRENT SECTOR")
@@ -444,7 +450,7 @@ class ShipsTab(QWidget):
                 self,
                 "Cannot Duplicate Ship",
                 f"Unable to find valid position for cloned ship:\n\n{exc}\n\n"
-                "The sector may be too crowded or the ship is too large."
+                "The sector may be too crowded or the ship is too large.",
             )
             return
         except Exception as exc:  # noqa: BLE001

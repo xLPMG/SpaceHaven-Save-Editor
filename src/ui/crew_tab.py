@@ -400,7 +400,7 @@ class CrewTab(QWidget):
         advanced_lbl = QLabel("Advanced atmosphere sensors")
         advanced_lbl.setObjectName("StatCardDesc")
         layout.addWidget(advanced_lbl)
-        
+
         layout.addSpacing(6)
 
         self._gas_spins: dict[str, QSpinBox] = {}
@@ -680,7 +680,9 @@ class CrewTab(QWidget):
             grid.addWidget(QLabel(f"{key}:"), row, 0)
             edit = QLineEdit()
             edit.setPlaceholderText("integer mask")
-            edit.editingFinished.connect(lambda k=key, e=edit: self._on_mask_edited(k, e))
+            edit.editingFinished.connect(
+                lambda k=key, e=edit: self._on_mask_edited(k, e)
+            )
             self._mask_edits[key] = edit
             grid.addWidget(edit, row, 1)
             bin_lbl = QLabel("")
@@ -732,7 +734,9 @@ class CrewTab(QWidget):
             cb = QComboBox()
             for value in values:
                 cb.addItem(value)
-            cb.currentTextChanged.connect(lambda text, k=key: self._set_char_attr(k, text))
+            cb.currentTextChanged.connect(
+                lambda text, k=key: self._set_char_attr(k, text)
+            )
             self._appearance_controls[key] = cb
             layout.addRow(label, cb)
 
@@ -752,7 +756,9 @@ class CrewTab(QWidget):
 
         def _add_check(key: str, label: str) -> None:
             ch = QCheckBox()
-            ch.toggled.connect(lambda on, k=key: self._set_colors_attr(k, "true" if on else "false"))
+            ch.toggled.connect(
+                lambda on, k=key: self._set_colors_attr(k, "true" if on else "false")
+            )
             self._appearance_controls[key] = ch
             layout.addRow(label, ch)
 
@@ -814,7 +820,9 @@ class CrewTab(QWidget):
             ("bestQPrimary", "Best Quality Primary:"),
         ):
             ch = QCheckBox()
-            ch.toggled.connect(lambda on, k=key: self._set_loadout_attr(k, "true" if on else "false"))
+            ch.toggled.connect(
+                lambda on, k=key: self._set_loadout_attr(k, "true" if on else "false")
+            )
             self._loadout_checks[key] = ch
             layout.addRow(label, ch)
 
@@ -829,26 +837,34 @@ class CrewTab(QWidget):
         self._cid_combo = QComboBox()
         self._cid_combo.setEditable(True)
         self._cid_combo.addItem("89")
-        self._cid_combo.currentTextChanged.connect(lambda text: self._set_char_attr("cid", text))
+        self._cid_combo.currentTextChanged.connect(
+            lambda text: self._set_char_attr("cid", text)
+        )
         layout.addRow("Character Template (cid):", self._cid_combo)
 
         self._side_combo = QComboBox()
         self._side_combo.setEditable(True)
         for side in ("Player", "Neutral", "Enemy"):
             self._side_combo.addItem(side)
-        self._side_combo.currentTextChanged.connect(lambda text: self._set_char_attr("side", text))
+        self._side_combo.currentTextChanged.connect(
+            lambda text: self._set_char_attr("side", text)
+        )
         layout.addRow("Side:", self._side_combo)
 
         self._fac_spin = QSpinBox()
         self._fac_spin.setRange(0, 1000000)
-        self._fac_spin.valueChanged.connect(lambda value: self._set_char_attr("fac", str(value)))
+        self._fac_spin.valueChanged.connect(
+            lambda value: self._set_char_attr("fac", str(value))
+        )
         layout.addRow("Faction (fac):", self._fac_spin)
 
         self._dir_combo = QComboBox()
         self._dir_combo.setEditable(True)
         for direction in COMMON_DIRECTIONS:
             self._dir_combo.addItem(direction)
-        self._dir_combo.currentTextChanged.connect(lambda text: self._set_char_attr("dir", text))
+        self._dir_combo.currentTextChanged.connect(
+            lambda text: self._set_char_attr("dir", text)
+        )
         layout.addRow("Direction:", self._dir_combo)
 
         return w
@@ -989,8 +1005,6 @@ class CrewTab(QWidget):
     def _populate_attributes(self, char: Character) -> None:
         self._attr_table.setRowCount(0)
         for attr in sorted(char.attributes, key=lambda a: a.name):
-            # Clamp out-of-range values and persist the correction via _save,
-            # matching the same pattern used in _populate_skills.
             if self._save is not None:
                 clamped = max(0, min(attr.points, MAX_ATTR_POINTS))
                 if clamped != attr.points:
@@ -1251,18 +1265,23 @@ class CrewTab(QWidget):
                     control.blockSignals(False)
                 continue
 
-            source = colors if key in {
-                "pantsSet",
-                "shirtSet",
-                "skinSet",
-                "sp",
-                "ss",
-                "sr",
-                "sh",
-                "ssh",
-                "sg",
-                "sl",
-            } else char.element
+            source = (
+                colors
+                if key
+                in {
+                    "pantsSet",
+                    "shirtSet",
+                    "skinSet",
+                    "sp",
+                    "ss",
+                    "sr",
+                    "sh",
+                    "ssh",
+                    "sg",
+                    "sl",
+                }
+                else char.element
+            )
             raw = source.get(key, "0") if source is not None else "0"
             if isinstance(control, QComboBox):
                 control.blockSignals(True)
@@ -1566,7 +1585,7 @@ class CrewTab(QWidget):
     def _add_crew_item(
         self, char: Character, row: int | None = None
     ) -> QListWidgetItem:
-        """Create a crew list entry (the delegate draws the ✕ glyph)."""
+        """Create a crew list entry. If row is specified, insert at that index; otherwise append."""
         item = QListWidgetItem(char.full_name)
         item.setData(Qt.ItemDataRole.UserRole, char)
         if row is None:
@@ -1676,7 +1695,7 @@ class CrewTab(QWidget):
         self.status_message.emit(f"Crew member '{char.full_name}' added (unsaved).")
 
     def _remove_crew_member_by_char(self, char: Character) -> None:
-        """Remove a crew member (called from the ✕ button on each list row)."""
+        """Remove a crew member."""
         if self._save is None:
             return
         target_row = -1

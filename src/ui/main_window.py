@@ -266,7 +266,9 @@ class MainWindow(QMainWindow):
 
         self._globals_tab.status_message.connect(self._mark_unsaved)
         self._globals_tab.crew_data_changed.connect(self._crew_tab.refresh_current_char)
-        self._globals_tab.storage_data_changed.connect(self._storage_tab.refresh_current_container)
+        self._globals_tab.storage_data_changed.connect(
+            self._storage_tab.refresh_current_container
+        )
         self._crew_tab.status_message.connect(self._mark_unsaved)
         self._crew_tab.crew_changed.connect(self._ships_tab.refresh_current_ship)
         self._storage_tab.status_message.connect(self._mark_unsaved)
@@ -274,7 +276,9 @@ class MainWindow(QMainWindow):
         self._ships_tab.ships_changed.connect(self._on_ships_changed)
         self._research_tab.status_message.connect(self._mark_unsaved)
         self._universe_tab.status_message.connect(self._mark_unsaved)
-        self._universe_tab.ship_position_changed.connect(self._ships_tab.refresh_current_ship)
+        self._universe_tab.ship_position_changed.connect(
+            self._ships_tab.refresh_current_ship
+        )
 
         body_layout.addWidget(self._content_stack)
         ev.addWidget(body)
@@ -331,8 +335,6 @@ class MainWindow(QMainWindow):
         # Position indicator on first button after layout is settled
         sidebar.resizeEvent = _resize_handler  # type: ignore[attr-defined]
         return container
-
-
 
     def _nav_to(self, page_idx: int) -> None:
         self._content_stack.setCurrentIndex(page_idx)

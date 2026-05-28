@@ -42,8 +42,6 @@ from src.ui.styles import (
     WELCOME_TIP_COLOR,
 )
 
-# Starfield background
-
 
 class _StarfieldWidget(QWidget):
     """Lightweight animated starfield background for the welcome screen."""
@@ -133,9 +131,6 @@ class _StarfieldWidget(QWidget):
         painter.end()
 
 
-# Program title
-
-
 class _TitleLabel(QWidget):
 
     def __init__(self, text: str, parent: QWidget | None = None) -> None:
@@ -157,9 +152,6 @@ class _TitleLabel(QWidget):
         painter.setPen(WELCOME_TITLE_COLOR)
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._text)
         painter.end()
-
-
-# Drop zone
 
 
 class DropZone(QFrame):
@@ -312,9 +304,6 @@ class DropZone(QFrame):
         else:
             event.ignore()
         self.update()
-
-
-# Welcome widget
 
 
 class WelcomeWidget(QWidget):

@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 
 
 _RESOURCE_SPIN_MAX: int = 2_000_000_000  # upper bound for credits / prestige spins
-_FILL_QTY_DEFAULT: int = 9_999           # default quantity for the Fill Storage action
-_FILL_QTY_MAX: int = 1_000_000           # maximum quantity for the Fill Storage spin
+_FILL_QTY_DEFAULT: int = 9_999  # default quantity for the Fill Storage action
+_FILL_QTY_MAX: int = 1_000_000  # maximum quantity for the Fill Storage spin
 
 
 def _sep() -> QFrame:
@@ -303,7 +303,6 @@ class GlobalsTab(QWidget):
         ):
             w.blockSignals(False)
 
-        # Update info labels
         self._info_labels["mode"].setText(save.get_game_mode())
         self._info_labels["seed"].setText(save.get_seed())
         self._info_labels["ships"].setText(str(len(save.ships)))

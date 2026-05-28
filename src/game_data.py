@@ -1,6 +1,4 @@
-# ID mappings extracted from the SpaceHaven game library (library/haven + library/texts).
-# Ground truth: haven file element names resolved via texts file EN strings.
-# Attribute/skill numeric IDs verified from actual save file XML.
+# ID mappings extracted from the SpaceHaven game library (library/haven + library/texts)
 
 # Default crew schedule/section bitmasks used by game-generated human crew.
 # Required for normal AI routines (work, sleep, etc.).
