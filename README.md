@@ -17,7 +17,7 @@ If you run into issues, please report them on the [Issues](../../issues) page wi
 - **Ships** – rename ships, adjust grid dimensions, and add or remove ships from your fleet
 - **Storage** – browse each ship's storage containers and change item quantities
 - **Research** – view the state of every technology and mark any of them as complete
-- **Universe** – view the sector map, discovered sectors, and the game timeline
+- **Universe** – view the sector map, move ships in the current sector interactively, browse discovered sectors, and inspect the game timeline
 
 ## Download
 
@@ -132,7 +132,7 @@ Use the filter buttons and the search box to narrow the list, then:
 
 A read-only view of the broader game state:
 
-- **Sector Map** – an interactive 2-D map of the current sector showing ship positions; ships can be dragged to new coordinates
+- **Sector Map** – an interactive 2-D map of the current sector showing ship positions; ships in the current sector can be moved interactively by dragging them to new coordinates
 - **Discovered Sectors** – a table listing every sector the player has visited, with its size and entity count
 - **Game Timeline** – a chronological log of notable events (crew arrivals and deaths, derelicts explored, missions and quests completed, trade milestones, research breakthroughs, and galaxy transitions)
 
