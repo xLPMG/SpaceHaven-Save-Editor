@@ -1,6 +1,6 @@
 # Space Haven Save Editor for MacOS and Windows
 
-A desktop save file editor for [Space Haven](https://bugbyte.fi/spacehaven/), the space colony sim by Bugbyte. If you want to give your crew a fighting chance, unlock research, or recover a run that went sideways, this tool lets you do that without touching raw XML.
+A desktop save file editor for [Space Haven](https://bugbyte.fi/spacehaven/), the space management simulation game by Bugbyte. If you want to give your crew a fighting chance, unlock research, or recover a run that went sideways, this tool lets you do that without touching raw XML.
 
 ## Disclaimer
 
