@@ -136,6 +136,51 @@ CUSTOM_SKILL_PRESETS: dict[str, dict[int, tuple[int, int]]] = {
     },
 }
 
+# Backstory IDs (bsid on <pers> elements) — the character's pre-game profession/
+# background. This is cosmetic and affects starting skill minimums and mood
+# factor weights, but does NOT control which jobs the character performs on the
+# ship (that is governed by <jobsetting> profession priorities).
+BACKSTORY_IDS: dict[int, str] = {
+    1763: "Police officer",
+    1764: "Nurse",
+    1765: "Doctor",
+    1766: "Salesperson",
+    1767: "Cook",
+    1768: "Material mover",
+    1769: "Engineer",
+    1770: "Security guard",
+    1771: "Construction laborer",
+    1772: "Sheriff",
+    1773: "Lawyer",
+    1774: "Medical assistant",
+    1775: "Bartender",
+    1776: "Teacher",
+    1777: "Computer programmer",
+    1778: "Welder",
+    1779: "Firefighter",
+    1780: "Telemarketer",
+    1781: "Lab technician",
+    1782: "Chemical engineer",
+    1783: "Airline pilot",
+    1784: "Fighter pilot",
+    1785: "Driller",
+    1786: "Mining technician",
+    1787: "Geologist",
+    1788: "Farmer",
+    1789: "Scientist",
+    1790: "Blacksmith",
+    1791: "Navigator",
+    1792: "Florist",
+    3101: "Game Developer",
+    3102: "Astronaut",
+    3103: "Psychologist",
+    3104: "Comedian",
+    3105: "Brewmaster",
+    3106: "Electrician",
+    3107: "Prizefighter",
+    3108: "Athlete",
+}
+
 # Personality trait IDs (traitId on <trait> elements inside <pers>).
 TRAIT_IDS: dict[int, str] = {
     191: "Hero",
@@ -468,40 +513,6 @@ STORAGE_IDS: dict[int, str] = {
     4076: "Incendiary Grenade Launcher",
     4078: "Alien Parasite Corpse",
     4106: "Infester Corpse",
-}
-
-# Pre-game occupation IDs (occupId on <pers> elements).
-OCCUPATION_IDS: dict[int, str] = {
-    1763: "Police officer",
-    1764: "Nurse",
-    1765: "Doctor",
-    1766: "Salesperson",
-    1767: "Cook",
-    1768: "Material mover",
-    1769: "Engineer",
-    1770: "Security guard",
-    1771: "Construction laborer",
-    1772: "Sheriff",
-    1773: "Lawyer",
-    1774: "Medical assistant",
-    1775: "Bartender",
-    1776: "Teacher",
-    1777: "Computer programmer",
-    1778: "Welder",
-    1779: "Firefighter",
-    1780: "Telemarketer",
-    1781: "Lab technician",
-    1782: "Chemical engineer",
-    1783: "Airline pilot",
-    1784: "Fighter pilot",
-    1785: "Driller",
-    1786: "Mining technician",
-    1787: "Geologist",
-    1788: "Farmer",
-    1789: "Scientist",
-    1790: "Blacksmith",
-    1791: "Navigator",
-    1792: "Florist",
 }
 
 # Entity type IDs (objId on <e> elements) for characters and creatures.

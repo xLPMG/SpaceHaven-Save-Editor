@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
 from src.save_file import Condition, SKILL_HARD_MAX
 from src.game_data import (
+    BACKSTORY_IDS,
     CUSTOM_SKILL_PRESETS,
     DEFAULT_SCHEDULE_P0,
     DEFAULT_SCHEDULE_P1,
@@ -332,6 +333,7 @@ class CrewTab(QWidget):
         self._tabs.addTab(self._build_stats_tab(), "Stats")
         self._tabs.addTab(self._build_attributes_tab(), "Attributes")
         self._tabs.addTab(self._build_skills_tab(), "Skills")
+        self._tabs.addTab(self._build_jobs_tab(), "Jobs")
         self._tabs.addTab(self._build_traits_tab(), "Traits")
         self._tabs.addTab(self._build_conditions_tab(), "Conditions")
         self._tabs.addTab(self._build_relationships_tab(), "Relationships")
@@ -613,7 +615,6 @@ class CrewTab(QWidget):
         for key, min_v, max_v in (
             ("ret", 0, 10),
             ("ret2", 0, 10),
-            ("bsid", 0, 10000),
             ("globalSch", 0, 10),
         ):
             sp = QSpinBox()
@@ -628,6 +629,38 @@ class CrewTab(QWidget):
         self._use_global_check.toggled.connect(self._on_use_global_toggled)
         form.addRow("", self._use_global_check)
         layout.addLayout(form)
+
+        layout.addStretch()
+        return w
+
+    def _build_jobs_tab(self) -> QWidget:
+        w = QWidget()
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        backstory_row = QHBoxLayout()
+        backstory_row.addWidget(QLabel("Backstory:"))
+        self._backstory_combo = QComboBox()
+        for bs_id, bs_name in sorted(BACKSTORY_IDS.items(), key=lambda x: x[1]):
+            self._backstory_combo.addItem(bs_name, bs_id)
+        self._backstory_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        self._backstory_combo.currentIndexChanged.connect(self._on_backstory_changed)
+        backstory_row.addWidget(self._backstory_combo)
+        layout.addLayout(backstory_row)
+
+        note = QLabel(
+            "Backstory is the character's pre-game profession (e.g. Teacher, Doctor). "
+            "It affects starting skill minimums and mood factors, but does not control "
+            "what the character does on the ship, which is set by the priorities below."
+        )
+        note.setObjectName("StatCardDesc")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        layout.addSpacing(4)
 
         self._job_table = QTableWidget(0, 2)
         self._job_table.setHorizontalHeaderLabels(["Profession", "Priority"])
@@ -957,6 +990,7 @@ class CrewTab(QWidget):
         self._populate_traits(char)
         self._populate_conditions(char)
         self._populate_relationships(char)
+        self._populate_jobs(char)
         self._populate_behavior(char)
         self._populate_schedule(char)
         self._populate_appearance(char)
@@ -1179,6 +1213,37 @@ class CrewTab(QWidget):
                 edit.editingFinished.connect(_make_handler())
                 self._rel_table.setCellWidget(row, col, edit)
 
+    def _populate_jobs(self, char: Character) -> None:
+        pers = char.element.find("pers")
+
+        # Backstory combo
+        bsid = self._parse_int(pers.get("bsid") if pers is not None else None, 1776)
+        self._backstory_combo.blockSignals(True)
+        idx = self._backstory_combo.findData(bsid)
+        if idx >= 0:
+            self._backstory_combo.setCurrentIndex(idx)
+        else:
+            self._backstory_combo.setCurrentIndex(0)
+        self._backstory_combo.blockSignals(False)
+
+        # Job priorities
+        priorities: dict[str, str] = {}
+        js_el = pers.find("jobsetting") if pers is not None else None
+        if js_el is not None:
+            for j in js_el.findall("j"):
+                prof = j.get("profession")
+                prio = j.get("priority")
+                if prof and prio:
+                    priorities[prof] = prio
+
+        for row in range(self._job_table.rowCount()):
+            profession = self._job_table.item(row, 0).text()
+            combo = self._job_table.cellWidget(row, 1)
+            if isinstance(combo, QComboBox):
+                combo.blockSignals(True)
+                combo.setCurrentText(priorities.get(profession, "Normal"))
+                combo.blockSignals(False)
+
     def _populate_behavior(self, char: Character) -> None:
         self._task_combo.blockSignals(True)
         self._task_combo.setCurrentText(char.element.get("task", "Walk"))
@@ -1209,23 +1274,6 @@ class CrewTab(QWidget):
         use_global = pers.get("useGlobal", "false") if pers is not None else "false"
         self._use_global_check.setChecked(use_global == "true")
         self._use_global_check.blockSignals(False)
-
-        priorities: dict[str, str] = {}
-        js_el = pers.find("jobsetting") if pers is not None else None
-        if js_el is not None:
-            for j in js_el.findall("j"):
-                prof = j.get("profession")
-                prio = j.get("priority")
-                if prof and prio:
-                    priorities[prof] = prio
-
-        for row in range(self._job_table.rowCount()):
-            profession = self._job_table.item(row, 0).text()
-            combo = self._job_table.cellWidget(row, 1)
-            if isinstance(combo, QComboBox):
-                combo.blockSignals(True)
-                combo.setCurrentText(priorities.get(profession, "Normal"))
-                combo.blockSignals(False)
 
     def _populate_schedule(self, char: Character) -> None:
         pers = char.element.find("pers")
@@ -1329,6 +1377,10 @@ class CrewTab(QWidget):
         for spin in self._pers_spins.values():
             spin.setValue(0)
         self._use_global_check.setChecked(False)
+        # Reset backstory to Teacher (default for new characters)
+        idx = self._backstory_combo.findData(1776)
+        if idx >= 0:
+            self._backstory_combo.setCurrentIndex(idx)
         for row in range(self._job_table.rowCount()):
             combo = self._job_table.cellWidget(row, 1)
             if isinstance(combo, QComboBox):
@@ -1398,6 +1450,16 @@ class CrewTab(QWidget):
 
     def _on_use_global_toggled(self, on: bool) -> None:
         self._on_pers_field_changed("useGlobal", "true" if on else "false")
+
+    def _on_backstory_changed(self, index: int) -> None:
+        if self._current_char is None:
+            return
+        bs_id = self._backstory_combo.itemData(index)
+        if bs_id is None:
+            return
+        pers = self._ensure_pers(self._current_char)
+        pers.set("bsid", str(bs_id))
+        self.status_message.emit("Backstory applied (unsaved).")
 
     def _on_job_priority_changed(self, profession: str, priority: str) -> None:
         if self._current_char is None:
