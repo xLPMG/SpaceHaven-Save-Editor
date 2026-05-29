@@ -17,6 +17,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -32,6 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.save_file import SaveFile
+from src.texts_loader import game_texts
 from src.ui.crew_tab import CrewTab
 from src.ui.globals_tab import GlobalsTab
 from src.ui.research_tab import ResearchTab
@@ -414,7 +416,41 @@ class MainWindow(QMainWindow):
         self._save_btn.clicked.connect(self._save_file)
         layout.addWidget(self._save_btn)
 
+        layout.addSpacing(12)
+
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.VLine)
+        sep2.setFixedHeight(22)
+        sep2.setObjectName("FileBarSep")
+        layout.addWidget(sep2)
+
+        layout.addSpacing(4)
+
+        lang_label = QLabel("Lang:")
+        lang_label.setObjectName("FileLabel")
+        layout.addWidget(lang_label)
+
+        self._lang_combo = QComboBox()
+        self._lang_combo.setObjectName("LangCombo")
+        self._lang_combo.setToolTip("Game-content language (item names, traits, …)")
+        for code, display in game_texts.available_langs:
+            self._lang_combo.addItem(display, code)
+        self._lang_combo.setCurrentIndex(
+            next(
+                (i for i in range(self._lang_combo.count())
+                 if self._lang_combo.itemData(i) == game_texts.current_lang),
+                0,
+            )
+        )
+        self._lang_combo.currentIndexChanged.connect(self._on_lang_changed)
+        layout.addWidget(self._lang_combo)
+
         return bar
+
+    def _on_lang_changed(self, index: int) -> None:
+        code = self._lang_combo.itemData(index)
+        if code:
+            game_texts.set_lang(code)
 
     # ------------------------------------------------------------------
     # Page switching

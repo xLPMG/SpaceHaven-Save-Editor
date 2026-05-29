@@ -29,7 +29,8 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship, StorageContainer, StorageItem
 
-from src.game_data import STORAGE_IDS
+from src.game_data import STORAGE_IDS, STORAGE_TEXT_IDS
+from src.texts_loader import game_texts
 from src.ui.styles import STORAGE_FILTER_ICON_COLOR
 
 
@@ -43,6 +44,7 @@ class StorageTab(QWidget):
         self._current_container: StorageContainer | None = None
         self._container_base_labels: dict[int, str] = {}
         self._build_ui()
+        game_texts.on_lang_changed(self._on_lang_changed)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -152,8 +154,13 @@ class StorageTab(QWidget):
         self._add_item_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        for name, item_id in sorted((v, k) for k, v in STORAGE_IDS.items()):
-            self._add_item_combo.addItem(name, item_id)
+        for item_id, en_name in sorted(
+            STORAGE_IDS.items(),
+            key=lambda x: game_texts.get(STORAGE_TEXT_IDS.get(x[0], 0), x[1]),
+        ):
+            self._add_item_combo.addItem(
+                game_texts.get(STORAGE_TEXT_IDS.get(item_id, 0), en_name), item_id
+            )
         add_row.addWidget(self._add_item_combo)
 
         self._add_qty_spin = QSpinBox()
@@ -306,7 +313,9 @@ class StorageTab(QWidget):
         row = self._items_table.rowCount()
         self._items_table.insertRow(row)
 
-        name_cell = QTableWidgetItem(storage_item.name)
+        name_cell = QTableWidgetItem(
+            game_texts.get(STORAGE_TEXT_IDS.get(storage_item.item_id, 0), storage_item.name)
+        )
         name_cell.setFlags(name_cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
         name_cell.setData(Qt.ItemDataRole.UserRole, storage_item)
         self._items_table.setItem(row, 0, name_cell)
@@ -358,7 +367,7 @@ class StorageTab(QWidget):
         self._populate_items(self._current_container)
         self._refresh_container_label()
         self.status_message.emit(
-            f"Added {qty}x {STORAGE_IDS.get(item_id, str(item_id))} (unsaved)."
+            f"Added {qty}x {game_texts.get(STORAGE_TEXT_IDS.get(item_id, 0), STORAGE_IDS.get(item_id, str(item_id)))} (unsaved)."
         )
 
     def _remove_item(self) -> None:
@@ -381,7 +390,7 @@ class StorageTab(QWidget):
         self._items_table.removeRow(row)
         self._sync_remove_enabled()
         self._refresh_container_label()
-        self.status_message.emit(f"Removed {storage_item.name} (unsaved).")
+        self.status_message.emit(f"Removed {game_texts.get(STORAGE_TEXT_IDS.get(storage_item.item_id, 0), storage_item.name)} (unsaved).")
 
     # ------------------------------------------------------------------
     # Helpers
@@ -424,6 +433,29 @@ class StorageTab(QWidget):
                 self._remove_btn.setEnabled(True)
                 return
         self._remove_btn.setEnabled(False)
+
+    def _on_lang_changed(self, _lang: str) -> None:
+        """Re-populate the add-item combo and refresh the items table."""
+        current_data = self._add_item_combo.currentData()
+        self._add_item_combo.blockSignals(True)
+        self._add_item_combo.clear()
+        for item_id, en_name in sorted(
+            STORAGE_IDS.items(),
+            key=lambda x: game_texts.get(STORAGE_TEXT_IDS.get(x[0], 0), x[1]),
+        ):
+            self._add_item_combo.addItem(
+                game_texts.get(STORAGE_TEXT_IDS.get(item_id, 0), en_name), item_id
+            )
+        if current_data is not None:
+            idx = next(
+                (i for i in range(self._add_item_combo.count())
+                 if self._add_item_combo.itemData(i) == current_data),
+                0,
+            )
+            self._add_item_combo.setCurrentIndex(idx)
+        self._add_item_combo.blockSignals(False)
+        if self._current_container is not None:
+            self._populate_items(self._current_container)
 
     def _set_right_enabled(self, enabled: bool) -> None:
         self._filter_edit.setEnabled(enabled)

@@ -42,7 +42,10 @@ if TYPE_CHECKING:
 
 from src.save_file import Condition, SKILL_HARD_MAX
 from src.game_data import (
+    ATTRIBUTE_TEXT_IDS,
     BACKSTORY_IDS,
+    BACKSTORY_TEXT_IDS,
+    CONDITION_TEXT_IDS,
     CUSTOM_SKILL_PRESETS,
     DEFAULT_SCHEDULE_P0,
     DEFAULT_SCHEDULE_P1,
@@ -50,9 +53,11 @@ from src.game_data import (
     DEFAULT_SEC_S0,
     DEFAULT_SEC_S1,
     DEFAULT_SEC_S2,
-    TRAIT_BY_NAME,
+    SKILL_TEXT_IDS,
     TRAIT_IDS,
+    TRAIT_TEXT_IDS,
 )
+from src.texts_loader import game_texts
 from src.ui.styles import (
     ACTION_CLONE_COLOR,
     ACTION_REMOVE_COLOR,
@@ -227,6 +232,7 @@ class CrewTab(QWidget):
         self._current_ship: Ship | None = None
         self._current_char: Character | None = None
         self._build_ui()
+        game_texts.on_lang_changed(self._on_lang_changed)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -503,8 +509,13 @@ class CrewTab(QWidget):
         row.setSpacing(6)
         self._add_trait_combo = QComboBox()
         self._add_trait_combo.setEditable(False)
-        for name in sorted(TRAIT_IDS.values()):
-            self._add_trait_combo.addItem(name, TRAIT_BY_NAME[name])
+        for trait_id, en_name in sorted(
+            TRAIT_IDS.items(),
+            key=lambda x: game_texts.get(TRAIT_TEXT_IDS.get(x[0], 0), x[1]),
+        ):
+            self._add_trait_combo.addItem(
+                game_texts.get(TRAIT_TEXT_IDS.get(trait_id, 0), en_name), trait_id
+            )
         self._add_trait_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -642,8 +653,13 @@ class CrewTab(QWidget):
         backstory_row = QHBoxLayout()
         backstory_row.addWidget(QLabel("Backstory:"))
         self._backstory_combo = QComboBox()
-        for bs_id, bs_name in sorted(BACKSTORY_IDS.items(), key=lambda x: x[1]):
-            self._backstory_combo.addItem(bs_name, bs_id)
+        for bs_id, bs_name in sorted(
+            BACKSTORY_IDS.items(),
+            key=lambda x: game_texts.get(BACKSTORY_TEXT_IDS.get(x[0], 0), x[1]),
+        ):
+            self._backstory_combo.addItem(
+                game_texts.get(BACKSTORY_TEXT_IDS.get(bs_id, 0), bs_name), bs_id
+            )
         self._backstory_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -1038,7 +1054,7 @@ class CrewTab(QWidget):
 
     def _populate_attributes(self, char: Character) -> None:
         self._attr_table.setRowCount(0)
-        for attr in sorted(char.attributes, key=lambda a: a.name):
+        for attr in sorted(char.attributes, key=lambda a: game_texts.get(ATTRIBUTE_TEXT_IDS.get(a.attr_id, 0), a.name)):
             if self._save is not None:
                 clamped = max(0, min(attr.points, MAX_ATTR_POINTS))
                 if clamped != attr.points:
@@ -1046,7 +1062,7 @@ class CrewTab(QWidget):
 
             row = self._attr_table.rowCount()
             self._attr_table.insertRow(row)
-            name_item = QTableWidgetItem(attr.name)
+            name_item = QTableWidgetItem(game_texts.get(ATTRIBUTE_TEXT_IDS.get(attr.attr_id, 0), attr.name))
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             name_item.setData(Qt.ItemDataRole.UserRole, attr)
             self._attr_table.setItem(row, 0, name_item)
@@ -1090,7 +1106,7 @@ class CrewTab(QWidget):
 
             row = self._skills_table.rowCount()
             self._skills_table.insertRow(row)
-            name_item = QTableWidgetItem(skill.name)
+            name_item = QTableWidgetItem(game_texts.get(SKILL_TEXT_IDS.get(skill.skill_id, 0), skill.name))
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             name_item.setData(Qt.ItemDataRole.UserRole, skill)
             self._skills_table.setItem(row, 0, name_item)
@@ -1166,15 +1182,23 @@ class CrewTab(QWidget):
 
     def _populate_traits(self, char: Character) -> None:
         self._traits_list.clear()
-        for trait in sorted(char.traits, key=lambda t: t.name):
-            item = QListWidgetItem(trait.name)
+        for trait in sorted(
+            char.traits,
+            key=lambda t: game_texts.get(TRAIT_TEXT_IDS.get(t.trait_id, 0), t.name),
+        ):
+            display = game_texts.get(TRAIT_TEXT_IDS.get(trait.trait_id, 0), trait.name)
+            item = QListWidgetItem(display)
             item.setData(Qt.ItemDataRole.UserRole, trait)
             self._traits_list.addItem(item)
 
     def _populate_conditions(self, char: Character) -> None:
         self._conditions_list.clear()
-        for cond in sorted(char.conditions, key=lambda c: c.name):
-            item = QListWidgetItem(cond.name)
+        for cond in sorted(
+            char.conditions,
+            key=lambda c: game_texts.get(CONDITION_TEXT_IDS.get(c.cond_id, 0), c.name),
+        ):
+            display = game_texts.get(CONDITION_TEXT_IDS.get(cond.cond_id, 0), cond.name)
+            item = QListWidgetItem(display)
             item.setData(Qt.ItemDataRole.UserRole, cond)
             self._conditions_list.addItem(item)
 
@@ -1450,6 +1474,63 @@ class CrewTab(QWidget):
 
     def _on_use_global_toggled(self, on: bool) -> None:
         self._on_pers_field_changed("useGlobal", "true" if on else "false")
+
+    # ------------------------------------------------------------------
+    # Language change
+    # ------------------------------------------------------------------
+
+    def _on_lang_changed(self, _lang: str) -> None:
+        """Refresh all translatable combo boxes and the current character display."""
+        self._refresh_backstory_combo()
+        self._refresh_traits_combo()
+        if self._current_char is not None:
+            self._populate_attributes(self._current_char)
+            self._populate_skills(self._current_char)
+            self._populate_traits(self._current_char)
+            self._populate_conditions(self._current_char)
+
+    def _refresh_backstory_combo(self) -> None:
+        """Re-populate the backstory combo with names in the current language."""
+        current_data = self._backstory_combo.currentData()
+        self._backstory_combo.blockSignals(True)
+        self._backstory_combo.clear()
+        for bs_id, bs_name in sorted(
+            BACKSTORY_IDS.items(),
+            key=lambda x: game_texts.get(BACKSTORY_TEXT_IDS.get(x[0], 0), x[1]),
+        ):
+            self._backstory_combo.addItem(
+                game_texts.get(BACKSTORY_TEXT_IDS.get(bs_id, 0), bs_name), bs_id
+            )
+        # Restore the previously selected backstory ID
+        if current_data is not None:
+            idx = next(
+                (i for i in range(self._backstory_combo.count())
+                 if self._backstory_combo.itemData(i) == current_data),
+                0,
+            )
+            self._backstory_combo.setCurrentIndex(idx)
+        self._backstory_combo.blockSignals(False)
+
+    def _refresh_traits_combo(self) -> None:
+        """Re-populate the traits picker combo with names in the current language."""
+        current_data = self._add_trait_combo.currentData()
+        self._add_trait_combo.blockSignals(True)
+        self._add_trait_combo.clear()
+        for trait_id, en_name in sorted(
+            TRAIT_IDS.items(),
+            key=lambda x: game_texts.get(TRAIT_TEXT_IDS.get(x[0], 0), x[1]),
+        ):
+            self._add_trait_combo.addItem(
+                game_texts.get(TRAIT_TEXT_IDS.get(trait_id, 0), en_name), trait_id
+            )
+        if current_data is not None:
+            idx = next(
+                (i for i in range(self._add_trait_combo.count())
+                 if self._add_trait_combo.itemData(i) == current_data),
+                0,
+            )
+            self._add_trait_combo.setCurrentIndex(idx)
+        self._add_trait_combo.blockSignals(False)
 
     def _on_backstory_changed(self, index: int) -> None:
         if self._current_char is None:

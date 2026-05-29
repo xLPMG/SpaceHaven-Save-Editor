@@ -41,6 +41,9 @@ from src.ui.styles import (
 if TYPE_CHECKING:
     from src.save_file import ResearchEntry, SaveFile
 
+from src.game_data import TECH_TEXT_IDS
+from src.texts_loader import game_texts
+
 
 # ---------------------------------------------------------------------------
 # Custom item delegate - rich row rendering
@@ -102,7 +105,7 @@ class _TechDelegate(QStyledItemDelegate):
         painter.drawText(
             name_rect,
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-            entry.name,
+            game_texts.get(TECH_TEXT_IDS.get(entry.tech_id, 0), entry.name),
         )
 
         # Status badge
@@ -158,6 +161,7 @@ class ResearchTab(QWidget):
         self._all_entries: list[ResearchEntry] = []
         self._active_filter = "all"
         self._build_ui()
+        game_texts.on_lang_changed(lambda _: self._refresh_list())
 
     # ------------------------------------------------------------------
     # UI construction
@@ -318,7 +322,8 @@ class ResearchTab(QWidget):
         self._list.blockSignals(True)
         self._list.clear()
         for entry in self._all_entries:
-            if query and query not in entry.name.lower():
+            localized_name = game_texts.get(TECH_TEXT_IDS.get(entry.tech_id, 0), entry.name)
+            if query and query not in localized_name.lower():
                 continue
             if self._active_filter == "done" and not entry.done:
                 continue

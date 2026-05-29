@@ -22,7 +22,8 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import SaveFile
 
-from src.game_data import TECH_IDS, TIMELINE_EVENT_NAMES
+from src.game_data import TECH_IDS, TECH_TEXT_IDS, TIMELINE_EVENT_NAMES
+from src.texts_loader import game_texts
 from src.ui.sector_map_widget import SectorMapWidget
 
 _ICONS_DIR = Path(__file__).parent / "icons"
@@ -276,7 +277,11 @@ class UniverseTab(QWidget):
             # Detail column: resolve IDs to names where possible
             detail = ev.text
             if ev.event_type == 8 and detail.isdigit():
-                detail = TECH_IDS.get(int(detail), detail)
+                tech_id = int(detail)
+                detail = game_texts.get(
+                    TECH_TEXT_IDS.get(tech_id, 0),
+                    TECH_IDS.get(tech_id, detail),
+                )
             self._timeline_table.setItem(row, 2, _ro_item(detail))
 
         self._timeline_table.resizeColumnsToContents()
