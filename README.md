@@ -1,5 +1,9 @@
 # Space Haven Save Editor for MacOS and Windows
 
+[![Nexus Mods](https://img.shields.io/badge/Nexus_Mods-Space_Haven_Save_Editor-orange?logo=nexusmods)](https://www.nexusmods.com/spacehaven/mods/169)
+[![Tests](https://github.com/xLPMG/SpaceHaven-Save-Editor/actions/workflows/tests.yml/badge.svg)](https://github.com/xLPMG/SpaceHaven-Save-Editor/actions/workflows/tests.yml)
+[![Build](https://github.com/xLPMG/SpaceHaven-Save-Editor/actions/workflows/build.yml/badge.svg)](https://github.com/xLPMG/SpaceHaven-Save-Editor/actions/workflows/build.yml)
+
 A desktop save file editor for [Space Haven](https://bugbyte.fi/spacehaven/), the space management simulation game by Bugbyte. If you want to give your crew a fighting chance, unlock research, or recover a run that went sideways, this tool lets you do that without touching raw XML.
 
 ## Disclaimer
