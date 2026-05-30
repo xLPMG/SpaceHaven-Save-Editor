@@ -333,6 +333,7 @@ class StorageTab(QWidget):
         if self._save is None:
             return
         self._save.set_storage_quantity(item, value)
+        self._refresh_container_label()
         self.status_message.emit("Quantities applied (unsaved).")
 
     # ------------------------------------------------------------------
@@ -352,13 +353,13 @@ class StorageTab(QWidget):
         if (
             not already_present
             and container.capacity > 0
-            and len(container.items) >= container.capacity
+            and sum(i.quantity for i in container.items) + qty > container.capacity
         ):
             QMessageBox.warning(
                 self,
                 "Storage Full",
-                f"This container is full ({container.capacity} item type slots).\n"
-                "Remove an existing item first.",
+                f"Adding {qty} would exceed this container's capacity of {container.capacity}.\n"
+                "Reduce the quantity or remove some items first.",
             )
             return
         self._save.add_storage_item(self._current_container, item_id, qty)
@@ -399,10 +400,10 @@ class StorageTab(QWidget):
     def _container_label(self, container: StorageContainer) -> str:
         """Return the list display string for a container."""
         base = self._container_base_labels.get(id(container), container.display_name)
-        n = len(container.items)
         if container.capacity > 0:
-            return f"{base}  —  {n} / {container.capacity}"
-        return f"{base}  ({n})"
+            total_qty = sum(i.quantity for i in container.items)
+            return f"{base}  —  {total_qty} / {container.capacity}"
+        return base
 
     def _refresh_container_label(self) -> None:
         """Update the list item text for the currently selected container."""
