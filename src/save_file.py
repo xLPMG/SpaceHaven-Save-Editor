@@ -20,8 +20,8 @@ from typing import Optional
 from lxml import etree
 
 from src.game_data import (
-    ATTRIBUTE_IDS,
-    CONDITION_IDS,
+    ATTRIBUTE_DATA,
+    CONDITION_DATA,
     DEFAULT_SCHEDULE_P0,
     DEFAULT_SCHEDULE_P1,
     DEFAULT_SCHEDULE_P2,
@@ -31,15 +31,15 @@ from src.game_data import (
     DOOR_TILE_IDS,
     ENGINE_TILE_IDS,
     HULL_TILE_IDS,
-    SKILL_IDS,
+    SKILL_DATA,
     STAT_TAGS,
-    STORAGE_IDS,
+    STORAGE_DATA,
     COMPOSITE_STORAGE_MODULES,
     STORAGE_MODULE_CAPACITIES,
-    STORAGE_MODULE_NAMES,
-    TECH_IDS,
+    STORAGE_MODULE_DATA,
+    TECH_DATA,
     TIMELINE_EVENT_NAMES,
-    TRAIT_IDS,
+    TRAIT_DATA,
     WALL_TILE_IDS,
 )
 
@@ -152,6 +152,7 @@ class StorageItem:
 @dataclass
 class StorageContainer:
     display_name: str
+    text_id: int = 0  # game-texts entry ID for localised name (0 = English-only)
     capacity: int = 0
     items: list[StorageItem] = field(default_factory=list)
     feat_element: object = field(repr=False, default=None)  # <feat> element
@@ -704,7 +705,7 @@ class SaveFile:
                 items.append(
                     StorageItem(
                         item_id=item_id,
-                        name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
+                        name=STORAGE_DATA.get(item_id, (f"Unknown ({item_id})", 0))[0],
                         quantity=qty,
                         element=s_el,
                     )
@@ -736,18 +737,21 @@ class SaveFile:
             obj_id = parent_e.get("objId") if parent_e is not None else None
             mod_id = int(mod_id_str) if mod_id_str else None
             cap = STORAGE_MODULE_CAPACITIES.get(mod_id, 0) if mod_id is not None else 0
-            mod_name = STORAGE_MODULE_NAMES.get(mod_id) if mod_id is not None else None
-            if mod_name:
-                display = mod_name
-            elif ent_id and ent_id != "0":
-                display = f"Container (ID: {ent_id})"
-            elif obj_id:
-                display = f"Storage (Type: {obj_id})"
+            mod_entry = STORAGE_MODULE_DATA.get(mod_id) if mod_id is not None else None
+            if mod_entry:
+                display, text_id = mod_entry
             else:
-                display = "Storage Bay"
+                text_id = 0
+                if ent_id and ent_id != "0":
+                    display = f"Container (ID: {ent_id})"
+                elif obj_id:
+                    display = f"Storage (Type: {obj_id})"
+                else:
+                    display = "Storage Bay"
             containers.append(
                 StorageContainer(
                     display_name=display,
+                    text_id=text_id,
                     capacity=cap,
                     items=sorted(items, key=lambda i: i.name),
                     feat_element=feat,
@@ -777,7 +781,7 @@ class SaveFile:
                 # Item existed in XML with qty=0 (filtered during parse) - surface it now
                 surfaced = StorageItem(
                     item_id=item_id,
-                    name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
+                    name=STORAGE_DATA.get(item_id, (f"Unknown ({item_id})", 0))[0],
                     quantity=new_qty,
                     element=s_el,
                 )
@@ -792,7 +796,7 @@ class SaveFile:
         new_el.set("onTheWayOut", "0")
         new_item = StorageItem(
             item_id=item_id,
-            name=STORAGE_IDS.get(item_id, f"Unknown ({item_id})"),
+            name=STORAGE_DATA.get(item_id, (f"Unknown ({item_id})", 0))[0],
             quantity=quantity,
             element=new_el,
         )
@@ -885,7 +889,7 @@ class SaveFile:
             char.attributes.append(
                 Attribute(
                     attr_id=attr_id,
-                    name=ATTRIBUTE_IDS.get(attr_id, f"Unknown ({attr_id})"),
+                    name=ATTRIBUTE_DATA.get(attr_id, (f"Unknown ({attr_id})", 0))[0],
                     points=points,
                     element=a,
                 )
@@ -905,7 +909,7 @@ class SaveFile:
             char.skills.append(
                 Skill(
                     skill_id=skill_id,
-                    name=SKILL_IDS.get(skill_id, f"Unknown ({skill_id})"),
+                    name=SKILL_DATA.get(skill_id, (f"Unknown ({skill_id})", 0))[0],
                     level=level,
                     max_level=max_level,
                     element=s,
@@ -925,7 +929,7 @@ class SaveFile:
             char.traits.append(
                 Trait(
                     trait_id=trait_id,
-                    name=TRAIT_IDS.get(trait_id, f"Unknown ({trait_id})"),
+                    name=TRAIT_DATA.get(trait_id, (f"Unknown ({trait_id})", 0))[0],
                     element=t,
                 )
             )
@@ -942,7 +946,7 @@ class SaveFile:
             char.conditions.append(
                 Condition(
                     cond_id=cond_id,
-                    name=CONDITION_IDS.get(cond_id, f"Unknown ({cond_id})"),
+                    name=CONDITION_DATA.get(cond_id, (f"Unknown ({cond_id})", 0))[0],
                     element=c,
                 )
             )
@@ -1028,7 +1032,7 @@ class SaveFile:
         t_el.set("id", str(trait_id))
         trait = Trait(
             trait_id=trait_id,
-            name=TRAIT_IDS.get(trait_id, f"Unknown ({trait_id})"),
+            name=TRAIT_DATA.get(trait_id, (f"Unknown ({trait_id})", 0))[0],
             element=t_el,
         )
         char.traits.append(trait)
@@ -1195,7 +1199,7 @@ class SaveFile:
 
         # Attributes
         attr_el = etree.SubElement(pers, "attr")
-        for attr_id in ATTRIBUTE_IDS:
+        for attr_id in ATTRIBUTE_DATA:
             a = etree.SubElement(attr_el, "a")
             a.set("id", str(attr_id))
             a.set("points", "5")
@@ -1257,7 +1261,7 @@ class SaveFile:
 
         # Skills (level 0, max 10)
         skills_el = etree.SubElement(pers, "skills")
-        for skill_id in SKILL_IDS:
+        for skill_id in SKILL_DATA:
             s = etree.SubElement(skills_el, "s")
             s.set("sk", str(skill_id))
             s.set("level", "0")
@@ -1702,7 +1706,7 @@ class SaveFile:
             self.research.append(
                 ResearchEntry(
                     tech_id=tech_id,
-                    name=TECH_IDS.get(tech_id, f"Unknown ({tech_id})"),
+                    name=TECH_DATA.get(tech_id, (f"Unknown ({tech_id})", 0))[0],
                     done=done,
                     in_progress=in_progress,
                     element=l_el,

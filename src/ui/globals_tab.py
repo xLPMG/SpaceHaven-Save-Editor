@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -45,19 +45,19 @@ class _EditCard(QWidget):
         layout.setContentsMargins(18, 16, 18, 16)
         layout.setSpacing(6)
 
-        name_lbl = QLabel(label)
-        name_lbl.setObjectName("StatCardLabel")
-        layout.addWidget(name_lbl)
+        self.name_lbl = QLabel(label)
+        self.name_lbl.setObjectName("StatCardLabel")
+        layout.addWidget(self.name_lbl)
 
         self.spin = QSpinBox()
         self.spin.setRange(0, _RESOURCE_SPIN_MAX)
         self.spin.setObjectName("StatCardSpin")
         layout.addWidget(self.spin)
 
-        desc_lbl = QLabel(description)
-        desc_lbl.setObjectName("StatCardDesc")
-        desc_lbl.setWordWrap(True)
-        layout.addWidget(desc_lbl)
+        self.desc_lbl = QLabel(description)
+        self.desc_lbl.setObjectName("StatCardDesc")
+        self.desc_lbl.setWordWrap(True)
+        layout.addWidget(self.desc_lbl)
 
 
 class GlobalsTab(QWidget):
@@ -69,6 +69,11 @@ class GlobalsTab(QWidget):
         super().__init__(parent)
         self._save: SaveFile | None = None
         self._build_ui()
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
 
     def _build_ui(self) -> None:
         # Scrollable page
@@ -89,15 +94,15 @@ class GlobalsTab(QWidget):
         root.setSpacing(22)
 
         # Page title
-        title = QLabel("Overview")
-        title.setObjectName("TabTitle")
-        root.addWidget(title)
+        self._title_lbl = QLabel()
+        self._title_lbl.setObjectName("TabTitle")
+        root.addWidget(self._title_lbl)
 
         root.addWidget(_sep())
 
         # Save file info (read-only)
-        info_group = QGroupBox("Save File")
-        info_grid = QGridLayout(info_group)
+        self._info_group = QGroupBox()
+        info_grid = QGridLayout(self._info_group)
         info_grid.setContentsMargins(16, 20, 16, 16)
         info_grid.setHorizontalSpacing(24)
         info_grid.setVerticalSpacing(14)
@@ -105,9 +110,10 @@ class GlobalsTab(QWidget):
         info_grid.setColumnStretch(3, 1)
 
         self._info_labels: dict[str, QLabel] = {}
+        self._info_key_labels: dict[str, QLabel] = {}
 
-        def _add_info(r: int, c: int, key: str, label: str) -> None:
-            k = QLabel(label)
+        def _add_info(r: int, c: int, key: str) -> None:
+            k = QLabel()
             k.setObjectName("InfoKey")
             v = QLabel("—")
             v.setObjectName("InfoValue")
@@ -115,128 +121,112 @@ class GlobalsTab(QWidget):
             info_grid.addWidget(k, r, c * 2)
             info_grid.addWidget(v, r, c * 2 + 1)
             self._info_labels[key] = v
+            self._info_key_labels[key] = k
 
-        _add_info(0, 0, "mode", "Game Mode")
-        _add_info(0, 1, "seed", "Seed")
-        _add_info(1, 0, "ships", "Ships")
-        _add_info(1, 1, "crew", "Total Crew")
-        _add_info(2, 0, "gametime", "Game Time")
-        _add_info(2, 1, "sectors", "Sectors")
-        _add_info(3, 0, "savedate", "Save Date")
-        _add_info(3, 1, "systems", "Star Systems")
+        _add_info(0, 0, "mode")
+        _add_info(0, 1, "seed")
+        _add_info(1, 0, "ships")
+        _add_info(1, 1, "crew")
+        _add_info(2, 0, "gametime")
+        _add_info(2, 1, "sectors")
+        _add_info(3, 0, "savedate")
+        _add_info(3, 1, "systems")
 
         # Save path spans full width
-        path_key = QLabel("Save Path")
-        path_key.setObjectName("InfoKey")
+        self._path_key_lbl = QLabel()
+        self._path_key_lbl.setObjectName("InfoKey")
         self._info_labels["path"] = QLabel("—")
         self._info_labels["path"].setObjectName("InfoValue")
         self._info_labels["path"].setWordWrap(True)
         self._info_labels["path"].setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
-        info_grid.addWidget(path_key, 4, 0)
+        info_grid.addWidget(self._path_key_lbl, 4, 0)
         info_grid.addWidget(self._info_labels["path"], 4, 1, 1, 3)
 
-        root.addWidget(info_group)
+        root.addWidget(self._info_group)
 
         # Resources (editable cards)
-        res_group = QGroupBox("Resources")
-        res_grid = QGridLayout(res_group)
+        self._res_group = QGroupBox()
+        res_grid = QGridLayout(self._res_group)
         res_grid.setContentsMargins(16, 20, 16, 16)
         res_grid.setSpacing(16)
 
-        self._credits_card = _EditCard(
-            "Player Credits",
-            "The credits balance held in your player account.",
-        )
+        self._credits_card = _EditCard("", "")
         self._credits_card.spin.setSingleStep(1000)
         res_grid.addWidget(self._credits_card, 0, 0)
 
-        self._prestige_card = _EditCard(
-            "Prestige Points",
-            "Prestige accumulated through gameplay achievements.",
-        )
+        self._prestige_card = _EditCard("", "")
         self._prestige_card.spin.setSingleStep(100)
         res_grid.addWidget(self._prestige_card, 0, 1)
 
         res_grid.setColumnStretch(0, 1)
         res_grid.setColumnStretch(1, 1)
-        root.addWidget(res_group)
+        root.addWidget(self._res_group)
 
         # Difficulty
-        diff_group = QGroupBox("Difficulty")
-        diff_layout = QVBoxLayout(diff_group)
+        self._diff_group = QGroupBox()
+        diff_layout = QVBoxLayout(self._diff_group)
         diff_layout.setContentsMargins(16, 16, 16, 16)
         diff_layout.setSpacing(10)
 
-        self._sandbox_check = QCheckBox("Enable Sandbox Mode")
+        self._sandbox_check = QCheckBox()
         self._sandbox_check.setObjectName("SandboxCheck")
         diff_layout.addWidget(self._sandbox_check)
 
-        sandbox_desc = QLabel(
-            "Sandbox mode removes some of the survival pressure, letting you explore "
-            "and build at your own pace without risk of crew starvation or hull collapse."
-        )
-        sandbox_desc.setObjectName("StatCardDesc")
-        sandbox_desc.setWordWrap(True)
-        diff_layout.addWidget(sandbox_desc)
+        self._sandbox_desc = QLabel()
+        self._sandbox_desc.setObjectName("StatCardDesc")
+        self._sandbox_desc.setWordWrap(True)
+        diff_layout.addWidget(self._sandbox_desc)
 
-        root.addWidget(diff_group)
+        root.addWidget(self._diff_group)
 
         # Quick actions
         root.addWidget(_sep())
 
-        qa_group = QGroupBox("Quick Actions")
-        qa_layout = QVBoxLayout(qa_group)
+        self._qa_group = QGroupBox()
+        qa_layout = QVBoxLayout(self._qa_group)
         qa_layout.setContentsMargins(16, 16, 16, 16)
         qa_layout.setSpacing(10)
 
-        def _action_row(
-            label: str, desc: str, btn_text: str, slot
-        ) -> tuple[QHBoxLayout, QPushButton]:
+        def _action_row(slot) -> tuple[QHBoxLayout, QPushButton, QLabel, QLabel]:
             row = QHBoxLayout()
             row.setSpacing(12)
             text_col = QVBoxLayout()
             text_col.setSpacing(2)
-            lbl = QLabel(label)
+            lbl = QLabel()
             lbl.setObjectName("StatCardLabel")
             text_col.addWidget(lbl)
-            d = QLabel(desc)
+            d = QLabel()
             d.setObjectName("StatCardDesc")
             text_col.addWidget(d)
             row.addLayout(text_col)
             row.addStretch()
-            btn = QPushButton(btn_text)
+            btn = QPushButton()
             btn.setObjectName("InlineButton")
             btn.setFixedWidth(140)
             btn.clicked.connect(slot)
             row.addWidget(btn)
-            return row, btn
+            return row, btn, lbl, d
 
-        heal_row, self._heal_btn = _action_row(
-            "Heal All Crew",
-            "Set every stat (health, food, rest…) to 100 for all crew members.",
-            "Heal All",
+        heal_row, self._heal_btn, self._heal_lbl, self._heal_desc = _action_row(
             self._heal_all_crew,
         )
         qa_layout.addLayout(heal_row)
         qa_layout.addWidget(_sep())
 
-        skills_row, self._skills_btn = _action_row(
-            "Max All Skills",
-            "Set all crew skills to level 10 and max natural level 10.",
-            "Max Skills",
+        skills_row, self._skills_btn, self._skills_lbl, self._skills_desc = _action_row(
             self._max_all_skills,
         )
         qa_layout.addLayout(skills_row)
         qa_layout.addWidget(_sep())
 
-        conditions_row, self._conditions_btn = _action_row(
-            "Clear All Conditions",
-            "Remove every active condition from all crew (injuries, moods, etc.).",
-            "Clear Conditions",
-            self._clear_all_conditions,
-        )
+        (
+            conditions_row,
+            self._conditions_btn,
+            self._conditions_lbl,
+            self._conditions_desc,
+        ) = _action_row(self._clear_all_conditions)
         qa_layout.addLayout(conditions_row)
         qa_layout.addWidget(_sep())
 
@@ -244,14 +234,12 @@ class GlobalsTab(QWidget):
         fill_row.setSpacing(12)
         fill_text = QVBoxLayout()
         fill_text.setSpacing(2)
-        fill_lbl = QLabel("Fill All Storage")
-        fill_lbl.setObjectName("StatCardLabel")
-        fill_text.addWidget(fill_lbl)
-        fill_desc = QLabel(
-            "Set every item in every storage container to the specified quantity."
-        )
-        fill_desc.setObjectName("StatCardDesc")
-        fill_text.addWidget(fill_desc)
+        self._fill_lbl = QLabel()
+        self._fill_lbl.setObjectName("StatCardLabel")
+        fill_text.addWidget(self._fill_lbl)
+        self._fill_desc = QLabel()
+        self._fill_desc.setObjectName("StatCardDesc")
+        fill_text.addWidget(self._fill_desc)
         fill_row.addLayout(fill_text)
         fill_row.addStretch()
         self._fill_qty_spin = QSpinBox()
@@ -259,7 +247,7 @@ class GlobalsTab(QWidget):
         self._fill_qty_spin.setValue(_FILL_QTY_DEFAULT)
         self._fill_qty_spin.setFixedWidth(90)
         fill_row.addWidget(self._fill_qty_spin)
-        fill_btn = QPushButton("Fill Storage")
+        fill_btn = QPushButton()
         fill_btn.setObjectName("InlineButton")
         fill_btn.setFixedWidth(140)
         fill_btn.clicked.connect(self._fill_all_storage)
@@ -267,13 +255,14 @@ class GlobalsTab(QWidget):
         self._fill_btn = fill_btn
         qa_layout.addLayout(fill_row)
 
-        root.addWidget(qa_group)
+        root.addWidget(self._qa_group)
 
         self._credits_card.spin.valueChanged.connect(self._apply_changes)
         self._prestige_card.spin.valueChanged.connect(self._apply_changes)
         self._sandbox_check.stateChanged.connect(self._apply_changes)
 
         self._set_controls_enabled(False)
+        self.retranslate_ui()
 
     def _set_controls_enabled(self, enabled: bool) -> None:
         self._credits_card.spin.setEnabled(enabled)
@@ -284,6 +273,53 @@ class GlobalsTab(QWidget):
         self._conditions_btn.setEnabled(enabled)
         self._fill_qty_spin.setEnabled(enabled)
         self._fill_btn.setEnabled(enabled)
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        self._title_lbl.setText(self.tr("Overview"))
+        self._info_group.setTitle(self.tr("Save File"))
+        self._res_group.setTitle(self.tr("Resources"))
+        self._diff_group.setTitle(self.tr("Difficulty"))
+        self._qa_group.setTitle(self.tr("Quick Actions"))
+
+        # Info key labels
+        _info_key_map = {
+            "mode":     self.tr("Game Mode"),
+            "seed":     self.tr("Seed"),
+            "ships":    self.tr("Ships"),
+            "crew":     self.tr("Crew"),
+            "gametime": self.tr("Game Time"),
+            "sectors":  self.tr("Sectors"),
+            "savedate": self.tr("Last Saved"),
+            "systems":  self.tr("Systems"),
+        }
+        for key, label in _info_key_map.items():
+            self._info_key_labels[key].setText(label)
+        self._path_key_lbl.setText(self.tr("Save Path"))
+
+        # Resource cards
+        self._credits_card.name_lbl.setText(self.tr("Credits"))
+        self._credits_card.desc_lbl.setText(self.tr("Spend at traders and shipyards."))
+        self._prestige_card.name_lbl.setText(self.tr("Prestige"))
+        self._prestige_card.desc_lbl.setText(self.tr("Reputation across the galaxy."))
+
+        # Difficulty
+        self._sandbox_check.setText(self.tr("Sandbox mode"))
+        self._sandbox_desc.setText(self.tr("Enables god mode, no resource costs, etc."))
+
+        # Quick actions
+        self._heal_lbl.setText(self.tr("Heal Crew"))
+        self._heal_desc.setText(self.tr("Restore all crew to full health and remove injuries."))
+        self._heal_btn.setText(self.tr("Heal All"))
+        self._skills_lbl.setText(self.tr("Max Skills"))
+        self._skills_desc.setText(self.tr("Set all crew skills and attributes to maximum."))
+        self._skills_btn.setText(self.tr("Max All"))
+        self._conditions_lbl.setText(self.tr("Clear Conditions"))
+        self._conditions_desc.setText(self.tr("Remove all conditions from every crew member."))
+        self._conditions_btn.setText(self.tr("Clear All"))
+        self._fill_lbl.setText(self.tr("Fill Storage"))
+        self._fill_desc.setText(self.tr("Add items to all storage containers on a ship."))
+        self._fill_btn.setText(self.tr("Fill"))
 
     def load(self, save: SaveFile) -> None:
         self._save = save

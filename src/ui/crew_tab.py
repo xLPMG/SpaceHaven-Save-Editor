@@ -42,10 +42,9 @@ if TYPE_CHECKING:
 
 from src.save_file import Condition, SKILL_HARD_MAX
 from src.game_data import (
-    ATTRIBUTE_TEXT_IDS,
-    BACKSTORY_IDS,
-    BACKSTORY_TEXT_IDS,
-    CONDITION_TEXT_IDS,
+    ATTRIBUTE_DATA,
+    BACKSTORY_DATA,
+    CONDITION_DATA,
     CUSTOM_SKILL_PRESETS,
     DEFAULT_SCHEDULE_P0,
     DEFAULT_SCHEDULE_P1,
@@ -53,9 +52,8 @@ from src.game_data import (
     DEFAULT_SEC_S0,
     DEFAULT_SEC_S1,
     DEFAULT_SEC_S2,
-    SKILL_TEXT_IDS,
-    TRAIT_IDS,
-    TRAIT_TEXT_IDS,
+    SKILL_DATA,
+    TRAIT_DATA,
 )
 from src.texts_loader import game_texts
 from src.ui.styles import (
@@ -234,6 +232,11 @@ class CrewTab(QWidget):
         self._build_ui()
         game_texts.on_lang_changed(self._on_lang_changed)
 
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
+
     # ------------------------------------------------------------------
     # UI construction
     # ------------------------------------------------------------------
@@ -254,18 +257,18 @@ class CrewTab(QWidget):
         lv.setContentsMargins(14, 14, 8, 14)
         lv.setSpacing(8)
 
-        ship_label = QLabel("Ship")
-        ship_label.setObjectName("PanelSectionLabel")
-        lv.addWidget(ship_label)
+        self._ship_lbl = QLabel()
+        self._ship_lbl.setObjectName("PanelSectionLabel")
+        lv.addWidget(self._ship_lbl)
 
         self._ship_combo = QComboBox()
         self._ship_combo.currentIndexChanged.connect(self._on_ship_changed)
         lv.addWidget(self._ship_combo)
 
         crew_header = QHBoxLayout()
-        crew_lbl = QLabel("Crew Members")
-        crew_lbl.setObjectName("PanelSectionLabel")
-        crew_header.addWidget(crew_lbl)
+        self._crew_lbl = QLabel()
+        self._crew_lbl.setObjectName("PanelSectionLabel")
+        crew_header.addWidget(self._crew_lbl)
         crew_header.addStretch()
         self._crew_count = QLabel("0")
         self._crew_count.setObjectName("CrewCountBadge")
@@ -285,10 +288,10 @@ class CrewTab(QWidget):
         self._crew_list.setItemDelegate(self._crew_delegate)
         lv.addWidget(self._crew_list)
 
-        add_crew_btn = QPushButton("+ Add Member")
-        add_crew_btn.setObjectName("InlineButton")
-        add_crew_btn.clicked.connect(self._add_crew_member)
-        lv.addWidget(add_crew_btn)
+        self._add_crew_btn = QPushButton()
+        self._add_crew_btn.setObjectName("InlineButton")
+        self._add_crew_btn.clicked.connect(self._add_crew_member)
+        lv.addWidget(self._add_crew_btn)
 
         splitter.addWidget(left)
 
@@ -314,10 +317,10 @@ class CrewTab(QWidget):
         name_edit_row = QHBoxLayout()
         name_edit_row.setSpacing(8)
         self._first_name_edit = QLineEdit()
-        self._first_name_edit.setPlaceholderText("First name")
+        self._first_name_edit.setPlaceholderText(self.tr("First Name"))
         self._first_name_edit.setObjectName("NameEdit")
         self._last_name_edit = QLineEdit()
-        self._last_name_edit.setPlaceholderText("Last name")
+        self._last_name_edit.setPlaceholderText(self.tr("Last Name"))
         self._last_name_edit.setObjectName("NameEdit")
         self._first_name_edit.editingFinished.connect(self._rename_character)
         self._last_name_edit.editingFinished.connect(self._rename_character)
@@ -358,7 +361,7 @@ class CrewTab(QWidget):
         }
         mode_row = QHBoxLayout()
         mode_row.addStretch()
-        self._advanced_mode_check = QCheckBox("Advanced mode")
+        self._advanced_mode_check = QCheckBox(self.tr("Advanced Mode"))
         self._advanced_mode_check.setChecked(False)
         self._advanced_mode_check.toggled.connect(self._set_advanced_tabs_visible)
         mode_row.addWidget(self._advanced_mode_check)
@@ -372,8 +375,7 @@ class CrewTab(QWidget):
         splitter.setStretchFactor(1, 1)
 
         self._set_right_enabled(False)
-
-    # Sub-tab builders
+        self.retranslate_ui()
 
     def _build_stats_tab(self) -> QWidget:
         w = QWidget()
@@ -405,9 +407,9 @@ class CrewTab(QWidget):
 
         layout.addSpacing(6)
 
-        advanced_lbl = QLabel("Advanced atmosphere sensors")
-        advanced_lbl.setObjectName("StatCardDesc")
-        layout.addWidget(advanced_lbl)
+        self._atmo_lbl = QLabel()
+        self._atmo_lbl.setObjectName("StatCardDesc")
+        layout.addWidget(self._atmo_lbl)
 
         layout.addSpacing(6)
 
@@ -433,9 +435,9 @@ class CrewTab(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(4)
 
-        info = QLabel("Attribute points (typically 0–10).")
-        info.setObjectName("StatCardDesc")
-        layout.addWidget(info)
+        self._attr_info_lbl = QLabel("Attribute points (typically 0\u201310).")
+        self._attr_info_lbl.setObjectName("StatCardDesc")
+        layout.addWidget(self._attr_info_lbl)
 
         self._attr_table = QTableWidget(0, 3)
         self._attr_table.setHorizontalHeaderLabels(["Attribute", "", "Points"])
@@ -462,21 +464,20 @@ class CrewTab(QWidget):
         layout.setSpacing(4)
 
         preset_row = QHBoxLayout()
-        preset_row.addWidget(QLabel("Preset:"))
+        self._skill_preset_lbl = QLabel()
+        preset_row.addWidget(self._skill_preset_lbl)
         self._skill_preset_combo = QComboBox()
         self._skill_preset_combo.addItems(list(CUSTOM_SKILL_PRESETS.keys()))
         preset_row.addWidget(self._skill_preset_combo)
-        preset_btn = QPushButton("Apply")
-        preset_btn.setObjectName("InlineButton")
-        preset_btn.clicked.connect(self._apply_skill_preset)
-        preset_row.addWidget(preset_btn)
+        self._skill_apply_btn = QPushButton()
+        self._skill_apply_btn.setObjectName("InlineButton")
+        self._skill_apply_btn.clicked.connect(self._apply_skill_preset)
+        preset_row.addWidget(self._skill_apply_btn)
         preset_row.addStretch()
         layout.addLayout(preset_row)
 
         self._skills_table = QTableWidget(0, 4)
-        self._skills_table.setHorizontalHeaderLabels(
-            ["Skill", "", "Level", "Max Level"]
-        )
+        self._skills_table.setHorizontalHeaderLabels(["", "", "", ""])
         self._skills_table.horizontalHeader().setStretchLastSection(False)
         self._skills_table.horizontalHeader().setSectionResizeMode(
             0, self._skills_table.horizontalHeader().ResizeMode.ResizeToContents
@@ -509,29 +510,29 @@ class CrewTab(QWidget):
         row.setSpacing(6)
         self._add_trait_combo = QComboBox()
         self._add_trait_combo.setEditable(False)
-        for trait_id, en_name in sorted(
-            TRAIT_IDS.items(),
-            key=lambda x: game_texts.get(TRAIT_TEXT_IDS.get(x[0], 0), x[1]),
+        for trait_id, (en_name, trait_tid) in sorted(
+            TRAIT_DATA.items(),
+            key=lambda x: game_texts.get(x[1][1], x[1][0]),
         ):
             self._add_trait_combo.addItem(
-                game_texts.get(TRAIT_TEXT_IDS.get(trait_id, 0), en_name), trait_id
+                game_texts.get(trait_tid, en_name), trait_id
             )
         self._add_trait_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         row.addWidget(self._add_trait_combo)
 
-        add_btn = QPushButton("Add Trait")
-        add_btn.setObjectName("InlineButton")
-        add_btn.setFixedWidth(90)
-        add_btn.clicked.connect(self._add_trait)
-        row.addWidget(add_btn)
+        self._add_trait_btn = QPushButton()
+        self._add_trait_btn.setObjectName("InlineButton")
+        self._add_trait_btn.setFixedWidth(90)
+        self._add_trait_btn.clicked.connect(self._add_trait)
+        row.addWidget(self._add_trait_btn)
 
-        remove_btn = QPushButton("Remove")
-        remove_btn.setObjectName("DangerButton")
-        remove_btn.setFixedWidth(80)
-        remove_btn.clicked.connect(self._remove_trait)
-        row.addWidget(remove_btn)
+        self._remove_trait_btn = QPushButton()
+        self._remove_trait_btn.setObjectName("DangerButton")
+        self._remove_trait_btn.setFixedWidth(80)
+        self._remove_trait_btn.clicked.connect(self._remove_trait)
+        row.addWidget(self._remove_trait_btn)
         layout.addLayout(row)
 
         return w
@@ -550,14 +551,14 @@ class CrewTab(QWidget):
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
-        remove_cond_btn = QPushButton("Remove Selected")
-        remove_cond_btn.setObjectName("DangerButton")
-        remove_cond_btn.clicked.connect(self._remove_condition)
-        btn_row.addWidget(remove_cond_btn)
-        clear_cond_btn = QPushButton("Clear All")
-        clear_cond_btn.setObjectName("DangerButton")
-        clear_cond_btn.clicked.connect(self._clear_conditions)
-        btn_row.addWidget(clear_cond_btn)
+        self._remove_cond_btn = QPushButton()
+        self._remove_cond_btn.setObjectName("DangerButton")
+        self._remove_cond_btn.clicked.connect(self._remove_condition)
+        btn_row.addWidget(self._remove_cond_btn)
+        self._clear_cond_btn = QPushButton()
+        self._clear_cond_btn.setObjectName("DangerButton")
+        self._clear_cond_btn.clicked.connect(self._clear_conditions)
+        btn_row.addWidget(self._clear_cond_btn)
         btn_row.addStretch()
         layout.addLayout(btn_row)
         return w
@@ -651,14 +652,15 @@ class CrewTab(QWidget):
         layout.setSpacing(8)
 
         backstory_row = QHBoxLayout()
-        backstory_row.addWidget(QLabel("Backstory:"))
+        self._backstory_lbl = QLabel()
+        backstory_row.addWidget(self._backstory_lbl)
         self._backstory_combo = QComboBox()
-        for bs_id, bs_name in sorted(
-            BACKSTORY_IDS.items(),
-            key=lambda x: game_texts.get(BACKSTORY_TEXT_IDS.get(x[0], 0), x[1]),
+        for bs_id, (bs_name, bs_tid) in sorted(
+            BACKSTORY_DATA.items(),
+            key=lambda x: game_texts.get(x[1][1], x[1][0]),
         ):
             self._backstory_combo.addItem(
-                game_texts.get(BACKSTORY_TEXT_IDS.get(bs_id, 0), bs_name), bs_id
+                game_texts.get(bs_tid, bs_name), bs_id
             )
         self._backstory_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
@@ -667,19 +669,15 @@ class CrewTab(QWidget):
         backstory_row.addWidget(self._backstory_combo)
         layout.addLayout(backstory_row)
 
-        note = QLabel(
-            "Backstory is the character's pre-game profession (e.g. Teacher, Doctor). "
-            "It affects starting skill minimums and mood factors, but does not control "
-            "what the character does on the ship, which is set by the priorities below."
-        )
-        note.setObjectName("StatCardDesc")
-        note.setWordWrap(True)
-        layout.addWidget(note)
+        self._jobs_note_lbl = QLabel()
+        self._jobs_note_lbl.setObjectName("StatCardDesc")
+        self._jobs_note_lbl.setWordWrap(True)
+        layout.addWidget(self._jobs_note_lbl)
 
         layout.addSpacing(4)
 
         self._job_table = QTableWidget(0, 2)
-        self._job_table.setHorizontalHeaderLabels(["Profession", "Priority"])
+        self._job_table.setHorizontalHeaderLabels(["", ""])
         self._job_table.horizontalHeader().setStretchLastSection(True)
         self._job_table.verticalHeader().setVisible(False)
         self._job_table.verticalHeader().setDefaultSectionSize(48)
@@ -919,6 +917,79 @@ class CrewTab(QWidget):
         return w
 
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Retranslation
+    # ------------------------------------------------------------------
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        # Left panel
+        self._ship_lbl.setText(self.tr("Ship"))
+        self._crew_lbl.setText(self.tr("Crew Members"))
+        self._add_crew_btn.setText(self.tr("+ Add Crew"))
+
+        # Name placeholders
+        self._first_name_edit.setPlaceholderText(self.tr("First Name"))
+        self._last_name_edit.setPlaceholderText(self.tr("Last Name"))
+
+        # Advanced mode checkbox
+        self._advanced_mode_check.setText(self.tr("Advanced Mode"))
+
+        # Detail tabs
+        _tab_labels = (
+            self.tr("Stats"),
+            self.tr("Attributes"),
+            self.tr("Skills"),
+            self.tr("Jobs"),
+            self.tr("Traits"),
+            self.tr("Conditions"),
+            self.tr("Relationships"),
+            self.tr("Behavior"),
+            self.tr("Schedule"),
+            self.tr("Appearance"),
+            self.tr("Loadout"),
+            self.tr("Identity"),
+        )
+        for i, label in enumerate(_tab_labels):
+            self._tabs.setTabText(i, label)
+
+        # Stats sub-tab
+        self._atmo_lbl.setText(self.tr("Atmospheric Requirements"))
+
+        # Attributes sub-tab
+        self._attr_info_lbl.setText(self.tr("Attributes affect crew efficiency. Changes take effect on next game reload."))
+        self._attr_table.setHorizontalHeaderLabels([
+            self.tr("Attribute"),
+            "",
+            self.tr("Points"),
+        ])
+
+        # Skills sub-tab
+        self._skill_preset_lbl.setText(self.tr("Preset:"))
+        self._skill_apply_btn.setText(self.tr("Apply"))
+        self._skills_table.setHorizontalHeaderLabels([
+            self.tr("Skill"),
+            "",
+            self.tr("Level"),
+            self.tr("Max Level"),
+        ])
+
+        # Jobs sub-tab
+        self._backstory_lbl.setText(self.tr("Backstory:"))
+        self._jobs_note_lbl.setText(self.tr("Job priority affects AI task selection. Changes take effect after reloading."))
+        self._job_table.setHorizontalHeaderLabels([
+            self.tr("Profession"),
+            self.tr("Priority"),
+        ])
+
+        # Traits sub-tab
+        self._add_trait_btn.setText(self.tr("+ Add Trait"))
+
+        # Conditions sub-tab
+        self._remove_cond_btn.setText(self.tr("Remove Selected"))
+        self._clear_cond_btn.setText(self.tr("Clear All"))
+
+    # ------------------------------------------------------------------
     # Load / Clear
     # ------------------------------------------------------------------
 
@@ -1054,7 +1125,7 @@ class CrewTab(QWidget):
 
     def _populate_attributes(self, char: Character) -> None:
         self._attr_table.setRowCount(0)
-        for attr in sorted(char.attributes, key=lambda a: game_texts.get(ATTRIBUTE_TEXT_IDS.get(a.attr_id, 0), a.name)):
+        for attr in sorted(char.attributes, key=lambda a: game_texts.get(ATTRIBUTE_DATA.get(a.attr_id, (a.name, 0))[1], a.name)):
             if self._save is not None:
                 clamped = max(0, min(attr.points, MAX_ATTR_POINTS))
                 if clamped != attr.points:
@@ -1062,7 +1133,7 @@ class CrewTab(QWidget):
 
             row = self._attr_table.rowCount()
             self._attr_table.insertRow(row)
-            name_item = QTableWidgetItem(game_texts.get(ATTRIBUTE_TEXT_IDS.get(attr.attr_id, 0), attr.name))
+            name_item = QTableWidgetItem(game_texts.get(ATTRIBUTE_DATA.get(attr.attr_id, (attr.name, 0))[1], attr.name))
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             name_item.setData(Qt.ItemDataRole.UserRole, attr)
             self._attr_table.setItem(row, 0, name_item)
@@ -1106,7 +1177,7 @@ class CrewTab(QWidget):
 
             row = self._skills_table.rowCount()
             self._skills_table.insertRow(row)
-            name_item = QTableWidgetItem(game_texts.get(SKILL_TEXT_IDS.get(skill.skill_id, 0), skill.name))
+            name_item = QTableWidgetItem(game_texts.get(SKILL_DATA.get(skill.skill_id, (skill.name, 0))[1], skill.name))
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             name_item.setData(Qt.ItemDataRole.UserRole, skill)
             self._skills_table.setItem(row, 0, name_item)
@@ -1184,9 +1255,9 @@ class CrewTab(QWidget):
         self._traits_list.clear()
         for trait in sorted(
             char.traits,
-            key=lambda t: game_texts.get(TRAIT_TEXT_IDS.get(t.trait_id, 0), t.name),
+            key=lambda t: game_texts.get(TRAIT_DATA.get(t.trait_id, (t.name, 0))[1], t.name),
         ):
-            display = game_texts.get(TRAIT_TEXT_IDS.get(trait.trait_id, 0), trait.name)
+            display = game_texts.get(TRAIT_DATA.get(trait.trait_id, (trait.name, 0))[1], trait.name)
             item = QListWidgetItem(display)
             item.setData(Qt.ItemDataRole.UserRole, trait)
             self._traits_list.addItem(item)
@@ -1195,9 +1266,9 @@ class CrewTab(QWidget):
         self._conditions_list.clear()
         for cond in sorted(
             char.conditions,
-            key=lambda c: game_texts.get(CONDITION_TEXT_IDS.get(c.cond_id, 0), c.name),
+            key=lambda c: game_texts.get(CONDITION_DATA.get(c.cond_id, (c.name, 0))[1], c.name),
         ):
-            display = game_texts.get(CONDITION_TEXT_IDS.get(cond.cond_id, 0), cond.name)
+            display = game_texts.get(CONDITION_DATA.get(cond.cond_id, (cond.name, 0))[1], cond.name)
             item = QListWidgetItem(display)
             item.setData(Qt.ItemDataRole.UserRole, cond)
             self._conditions_list.addItem(item)
@@ -1494,12 +1565,12 @@ class CrewTab(QWidget):
         current_data = self._backstory_combo.currentData()
         self._backstory_combo.blockSignals(True)
         self._backstory_combo.clear()
-        for bs_id, bs_name in sorted(
-            BACKSTORY_IDS.items(),
-            key=lambda x: game_texts.get(BACKSTORY_TEXT_IDS.get(x[0], 0), x[1]),
+        for bs_id, (bs_name, bs_tid) in sorted(
+            BACKSTORY_DATA.items(),
+            key=lambda x: game_texts.get(x[1][1], x[1][0]),
         ):
             self._backstory_combo.addItem(
-                game_texts.get(BACKSTORY_TEXT_IDS.get(bs_id, 0), bs_name), bs_id
+                game_texts.get(bs_tid, bs_name), bs_id
             )
         # Restore the previously selected backstory ID
         if current_data is not None:
@@ -1516,12 +1587,12 @@ class CrewTab(QWidget):
         current_data = self._add_trait_combo.currentData()
         self._add_trait_combo.blockSignals(True)
         self._add_trait_combo.clear()
-        for trait_id, en_name in sorted(
-            TRAIT_IDS.items(),
-            key=lambda x: game_texts.get(TRAIT_TEXT_IDS.get(x[0], 0), x[1]),
+        for trait_id, (en_name, trait_tid) in sorted(
+            TRAIT_DATA.items(),
+            key=lambda x: game_texts.get(x[1][1], x[1][0]),
         ):
             self._add_trait_combo.addItem(
-                game_texts.get(TRAIT_TEXT_IDS.get(trait_id, 0), en_name), trait_id
+                game_texts.get(trait_tid, en_name), trait_id
             )
         if current_data is not None:
             idx = next(

@@ -141,6 +141,11 @@ class ShipsTab(QWidget):
         self._current_ship: Ship | None = None
         self._build_ui()
 
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
+
     # ------------------------------------------------------------------
     # UI construction
     # ------------------------------------------------------------------
@@ -158,9 +163,9 @@ class ShipsTab(QWidget):
         lv.setContentsMargins(10, 14, 10, 14)
         lv.setSpacing(8)
 
-        ships_hdr = QLabel("SHIPS")
-        ships_hdr.setObjectName("PanelSectionLabel")
-        lv.addWidget(ships_hdr)
+        self._ships_hdr = QLabel()
+        self._ships_hdr.setObjectName("PanelSectionLabel")
+        lv.addWidget(self._ships_hdr)
 
         self._ship_list = QListWidget()
         self._ship_list.setObjectName("CrewList")
@@ -179,7 +184,7 @@ class ShipsTab(QWidget):
         rv.setContentsMargins(24, 24, 24, 24)
         rv.setSpacing(16)
 
-        self._placeholder = QLabel("Select a ship to edit.")
+        self._placeholder = QLabel()
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._placeholder.setObjectName("StatCardDesc")
         rv.addWidget(self._placeholder, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -191,64 +196,89 @@ class ShipsTab(QWidget):
         dv.setSpacing(16)
 
         # Name editing
-        name_group = QGroupBox("Ship Identity")
-        name_layout = QFormLayout(name_group)
+        self._name_group = QGroupBox()
+        name_layout = QFormLayout(self._name_group)
         name_layout.setContentsMargins(16, 20, 16, 16)
         name_layout.setSpacing(10)
 
         self._name_edit = QLineEdit()
         self._name_edit.setObjectName("NameEdit")
-        self._name_edit.setPlaceholderText("Ship name…")
         self._name_edit.editingFinished.connect(self._rename_ship)
-        name_layout.addRow("Name:", self._name_edit)
+        self._name_form_label = QLabel()
+        name_layout.addRow(self._name_form_label, self._name_edit)
 
-        dv.addWidget(name_group)
+        dv.addWidget(self._name_group)
 
         # Ship layout map
-        map_group = QGroupBox("Ship Layout")
-        map_group_layout = QVBoxLayout(map_group)
+        self._map_group = QGroupBox()
+        map_group_layout = QVBoxLayout(self._map_group)
         map_group_layout.setContentsMargins(8, 12, 8, 8)
         self._ship_map = ShipMapWidget()
         self._ship_map.setMinimumHeight(180)
         map_group_layout.addWidget(self._ship_map)
-        dv.addWidget(map_group)
+        dv.addWidget(self._map_group)
 
         # Info (read-only)
-        info_group = QGroupBox("Info")
-        info_layout = QFormLayout(info_group)
+        self._info_group = QGroupBox()
+        info_layout = QFormLayout(self._info_group)
         info_layout.setContentsMargins(16, 20, 16, 16)
         info_layout.setSpacing(10)
 
         self._info_sid = QLabel("—")
         self._info_sid.setObjectName("InfoValue")
-        info_layout.addRow(QLabel("Ship ID:"), self._info_sid)
+        self._info_sid_lbl = QLabel()
+        info_layout.addRow(self._info_sid_lbl, self._info_sid)
 
         self._info_location = QLabel("—")
         self._info_location.setObjectName("InfoValue")
-        info_layout.addRow(QLabel("Location:"), self._info_location)
+        self._info_location_lbl = QLabel()
+        info_layout.addRow(self._info_location_lbl, self._info_location)
 
         self._info_crew = QLabel("—")
         self._info_crew.setObjectName("InfoValue")
-        info_layout.addRow(QLabel("Crew members:"), self._info_crew)
+        self._info_crew_lbl = QLabel()
+        info_layout.addRow(self._info_crew_lbl, self._info_crew)
 
         self._info_pos = QLabel("—")
         self._info_pos.setObjectName("InfoValue")
-        info_layout.addRow(QLabel("Sector position:"), self._info_pos)
+        self._info_pos_lbl = QLabel()
+        info_layout.addRow(self._info_pos_lbl, self._info_pos)
 
         self._info_size = QLabel("—")
         self._info_size.setObjectName("InfoValue")
-        info_layout.addRow(QLabel("Grid size (WxH):"), self._info_size)
+        self._info_size_lbl = QLabel()
+        info_layout.addRow(self._info_size_lbl, self._info_size)
 
-        for lbl in info_group.findChildren(QLabel):
+        for lbl in self._info_group.findChildren(QLabel):
             lbl.setObjectName(lbl.objectName() or "InfoKey")
 
-        dv.addWidget(info_group)
+        dv.addWidget(self._info_group)
 
         dv.addStretch()
         rv.addWidget(self._detail_widget)
         rv.addStretch()
 
         root.addWidget(right)
+        self.retranslate_ui()
+
+    # ------------------------------------------------------------------
+    # Retranslation
+    # ------------------------------------------------------------------
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        self._ships_hdr.setText(self.tr("SHIPS"))
+        self._placeholder.setText(self.tr("Select a ship to edit."))
+        self._name_group.setTitle(self.tr("Ship Identity"))
+        self._name_form_label.setText(self.tr("Name:"))
+        self._name_edit.setPlaceholderText(self.tr("Ship name"))
+        self._map_group.setTitle(self.tr("Ship Layout"))
+        self._info_group.setTitle(self.tr("Info"))
+        self._info_sid_lbl.setText(self.tr("Ship ID:"))
+        self._info_location_lbl.setText(self.tr("Location:"))
+        self._info_crew_lbl.setText(self.tr("Crew:"))
+        self._info_pos_lbl.setText(self.tr("Position:"))
+        self._info_size_lbl.setText(self.tr("Size:"))
 
     # ------------------------------------------------------------------
     # Load / Clear
@@ -274,14 +304,14 @@ class ShipsTab(QWidget):
         )
 
         if active:
-            self._add_section_header("CURRENT SECTOR")
+            self._add_section_header(self.tr("CURRENT SECTOR"))
             for ship in active:
                 item = QListWidgetItem(ship.name)
                 item.setData(Qt.ItemDataRole.UserRole, ship)
                 self._ship_list.addItem(item)
 
         if stored:
-            self._add_section_header("STORED")
+            self._add_section_header(self.tr("STORED"))
             for ship in stored:
                 item = QListWidgetItem(ship.name)
                 item.setData(Qt.ItemDataRole.UserRole, ship)
