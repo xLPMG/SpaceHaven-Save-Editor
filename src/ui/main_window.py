@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QSize, Qt
+from PySide6.QtCore import QEasingCurve, QEvent, QPropertyAnimation, QRect, QSize, Qt
 from PySide6.QtGui import (
     QAction,
     QColor,
@@ -16,7 +16,9 @@ from PySide6.QtGui import (
     QPainter,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
+    QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -30,8 +32,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PySide6.QtCore import QTranslator
 
 from src.save_file import SaveFile
+from src.texts_loader import game_texts
 from src.ui.crew_tab import CrewTab
 from src.ui.globals_tab import GlobalsTab
 from src.ui.research_tab import ResearchTab
@@ -161,6 +165,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._save: SaveFile | None = None
         self._unsaved = False
+        self._qt_translator: QTranslator | None = None
         self.setWindowTitle("Space Haven Save Editor")
         self.setWindowIcon(_icon("app"))
         self.resize(1200, 780)
@@ -169,6 +174,12 @@ class MainWindow(QMainWindow):
         self._build_central()
         self._update_actions()
         self._show_welcome()
+        self.retranslate_ui()
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
 
     # ------------------------------------------------------------------
     # Menu
@@ -177,48 +188,48 @@ class MainWindow(QMainWindow):
     def _build_menu(self) -> None:
         mb = self.menuBar()
 
-        file_menu = mb.addMenu("&File")
+        self._file_menu = mb.addMenu("&File")
 
         self._open_action = QAction("&Open Save Folder…", self)
         self._open_action.setShortcut(QKeySequence.StandardKey.Open)
         self._open_action.triggered.connect(self._open_folder)
-        file_menu.addAction(self._open_action)
+        self._file_menu.addAction(self._open_action)
 
         self._open_file_action = QAction("Open game &File…", self)
         self._open_file_action.triggered.connect(self._open_file)
-        file_menu.addAction(self._open_file_action)
+        self._file_menu.addAction(self._open_file_action)
 
         self._save_action = QAction("&Save", self)
         self._save_action.setShortcut(QKeySequence.StandardKey.Save)
         self._save_action.triggered.connect(self._save_file)
-        file_menu.addAction(self._save_action)
+        self._file_menu.addAction(self._save_action)
 
         self._save_as_action = QAction("Save &As…", self)
         self._save_as_action.setShortcut(QKeySequence.StandardKey.SaveAs)
         self._save_as_action.triggered.connect(self._save_file_as)
-        file_menu.addAction(self._save_as_action)
+        self._file_menu.addAction(self._save_as_action)
 
-        file_menu.addSeparator()
+        self._file_menu.addSeparator()
 
         self._backup_action = QAction("Create &Backup", self)
         self._backup_action.triggered.connect(self._create_backup)
-        file_menu.addAction(self._backup_action)
+        self._file_menu.addAction(self._backup_action)
 
         self._close_action = QAction("&Close File", self)
         self._close_action.triggered.connect(self._close_file)
-        file_menu.addAction(self._close_action)
+        self._file_menu.addAction(self._close_action)
 
-        file_menu.addSeparator()
+        self._file_menu.addSeparator()
 
-        quit_action = QAction("&Quit", self)
-        quit_action.setShortcut(QKeySequence.StandardKey.Quit)
-        quit_action.triggered.connect(self.close)
-        file_menu.addAction(quit_action)
+        self._quit_action = QAction("&Quit", self)
+        self._quit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        self._quit_action.triggered.connect(self.close)
+        self._file_menu.addAction(self._quit_action)
 
-        help_menu = mb.addMenu("&Help")
-        about_action = QAction("&About", self)
-        about_action.triggered.connect(self._show_about)
-        help_menu.addAction(about_action)
+        self._help_menu = mb.addMenu("&Help")
+        self._about_action = QAction("&About", self)
+        self._about_action.triggered.connect(self._show_about)
+        self._help_menu.addAction(self._about_action)
 
     # ------------------------------------------------------------------
     # Central widget: stacked welcome | editor
@@ -363,9 +374,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(18, 0, 18, 0)
         layout.setSpacing(8)
 
-        self._close_file_btn = QPushButton("✕  Close File")
+        self._close_file_btn = QPushButton("")
         self._close_file_btn.setObjectName("FileBarButton")
-        self._close_file_btn.setToolTip("Close file and return to welcome screen")
+        self._close_file_btn.setToolTip("")
         self._close_file_btn.clicked.connect(self._close_file)
         layout.addWidget(self._close_file_btn)
 
@@ -377,14 +388,14 @@ class MainWindow(QMainWindow):
 
         layout.addSpacing(4)
 
-        self._file_label = QLabel("No file loaded")
+        self._file_label = QLabel("")
         self._file_label.setObjectName("FileLabel")
         self._file_label.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )
         layout.addWidget(self._file_label)
 
-        self._unsaved_badge = QLabel("● Unsaved")
+        self._unsaved_badge = QLabel("")
         self._unsaved_badge.setObjectName("UnsavedBadge")
         self._unsaved_badge.setFixedHeight(22)
         self._unsaved_badge.setVisible(False)
@@ -392,29 +403,121 @@ class MainWindow(QMainWindow):
 
         layout.addSpacing(12)
 
-        self._backup_btn = QPushButton("Backup")
+        self._backup_btn = QPushButton("")
         self._backup_btn.setObjectName("FileBarButton")
         self._backup_btn.setIcon(_icon("backup"))
         self._backup_btn.setIconSize(QSize(15, 15))
-        self._backup_btn.setToolTip("Create a backup of the current save file")
+        self._backup_btn.setToolTip("")
         self._backup_btn.clicked.connect(self._create_backup)
         layout.addWidget(self._backup_btn)
 
-        self._save_as_btn = QPushButton("Save As…")
+        self._save_as_btn = QPushButton("")
         self._save_as_btn.setObjectName("FileBarButton")
         self._save_as_btn.setIcon(_icon("save"))
         self._save_as_btn.setIconSize(QSize(15, 15))
         self._save_as_btn.clicked.connect(self._save_file_as)
         layout.addWidget(self._save_as_btn)
 
-        self._save_btn = QPushButton("Save")
+        self._save_btn = QPushButton("")
         self._save_btn.setObjectName("SaveButton")
         self._save_btn.setIcon(_icon("save"))
         self._save_btn.setIconSize(QSize(15, 15))
         self._save_btn.clicked.connect(self._save_file)
         layout.addWidget(self._save_btn)
 
+        layout.addSpacing(12)
+
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.VLine)
+        sep2.setFixedHeight(22)
+        sep2.setObjectName("FileBarSep")
+        layout.addWidget(sep2)
+
+        layout.addSpacing(4)
+
+        self._lang_label = QLabel("")
+        self._lang_label.setObjectName("FileLabel")
+        layout.addWidget(self._lang_label)
+
+        self._lang_combo = QComboBox()
+        self._lang_combo.setObjectName("LangCombo")
+        self._lang_combo.setToolTip("")
+        for code, display in game_texts.available_langs:
+            self._lang_combo.addItem(display, code)
+        self._lang_combo.setCurrentIndex(
+            next(
+                (i for i in range(self._lang_combo.count())
+                 if self._lang_combo.itemData(i) == game_texts.current_lang),
+                0,
+            )
+        )
+        self._lang_combo.currentIndexChanged.connect(self._on_lang_changed)
+        layout.addWidget(self._lang_combo)
+
         return bar
+
+    def _on_lang_changed(self, index: int) -> None:
+        code = self._lang_combo.itemData(index)
+        if code:
+            game_texts.set_lang(code)
+            self._install_translator(code)
+
+    def _install_translator(self, lang_code: str) -> None:
+        """Load and install a Qt .qm translation file for *lang_code*."""
+        app = QApplication.instance()
+        if self._qt_translator is not None:
+            app.removeTranslator(self._qt_translator)
+            self._qt_translator = None
+        translator = QTranslator()
+        qm_path = Path(__file__).parent.parent.parent / "translations" / f"spacehaven_{lang_code}.qm"
+        if qm_path.exists() and translator.load(str(qm_path)):
+            app.installTranslator(translator)
+            self._qt_translator = translator
+        # Qt automatically emits LanguageChange when translator is installed/removed;
+        # changeEvent() on each widget will call retranslate_ui() in response.
+
+    # ------------------------------------------------------------------
+    # Retranslation
+    # ------------------------------------------------------------------
+
+    def retranslate_ui(self) -> None:
+        """Update all static UI text on language change."""
+        # Navigation buttons
+        _nav_labels = (
+            self.tr("Overview"),
+            self.tr("Crew"),
+            self.tr("Storage"),
+            self.tr("Ships"),
+            self.tr("Research"),
+            self.tr("Universe"),
+        )
+        for btn, label in zip(self._nav_buttons, _nav_labels):
+            btn.setText(label)
+
+        # File bar
+        self._close_file_btn.setText(self.tr("✕  Close File"))
+        self._close_file_btn.setToolTip(self.tr("Close the current save file"))
+        if not self._save:
+            self._file_label.setText(self.tr("No file loaded"))
+        self._unsaved_badge.setText(self.tr("● Unsaved"))
+        self._backup_btn.setText(self.tr("Backup"))
+        self._backup_btn.setToolTip(self.tr("Create a timestamped backup of the save folder"))
+        self._save_as_btn.setText(self.tr("Save As…"))
+        self._save_btn.setText(self.tr("Save"))
+        self._lang_label.setText(self.tr("Language:"))
+        self._lang_combo.setToolTip(self.tr("Switch display language"))
+
+        # Menu bar
+        self._file_menu.setTitle(self.tr("&File"))
+        self._open_action.setText(self.tr("&Open Save Folder…"))
+        self._open_file_action.setText(self.tr("Open game &File…"))
+        self._save_action.setText(self.tr("&Save"))
+        self._save_as_action.setText(self.tr("Save &As…"))
+        self._backup_action.setText(self.tr("Create &Backup"))
+        self._close_action.setText(self.tr("&Close Save"))
+        self._quit_action.setText(self.tr("&Quit"))
+        self._help_menu.setTitle(self.tr("&Help"))
+        self._about_action.setText(self.tr("&About"))
 
     # ------------------------------------------------------------------
     # Page switching

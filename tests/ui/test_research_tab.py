@@ -8,14 +8,14 @@ from PySide6.QtCore import Qt
 
 from src.save_file import SaveFile
 from src.ui.research_tab import ResearchTab, _TechDelegate
-from src.game_data import TECH_IDS
+from src.game_data import TECH_DATA
 from tests.helpers import make_save_from_xml
 
 # Tech IDs used in fixtures and assertions
-# 2536 and 2537 are intentionally NOT in TECH_IDS (test the unknown-ID fallback path).
+# 2536 and 2537 are intentionally NOT in TECH_DATA (test the unknown-ID fallback path).
 _TECH_UNMAPPED_1 = 2536   # -> "Unknown (2536)"
 _TECH_UNMAPPED_2 = 2537   # -> "Unknown (2537)"
-_TECH_LARGE_STORAGE = next(k for k, v in TECH_IDS.items() if v == "Large Storage")  # 2538
+_TECH_LARGE_STORAGE = next(k for k, (v, _) in TECH_DATA.items() if v == "Large Storage")  # 2538
 
 # ---------------------------------------------------------------------------
 # XML fixtures used by _make_save (imported from tests.helpers)
@@ -408,7 +408,7 @@ class TestResearchTabSearch:
         qtbot.addWidget(tab)
         sf = _make_save(MANY_RESEARCH_XML)
         tab.load(sf)
-        # _TECH_UNMAPPED_1 is not in TECH_IDS; it appears as "Unknown (2536)"
+        # _TECH_UNMAPPED_1 is not in TECH_DATA; it appears as "Unknown (2536)"
         # so searching its numeric ID string must still find it.
         tab._search.setText(str(_TECH_UNMAPPED_1))
         assert tab._list.count() == 1

@@ -6,7 +6,7 @@ import math
 import random
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QPoint, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QDragEnterEvent,
@@ -142,6 +142,10 @@ class _TitleLabel(QWidget):
         self._font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 4)
         self.setMinimumHeight(80)
 
+    def set_text(self, text: str) -> None:
+        self._text = text
+        self.update()
+
     def sizeHint(self):  # noqa: N802
         return QSize(600, 80)
 
@@ -195,31 +199,49 @@ class DropZone(QFrame):
         arrow.setObjectName("DropArrow")
         layout.addWidget(arrow)
 
-        title = QLabel("Drop your save folder or game file here")
+        title = QLabel()
         tf = QFont()
         tf.setPointSize(15)
         tf.setWeight(QFont.Weight.DemiBold)
         title.setFont(tf)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setObjectName("DropTitle")
+        self._drop_title = title
         layout.addWidget(title)
 
-        hint = QLabel(
-            "The save folder is located inside the <b>savegames</b> folder in your Space Haven data directory. You may drop either the entire save folder, the folder inside named 'save' or the 'game' file inside the 'save' folder."
-        )
+        hint = QLabel()
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hint.setWordWrap(True)
         hint.setTextFormat(Qt.TextFormat.RichText)
         hint.setObjectName("DropHint")
+        self._drop_hint = hint
         layout.addWidget(hint)
 
         layout.addSpacing(8)
 
-        self._browse_btn = QPushButton("Browse…")
+        self._browse_btn = QPushButton()
         self._browse_btn.setObjectName("BrowseButton")
         self._browse_btn.setFixedWidth(200)
         self._browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(self._browse_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.retranslate_ui()
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        self._drop_title.setText(self.tr("Drop your save folder or game file here"))
+        self._drop_hint.setText(
+            self.tr(
+                "The save folder is located inside the <b>savegames</b> folder in your "
+                "Space Haven data directory. You may drop either the entire save folder, "
+                "the folder inside named \u2018save\u2019 or the \u2018game\u2019 file inside the \u2018save\u2019 folder."
+            )
+        )
+        self._browse_btn.setText(self.tr("Browse\u2026"))
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
 
     @property
     def browse_button(self) -> QPushButton:
@@ -315,6 +337,19 @@ class WelcomeWidget(QWidget):
         super().__init__(parent)
         self._build_ui()
 
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        self._program_title.set_text(self.tr("SPACE HAVEN SAVE EDITOR"))
+        self._subtitle.setText(self.tr("Mission Control for your save files"))
+        self._tip_text.setText(
+            self.tr("<b>Tip:</b> Always create a backup before editing your save file.")
+        )
+
     def _build_ui(self) -> None:
         # Starfield fills the whole widget
         self._starfield = _StarfieldWidget(self)
@@ -330,15 +365,15 @@ class WelcomeWidget(QWidget):
         root.setContentsMargins(60, 48, 60, 48)
         root.setSpacing(0)
 
-        program_title = _TitleLabel("SPACE HAVEN SAVE EDITOR")
-        program_title.setObjectName("WelcomeTitle")
-        root.addWidget(program_title, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._program_title = _TitleLabel(self.tr("SPACE HAVEN SAVE EDITOR"))
+        self._program_title.setObjectName("WelcomeTitle")
+        root.addWidget(self._program_title, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        subtitle = QLabel("Mission Control for your save files")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setObjectName("WelcomeSubtitle")
-        subtitle.setStyleSheet(f"color: {WELCOME_SUBTITLE_COLOR.name()};")
-        root.addWidget(subtitle)
+        self._subtitle = QLabel(self.tr("Mission Control for your save files"))
+        self._subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._subtitle.setObjectName("WelcomeSubtitle")
+        self._subtitle.setStyleSheet(f"color: {WELCOME_SUBTITLE_COLOR.name()};")
+        root.addWidget(self._subtitle)
 
         root.addSpacing(36)
 
@@ -352,14 +387,12 @@ class WelcomeWidget(QWidget):
 
         root.addSpacing(28)
 
-        tip_text = QLabel(
-            "<b>Tip:</b> Always create a backup before editing your save file."
-        )
-        tip_text.setTextFormat(Qt.TextFormat.RichText)
-        tip_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tip_text.setObjectName("WelcomeTip")
-        tip_text.setStyleSheet(f"color: {WELCOME_TIP_COLOR.name()};")
-        root.addWidget(tip_text)
+        self._tip_text = QLabel()
+        self._tip_text.setTextFormat(Qt.TextFormat.RichText)
+        self._tip_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._tip_text.setObjectName("WelcomeTip")
+        self._tip_text.setStyleSheet(f"color: {WELCOME_TIP_COLOR.name()};")
+        root.addWidget(self._tip_text)
 
         root.addSpacing(16)
 
@@ -376,6 +409,7 @@ class WelcomeWidget(QWidget):
         root.addWidget(author_text)
 
         self._overlay = overlay
+        self.retranslate_ui()
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         self._starfield.setGeometry(self.rect())
@@ -384,8 +418,8 @@ class WelcomeWidget(QWidget):
 
     def _browse(self) -> None:
         menu = QMenu(self)
-        folder_act = menu.addAction("Open Save Folder…")
-        file_act = menu.addAction("Open game File…")
+        folder_act = menu.addAction(self.tr("Open Save Folder\u2026"))
+        file_act = menu.addAction(self.tr("Open game File\u2026"))
         chosen = menu.exec(
             self._drop_zone.browse_button.mapToGlobal(
                 self._drop_zone.browse_button.rect().bottomLeft()
@@ -394,7 +428,7 @@ class WelcomeWidget(QWidget):
         if chosen is folder_act:
             path = QFileDialog.getExistingDirectory(
                 self,
-                "Open Space Haven Save Folder",
+                self.tr("Open Space Haven Save Folder"),
                 str(Path.home()),
             )
             if path:
@@ -402,9 +436,9 @@ class WelcomeWidget(QWidget):
         elif chosen is file_act:
             path, _ = QFileDialog.getOpenFileName(
                 self,
-                "Open Space Haven Save File",
+                self.tr("Open Space Haven Save File"),
                 str(Path.home()),
-                "Space Haven Save (game);;All Files (*)",
+                self.tr("Space Haven Save (game);;All Files (*)"),
             )
             if path:
                 self.file_selected.emit(path)

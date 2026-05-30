@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from collections import Counter
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -29,7 +29,8 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import SaveFile, Ship, StorageContainer, StorageItem
 
-from src.game_data import STORAGE_IDS
+from src.game_data import STORAGE_DATA
+from src.texts_loader import game_texts
 from src.ui.styles import STORAGE_FILTER_ICON_COLOR
 
 
@@ -43,6 +44,12 @@ class StorageTab(QWidget):
         self._current_container: StorageContainer | None = None
         self._container_base_labels: dict[int, str] = {}
         self._build_ui()
+        game_texts.on_lang_changed(self._on_lang_changed)
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -64,18 +71,18 @@ class StorageTab(QWidget):
         lv.setContentsMargins(14, 14, 8, 14)
         lv.setSpacing(8)
 
-        ship_lbl = QLabel("Ship")
-        ship_lbl.setObjectName("PanelSectionLabel")
-        lv.addWidget(ship_lbl)
+        self._ship_lbl = QLabel()
+        self._ship_lbl.setObjectName("PanelSectionLabel")
+        lv.addWidget(self._ship_lbl)
 
         self._ship_combo = QComboBox()
         self._ship_combo.currentIndexChanged.connect(self._on_ship_changed)
         lv.addWidget(self._ship_combo)
 
-        containers_lbl = QLabel("Storage Containers")
-        containers_lbl.setObjectName("PanelSectionLabel")
+        self._containers_lbl = QLabel()
+        self._containers_lbl.setObjectName("PanelSectionLabel")
         lv.addSpacing(4)
-        lv.addWidget(containers_lbl)
+        lv.addWidget(self._containers_lbl)
 
         self._container_list = QListWidget()
         self._container_list.setObjectName("CrewList")
@@ -115,7 +122,7 @@ class StorageTab(QWidget):
 
         # Item table
         self._items_table = QTableWidget(0, 2)
-        self._items_table.setHorizontalHeaderLabels(["Item", "Quantity"])
+        self._items_table.setHorizontalHeaderLabels(["", ""])
         hdr = self._items_table.horizontalHeader()
         hdr.setSectionResizeMode(0, hdr.ResizeMode.Stretch)
         hdr.setSectionResizeMode(1, hdr.ResizeMode.Fixed)
@@ -131,7 +138,7 @@ class StorageTab(QWidget):
         # Toolbar: remove
         qty_row = QHBoxLayout()
         qty_row.setSpacing(8)
-        self._remove_btn = QPushButton("Remove Selected")
+        self._remove_btn = QPushButton()
         self._remove_btn.setObjectName("DangerButton")
         self._remove_btn.setEnabled(False)
         self._remove_btn.clicked.connect(self._remove_item)
@@ -143,17 +150,22 @@ class StorageTab(QWidget):
         add_row = QHBoxLayout()
         add_row.setSpacing(8)
 
-        add_label = QLabel("Add item:")
-        add_label.setObjectName("PanelSectionLabel")
-        add_row.addWidget(add_label)
+        self._add_label = QLabel()
+        self._add_label.setObjectName("PanelSectionLabel")
+        add_row.addWidget(self._add_label)
 
         self._add_item_combo = QComboBox()
         self._add_item_combo.setEditable(True)
         self._add_item_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
-        for name, item_id in sorted((v, k) for k, v in STORAGE_IDS.items()):
-            self._add_item_combo.addItem(name, item_id)
+        for item_id, (en_name, item_tid) in sorted(
+            STORAGE_DATA.items(),
+            key=lambda x: game_texts.get(x[1][1], x[1][0]),
+        ):
+            self._add_item_combo.addItem(
+                game_texts.get(item_tid, en_name), item_id
+            )
         add_row.addWidget(self._add_item_combo)
 
         self._add_qty_spin = QSpinBox()
@@ -162,7 +174,7 @@ class StorageTab(QWidget):
         self._add_qty_spin.setFixedWidth(90)
         add_row.addWidget(self._add_qty_spin)
 
-        self._add_btn = QPushButton("Add")
+        self._add_btn = QPushButton()
         self._add_btn.setFixedWidth(60)
         self._add_btn.clicked.connect(self._add_item)
         add_row.addWidget(self._add_btn)
@@ -174,6 +186,24 @@ class StorageTab(QWidget):
         splitter.setStretchFactor(1, 1)
 
         self._set_right_enabled(False)
+        self.retranslate_ui()
+
+    # ------------------------------------------------------------------
+    # Retranslation
+    # ------------------------------------------------------------------
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        self._ship_lbl.setText(self.tr("Ship"))
+        self._containers_lbl.setText(self.tr("Storage Containers"))
+        self._filter_edit.setPlaceholderText(self.tr("Filter items…"))
+        self._items_table.setHorizontalHeaderLabels([
+            self.tr("Item"),
+            self.tr("Quantity"),
+        ])
+        self._remove_btn.setText(self.tr("Remove Selected"))
+        self._add_label.setText(self.tr("Add item:"))
+        self._add_btn.setText(self.tr("Add"))
 
     # ------------------------------------------------------------------
     # Load / Clear
@@ -246,8 +276,9 @@ class StorageTab(QWidget):
         name_seen: dict[str, int] = {}
         self._container_base_labels = {}
         for container in sorted_containers:
-            name = container.display_name
-            if name_counts[name] > 1:
+            name = (game_texts.get(container.text_id, container.display_name)
+                    if container.text_id else self.tr(container.display_name))
+            if name_counts[container.display_name] > 1:
                 name_seen[name] = name_seen.get(name, 0) + 1
                 self._container_base_labels[id(container)] = f"{name} #{name_seen[name]}"
             else:
@@ -306,7 +337,9 @@ class StorageTab(QWidget):
         row = self._items_table.rowCount()
         self._items_table.insertRow(row)
 
-        name_cell = QTableWidgetItem(storage_item.name)
+        name_cell = QTableWidgetItem(
+            game_texts.get(STORAGE_DATA.get(storage_item.item_id, (storage_item.name, 0))[1], storage_item.name)
+        )
         name_cell.setFlags(name_cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
         name_cell.setData(Qt.ItemDataRole.UserRole, storage_item)
         self._items_table.setItem(row, 0, name_cell)
@@ -359,7 +392,7 @@ class StorageTab(QWidget):
         self._populate_items(self._current_container)
         self._refresh_container_label()
         self.status_message.emit(
-            f"Added {qty}x {STORAGE_IDS.get(item_id, str(item_id))} (unsaved)."
+            f"Added {qty}x {game_texts.get(STORAGE_DATA.get(item_id, (str(item_id), 0))[1], STORAGE_DATA.get(item_id, (str(item_id), 0))[0])} (unsaved)."
         )
 
     def _remove_item(self) -> None:
@@ -382,7 +415,7 @@ class StorageTab(QWidget):
         self._items_table.removeRow(row)
         self._sync_remove_enabled()
         self._refresh_container_label()
-        self.status_message.emit(f"Removed {storage_item.name} (unsaved).")
+        self.status_message.emit(f"Removed {game_texts.get(STORAGE_DATA.get(storage_item.item_id, (storage_item.name, 0))[1], storage_item.name)} (unsaved).")
 
     # ------------------------------------------------------------------
     # Helpers
@@ -425,6 +458,50 @@ class StorageTab(QWidget):
                 self._remove_btn.setEnabled(True)
                 return
         self._remove_btn.setEnabled(False)
+
+    def _on_lang_changed(self, _lang: str) -> None:
+        """Re-populate the add-item combo and refresh the items table."""
+        # Rebuild container base labels using the now-updated game_texts
+        if self._current_ship is not None:
+            sorted_containers = [
+                self._container_list.item(i).data(Qt.ItemDataRole.UserRole)
+                for i in range(self._container_list.count())
+            ]
+            name_counts = Counter(c.display_name for c in sorted_containers)
+            name_seen: dict[str, int] = {}
+            self._container_base_labels = {}
+            for container in sorted_containers:
+                name = (game_texts.get(container.text_id, container.display_name)
+                        if container.text_id else self.tr(container.display_name))
+                if name_counts[container.display_name] > 1:
+                    name_seen[name] = name_seen.get(name, 0) + 1
+                    self._container_base_labels[id(container)] = f"{name} #{name_seen[name]}"
+                else:
+                    self._container_base_labels[id(container)] = name
+            for i in range(self._container_list.count()):
+                list_item = self._container_list.item(i)
+                container = list_item.data(Qt.ItemDataRole.UserRole)
+                list_item.setText(self._container_label(container))
+        current_data = self._add_item_combo.currentData()
+        self._add_item_combo.blockSignals(True)
+        self._add_item_combo.clear()
+        for item_id, (en_name, item_tid) in sorted(
+            STORAGE_DATA.items(),
+            key=lambda x: game_texts.get(x[1][1], x[1][0]),
+        ):
+            self._add_item_combo.addItem(
+                game_texts.get(item_tid, en_name), item_id
+            )
+        if current_data is not None:
+            idx = next(
+                (i for i in range(self._add_item_combo.count())
+                 if self._add_item_combo.itemData(i) == current_data),
+                0,
+            )
+            self._add_item_combo.setCurrentIndex(idx)
+        self._add_item_combo.blockSignals(False)
+        if self._current_container is not None:
+            self._populate_items(self._current_container)
 
     def _set_right_enabled(self, enabled: bool) -> None:
         self._filter_edit.setEnabled(enabled)

@@ -11,12 +11,12 @@ from src.save_file import (
     SaveFile,
     SKILL_HARD_MAX,
 )
-from src.game_data import STAT_TAGS, TRAIT_IDS
+from src.game_data import STAT_TAGS, TRAIT_DATA
 from tests.helpers import make_save_from_xml as _make_save_file
 
-# Trait IDs resolved from TRAIT_IDS for use in mutation tests
-_FAST_LEARNER_ID = next(k for k, v in TRAIT_IDS.items() if v == "Fast learner")
-_CONFIDENT_ID = next(k for k, v in TRAIT_IDS.items() if v == "Confident")
+# Trait IDs resolved from TRAIT_DATA for use in mutation tests
+_FAST_LEARNER_ID = next(k for k, (v, _) in TRAIT_DATA.items() if v == "Fast learner")
+_CONFIDENT_ID = next(k for k, (v, _) in TRAIT_DATA.items() if v == "Confident")
 
 # Minimal complete game XML mirroring the real save file structure
 MINIMAL_XML = textwrap.dedent("""\

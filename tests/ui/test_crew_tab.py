@@ -11,12 +11,12 @@ from PySide6.QtWidgets import QDialog, QLineEdit, QSpinBox
 
 from src.save_file import Character, SaveFile, SKILL_HARD_MAX
 from src.ui.crew_tab import CrewTab, _pip_html, _AvatarLabel, MAX_ATTR_POINTS
-from src.game_data import TRAIT_IDS
+from src.game_data import TRAIT_DATA
 from tests.helpers import make_save_from_xml
 
 # Trait IDs resolved from game data to avoid magic numbers in assertions
-_HERO_ID = next(k for k, v in TRAIT_IDS.items() if v == "Hero")
-_CONFIDENT_ID = next(k for k, v in TRAIT_IDS.items() if v == "Confident")
+_HERO_ID = next(k for k, (v, _) in TRAIT_DATA.items() if v == "Hero")
+_CONFIDENT_ID = next(k for k, (v, _) in TRAIT_DATA.items() if v == "Confident")
 
 # ---------------------------------------------------------------------------
 # XML fixtures used by _make_save (imported from tests.helpers)

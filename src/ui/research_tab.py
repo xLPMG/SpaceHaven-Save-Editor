@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter
 from PySide6.QtWidgets import (
     QFrame,
@@ -40,6 +40,9 @@ from src.ui.styles import (
 
 if TYPE_CHECKING:
     from src.save_file import ResearchEntry, SaveFile
+
+from src.game_data import TECH_DATA
+from src.texts_loader import game_texts
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +105,7 @@ class _TechDelegate(QStyledItemDelegate):
         painter.drawText(
             name_rect,
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-            entry.name,
+            game_texts.get(TECH_DATA.get(entry.tech_id, (entry.name, 0))[1], entry.name),
         )
 
         # Status badge
@@ -158,6 +161,12 @@ class ResearchTab(QWidget):
         self._all_entries: list[ResearchEntry] = []
         self._active_filter = "all"
         self._build_ui()
+        game_texts.on_lang_changed(lambda _: self._refresh_list())
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -179,16 +188,16 @@ class ResearchTab(QWidget):
         counts_row = QHBoxLayout()
         counts_row.setSpacing(0)
 
-        self._count_done, w_done = self._make_stat_widget(
+        self._count_done, self._cap_lbl_done, w_done = self._make_stat_widget(
             "0", "COMPLETE", RESEARCH_DONE_COLOR
         )
-        self._count_progress, w_progress = self._make_stat_widget(
+        self._count_progress, self._cap_lbl_progress, w_progress = self._make_stat_widget(
             "0", "IN PROGRESS", RESEARCH_PROGRESS_COLOR
         )
-        self._count_remain, w_remain = self._make_stat_widget(
+        self._count_remain, self._cap_lbl_remain, w_remain = self._make_stat_widget(
             "0", "REMAINING", RESEARCH_TEXT_DIM
         )
-        self._count_total, w_total = self._make_stat_widget(
+        self._count_total, self._cap_lbl_total, w_total = self._make_stat_widget(
             "0", "TOTAL", RESEARCH_NONE_COLOR
         )
 
@@ -214,16 +223,17 @@ class ResearchTab(QWidget):
 
         self._search = QLineEdit()
         self._search.setObjectName("NameEdit")
-        self._search.setPlaceholderText("Filter technologies…")
+        self._search.setPlaceholderText(self.tr("Filter technologies…"))
         self._search.textChanged.connect(self._refresh_list)
         filter_row.addWidget(self._search, 1)
 
         filter_row.addSpacing(8)
+        self._filter_btns: dict[str, QPushButton] = {}
         for label, attr in [
-            ("All", "all"),
-            ("Done", "done"),
-            ("In Progress", "progress"),
-            ("Not Done", "todo"),
+            (self.tr("All"), "all"),
+            (self.tr("Done"), "done"),
+            (self.tr("In Progress"), "progress"),
+            (self.tr("Not Done"), "todo"),
         ]:
             btn = QPushButton(label)
             btn.setObjectName("FilterButton")
@@ -232,6 +242,7 @@ class ResearchTab(QWidget):
             btn.setProperty("filterAttr", attr)
             btn.clicked.connect(lambda _, a=attr: self._set_filter(a))
             filter_row.addWidget(btn)
+            self._filter_btns[attr] = btn
 
         root.addLayout(filter_row)
 
@@ -249,13 +260,13 @@ class ResearchTab(QWidget):
         btn_row.setSpacing(10)
         btn_row.addStretch()
 
-        self._complete_sel_btn = QPushButton("Complete Selected")
+        self._complete_sel_btn = QPushButton(self.tr("Complete Selected"))
         self._complete_sel_btn.setObjectName("CompleteButton")
         self._complete_sel_btn.setEnabled(False)
         self._complete_sel_btn.clicked.connect(self._complete_selected)
         btn_row.addWidget(self._complete_sel_btn)
 
-        self._complete_all_btn = QPushButton("Complete All")
+        self._complete_all_btn = QPushButton(self.tr("Complete All"))
         self._complete_all_btn.setObjectName("CompleteAllButton")
         self._complete_all_btn.setEnabled(False)
         self._complete_all_btn.clicked.connect(self._complete_all)
@@ -263,11 +274,34 @@ class ResearchTab(QWidget):
 
         root.addLayout(btn_row)
 
+    # ------------------------------------------------------------------
+    # Retranslation
+    # ------------------------------------------------------------------
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        self._cap_lbl_done.setText(self.tr("COMPLETE"))
+        self._cap_lbl_progress.setText(self.tr("IN PROGRESS"))
+        self._cap_lbl_remain.setText(self.tr("REMAINING"))
+        self._cap_lbl_total.setText(self.tr("TOTAL"))
+        self._search.setPlaceholderText(self.tr("Filter technologies…"))
+        _labels = {
+            "all": self.tr("All"),
+            "done": self.tr("Done"),
+            "progress": self.tr("In Progress"),
+            "todo": self.tr("Not Done"),
+        }
+        for attr, label in _labels.items():
+            if attr in self._filter_btns:
+                self._filter_btns[attr].setText(label)
+        self._complete_sel_btn.setText(self.tr("Complete Selected"))
+        self._complete_all_btn.setText(self.tr("Complete All"))
+
     @staticmethod
     def _make_stat_widget(
         number: str, caption: str, color: QColor
-    ) -> tuple[QLabel, QWidget]:
-        """Return (num_label, container_widget) for the stats banner."""
+    ) -> tuple[QLabel, QLabel, QWidget]:
+        """Return (num_label, cap_label, container_widget) for the stats banner."""
         w = QWidget()
         w.setStyleSheet("background-color: transparent;")
         v = QVBoxLayout(w)
@@ -284,7 +318,7 @@ class ResearchTab(QWidget):
         )
         v.addWidget(num_lbl)
         v.addWidget(cap_lbl)
-        return num_lbl, w
+        return num_lbl, cap_lbl, w
 
     # ------------------------------------------------------------------
     # Load / Clear
@@ -318,7 +352,8 @@ class ResearchTab(QWidget):
         self._list.blockSignals(True)
         self._list.clear()
         for entry in self._all_entries:
-            if query and query not in entry.name.lower():
+            localized_name = game_texts.get(TECH_DATA.get(entry.tech_id, (entry.name, 0))[1], entry.name)
+            if query and query not in localized_name.lower():
                 continue
             if self._active_filter == "done" and not entry.done:
                 continue

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtCore import Qt, QEvent, QSize, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QFrame,
@@ -22,7 +22,8 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from src.save_file import SaveFile
 
-from src.game_data import TECH_IDS, TIMELINE_EVENT_NAMES
+from src.game_data import TECH_DATA, TIMELINE_EVENT_NAMES
+from src.texts_loader import game_texts
 from src.ui.sector_map_widget import SectorMapWidget
 
 _ICONS_DIR = Path(__file__).parent / "icons"
@@ -62,6 +63,11 @@ class UniverseTab(QWidget):
         self._save: SaveFile | None = None
         self._build_ui()
 
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.LanguageChange:
+            self.retranslate_ui()
+        super().changeEvent(event)
+
     # ------------------------------------------------------------------
     # UI construction
     # ------------------------------------------------------------------
@@ -82,14 +88,14 @@ class UniverseTab(QWidget):
         root.setContentsMargins(32, 28, 32, 28)
         root.setSpacing(22)
 
-        title = QLabel("Universe")
-        title.setObjectName("TabTitle")
-        root.addWidget(title)
+        self._title_lbl = QLabel()
+        self._title_lbl.setObjectName("TabTitle")
+        root.addWidget(self._title_lbl)
 
         root.addWidget(_sep())
 
         # Interactive Sector Map
-        self._map_group = QGroupBox("Current Sector Map")
+        self._map_group = QGroupBox()
         map_vbox = QVBoxLayout(self._map_group)
         map_vbox.setContentsMargins(16, 20, 16, 16)
         map_vbox.setSpacing(12)
@@ -100,12 +106,12 @@ class UniverseTab(QWidget):
         self._sector_map.setFixedHeight(500)
         map_vbox.addWidget(self._sector_map)
 
-        self._map_hint_lbl = QLabel("Tip: Drag ships on the map to move them.")
+        self._map_hint_lbl = QLabel()
         self._map_hint_lbl.setObjectName("StatCardDesc")
         self._map_hint_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         map_vbox.addWidget(self._map_hint_lbl)
 
-        self._no_map_lbl = QLabel("No ships found. Load a save file.")
+        self._no_map_lbl = QLabel()
         self._no_map_lbl.setObjectName("StatCardDesc")
         self._no_map_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._no_map_lbl.setVisible(False)
@@ -116,13 +122,13 @@ class UniverseTab(QWidget):
         root.addWidget(_sep())
 
         # Sectors table
-        self._sectors_group = QGroupBox("Discovered Sectors")
+        self._sectors_group = QGroupBox()
         sectors_vbox = QVBoxLayout(self._sectors_group)
         sectors_vbox.setContentsMargins(16, 20, 16, 16)
         sectors_vbox.setSpacing(8)
 
         self._sectors_table = QTableWidget(0, 3)
-        self._sectors_table.setHorizontalHeaderLabels(["Sector", "Size", "Entities"])
+        self._sectors_table.setHorizontalHeaderLabels(["", "", ""])
         self._sectors_table.horizontalHeader().setStretchLastSection(True)
         self._sectors_table.verticalHeader().setVisible(False)
         self._sectors_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -133,7 +139,7 @@ class UniverseTab(QWidget):
         )
         sectors_vbox.addWidget(self._sectors_table)
 
-        self._no_sectors_lbl = QLabel("No sector data found (load from a save folder).")
+        self._no_sectors_lbl = QLabel()
         self._no_sectors_lbl.setObjectName("StatCardDesc")
         self._no_sectors_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._no_sectors_lbl.setVisible(False)
@@ -144,13 +150,13 @@ class UniverseTab(QWidget):
         root.addWidget(_sep())
 
         # Timeline
-        self._timeline_group = QGroupBox("Game Timeline")
+        self._timeline_group = QGroupBox()
         timeline_vbox = QVBoxLayout(self._timeline_group)
         timeline_vbox.setContentsMargins(16, 20, 16, 16)
         timeline_vbox.setSpacing(8)
 
         self._timeline_table = QTableWidget(0, 3)
-        self._timeline_table.setHorizontalHeaderLabels(["Day", "Event", "Detail"])
+        self._timeline_table.setHorizontalHeaderLabels(["", "", ""])
         hh = self._timeline_table.horizontalHeader()
         hh.setStretchLastSection(True)
         self._timeline_table.verticalHeader().setVisible(False)
@@ -163,9 +169,7 @@ class UniverseTab(QWidget):
         )
         timeline_vbox.addWidget(self._timeline_table)
 
-        self._no_timeline_lbl = QLabel(
-            "No timeline data found (load from a save folder)."
-        )
+        self._no_timeline_lbl = QLabel()
         self._no_timeline_lbl.setObjectName("StatCardDesc")
         self._no_timeline_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._no_timeline_lbl.setVisible(False)
@@ -173,6 +177,32 @@ class UniverseTab(QWidget):
 
         root.addWidget(self._timeline_group)
         root.addStretch()
+        self.retranslate_ui()
+
+    # ------------------------------------------------------------------
+    # Retranslation
+    # ------------------------------------------------------------------
+
+    def retranslate_ui(self) -> None:
+        """Update all static labels on language change."""
+        self._title_lbl.setText(self.tr("Universe"))
+        self._map_group.setTitle(self.tr("Current Sector Map"))
+        self._map_hint_lbl.setText(self.tr("Tip: Drag ships on the map to move them."))
+        self._no_map_lbl.setText(self.tr("No ships found. Load a save file."))
+        self._sectors_group.setTitle(self.tr("Discovered Sectors"))
+        self._sectors_table.setHorizontalHeaderLabels([
+            self.tr("Sector"),
+            self.tr("Size"),
+            self.tr("Entities"),
+        ])
+        self._no_sectors_lbl.setText(self.tr("No sector data found (load from a save folder)."))
+        self._timeline_group.setTitle(self.tr("Game Timeline"))
+        self._timeline_table.setHorizontalHeaderLabels([
+            self.tr("Day"),
+            self.tr("Event"),
+            self.tr("Detail"),
+        ])
+        self._no_timeline_lbl.setText(self.tr("No timeline data found (load from a save folder)."))
 
     # ------------------------------------------------------------------
     # Load / Clear
@@ -276,7 +306,9 @@ class UniverseTab(QWidget):
             # Detail column: resolve IDs to names where possible
             detail = ev.text
             if ev.event_type == 8 and detail.isdigit():
-                detail = TECH_IDS.get(int(detail), detail)
+                tech_id = int(detail)
+                _entry = TECH_DATA.get(tech_id)
+                detail = game_texts.get(_entry[1], _entry[0]) if _entry else detail
             self._timeline_table.setItem(row, 2, _ro_item(detail))
 
         self._timeline_table.resizeColumnsToContents()
