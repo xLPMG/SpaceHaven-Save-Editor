@@ -1,0 +1,58 @@
+name: Build (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    name: Test
+    uses: ./.github/workflows/tests-windows.yml
+
+  build:
+    name: build–windows
+    needs: test
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: pip install -r requirements-build.txt pyinstaller
+
+      - name: Generate app icon
+        run: |
+          pip install Pillow
+          python scripts/make_ico.py
+
+      - name: Build
+        run: >
+          pyinstaller --windowed
+          --name "SpaceHaven Save Editor"
+          --icon=assets/app.ico
+          --exclude-module PySide6.QtNetwork
+          --exclude-module PySide6.QtPrintSupport
+          --exclude-module PySide6.QtXml
+          --exclude-module PySide6.QtOpenGL
+          --exclude-module PySide6.QtOpenGLWidgets
+          --exclude-module PySide6.QtSql
+          --exclude-module PySide6.QtTest
+          --exclude-module PySide6.QtConcurrent
+          --exclude-module PySide6.QtHelp
+          --exclude-module PySide6.QtSvgWidgets
+          --exclude-module pygments
+          --add-data "src/ui/icons;src/ui/icons"
+          --add-data "src/ui/fonts;src/ui/fonts"
+          main.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SpaceHaven-Save-Editor-windows${{ github.ref_type == 'tag' && format('-{0}', github.ref_name) || '' }}
+          path: "dist/SpaceHaven Save Editor/"

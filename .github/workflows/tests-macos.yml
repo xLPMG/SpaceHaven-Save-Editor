@@ -1,4 +1,4 @@
-name: Tests
+name: Tests (macOS)
 
 on:
   workflow_call:
@@ -9,10 +9,7 @@ on:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
