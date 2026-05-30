@@ -472,18 +472,18 @@ class TestStorageTabContainerLabels:
         item1 = tab._container_list.item(1)
         assert "Large Storage" in item0.text()
         assert "\u2014" in item0.text()  # em dash
-        assert "2 / 250" in item0.text()
+        assert "30 / 250" in item0.text()  # total qty: 10 + 20
         assert "Small Storage" in item1.text()
-        assert "1 / 50" in item1.text()
+        assert "5 / 50" in item1.text()  # total qty: 5
 
-    def test_label_with_capacity_zero_uses_parens(self, qtbot):
-        """Containers with capacity=0 (unknown/unlimited) use '(n)' format."""
+    def test_label_with_capacity_zero_uses_no_fraction(self, qtbot):
+        """Containers with capacity=0 (unknown/unlimited) show just the name with no 'n / max' fraction."""
         tab = StorageTab()
         qtbot.addWidget(tab)
         tab.load(_make_save())  # MINIMAL_STORAGE_XML containers have capacity=0
         item0 = tab._container_list.item(0)
         assert "\u2014" not in item0.text()  # no em dash
-        assert "(" in item0.text() and ")" in item0.text()
+        assert "/" not in item0.text()  # no capacity fraction
 
     def test_unique_names_have_no_number_suffix(self, qtbot):
         """When all containers have distinct type names, no '#N' is appended."""
@@ -511,12 +511,12 @@ class TestStorageTabContainerLabels:
         # Select Small Storage (row 1, 1 item)
         tab._container_list.setCurrentRow(1)
         label_before = tab._container_list.item(1).text()
-        assert "1 / 50" in label_before
+        assert "5 / 50" in label_before  # total qty: 5
         tab._add_item_combo.setCurrentIndex(tab._add_item_combo.findData(169))  # Noble Metals
         tab._add_qty_spin.setValue(1)
         tab._add_item()
         label_after = tab._container_list.item(1).text()
-        assert "2 / 50" in label_after
+        assert "6 / 50" in label_after  # total qty: 5 + 1
 
     def test_label_refreshes_after_remove(self, qtbot):
         """Removing an item updates the count shown in the selected container label."""
@@ -525,10 +525,10 @@ class TestStorageTabContainerLabels:
         tab.load(make_save_from_xml(NAMED_MODULES_XML))
         # Select Large Storage (row 0, 2 items)
         tab._container_list.setCurrentRow(0)
-        assert "2 / 250" in tab._container_list.item(0).text()
-        tab._items_table.selectRow(0)
+        assert "30 / 250" in tab._container_list.item(0).text()  # total qty: 10 + 20
+        tab._items_table.selectRow(0)  # row 0 = Base Metals (qty 20, alphabetically first)
         tab._remove_item()
-        assert "1 / 250" in tab._container_list.item(0).text()
+        assert "10 / 250" in tab._container_list.item(0).text()  # remaining: Energium qty 10
 
 
 # ===========================================================================
