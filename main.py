@@ -8,7 +8,7 @@ try:
     from importlib.metadata import version as _pkg_version
     _APP_VERSION = _pkg_version("spacehaven-save-editor")
 except Exception:
-    _APP_VERSION = "1.1.0"
+    _APP_VERSION = "1.1.1"
 
 from PySide6.QtGui import QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication
