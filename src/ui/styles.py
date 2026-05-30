@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
+
+_ICONS_DIR = Path(__file__).parent / "icons"
 
 MAP_COLOR_HULL = QColor("#C0C8CC")
 MAP_COLOR_WALL = QColor("#607080")
@@ -105,6 +109,11 @@ WELCOME_BROWSE_BORDER_BOTTOM_PRESSED = QColor("#007A8A")
 WELCOME_BROWSE_TEXT_COLOR = QColor("#020C10")
 
 
+def _icon_url(name: str) -> str:
+    """Return a Qt stylesheet url() string for an icon, using an absolute path."""
+    return (_ICONS_DIR / name).as_posix()
+
+
 def apply_theme(app: QApplication) -> None:
     app.setStyle("Fusion")
 
@@ -136,6 +145,9 @@ def apply_theme(app: QApplication) -> None:
     )
 
     app.setPalette(palette)
+
+    plus_url = _icon_url("plus.svg")
+    minus_url = _icon_url("minus.svg")
 
     app.setStyleSheet("""
         QMainWindow, QDialog, QWidget {
@@ -854,4 +866,6 @@ def apply_theme(app: QApplication) -> None:
             border-radius: 7px;
             padding: 5px 10px;
         }
-    """)
+    """.replace("url(src/ui/icons/plus.svg)", f"url({plus_url})")
+       .replace("url(src/ui/icons/minus.svg)", f"url({minus_url})")
+    )
