@@ -25,6 +25,8 @@ If you run into issues, please report them on the [Issues](../../issues) page wi
 
 ## Download
 
+**For MacOS users with homebrew**: simply execute ``brew install --cask xlpmg/tap/spacehaven-save-editor`` in a terminal to download the latest version. To update it later, use ``brew upgrade --cask spacehaven-save-editor``. If that fails, use the method below.
+
 Pre-built binaries are available on the [Releases](../../releases) page. Download the zip for your platform and extract it.
 
 | Platform | File | Requirement |
