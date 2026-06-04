@@ -1392,3 +1392,161 @@ class TestAddCrewMember:
         tab._add_crew_member()
         assert tab._first_name_edit.text() == "Fresh"
         assert tab._last_name_edit.text() == "Start"
+
+
+# ===========================================================================
+# Max All Attributes
+# ===========================================================================
+
+
+class TestMaxAllAttributes:
+    def test_max_all_sets_all_attributes_to_max(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)  # Alice has 1 attribute, points=3
+        tab._max_all_attributes()
+        for attr in tab._current_char.attributes:
+            assert attr.points == MAX_ATTR_POINTS
+
+    def test_max_all_updates_spin_widgets(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._max_all_attributes()
+        for row in range(tab._attr_table.rowCount()):
+            spin: QSpinBox = tab._attr_table.cellWidget(row, 2)
+            assert spin.value() == MAX_ATTR_POINTS
+
+    def test_max_all_updates_pip_labels(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._max_all_attributes()
+        for row in range(tab._attr_table.rowCount()):
+            lbl = tab._attr_table.cellWidget(row, 1)
+            # All pips filled: should contain MAX_ATTR_POINTS filled circles and no empty ones
+            assert "●" * MAX_ATTR_POINTS in lbl.text()
+            assert "○" not in lbl.text()
+
+    def test_max_all_persists_to_xml(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._max_all_attributes()
+        char = tab._current_char
+        for attr in char.attributes:
+            assert attr.element.get("points") == str(MAX_ATTR_POINTS)
+
+    def test_max_all_no_op_when_already_maxed(self, qtbot):
+        """Calling Max All when all attributes are already at max must not raise."""
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._max_all_attributes()  # first call
+        tab._max_all_attributes()  # idempotent
+        for attr in tab._current_char.attributes:
+            assert attr.points == MAX_ATTR_POINTS
+
+    def test_max_all_noop_without_char(self, qtbot):
+        """Calling Max All before any character is selected must not raise."""
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab._max_all_attributes()  # no character loaded
+
+
+# ===========================================================================
+# Add All / Remove All Traits
+# ===========================================================================
+
+
+class TestMassTraitEditing:
+    def test_add_all_traits_adds_all_known_traits(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._add_all_traits()
+        char_trait_ids = {t.trait_id for t in tab._current_char.traits}
+        assert set(TRAIT_IDS.keys()) == char_trait_ids
+
+    def test_add_all_traits_updates_list_widget(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._add_all_traits()
+        assert tab._traits_list.count() == len(TRAIT_IDS)
+
+    def test_add_all_traits_no_duplicates(self, qtbot):
+        """Calling Add All Traits twice must produce the same count as once."""
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._add_all_traits()
+        count_after_first = len(tab._current_char.traits)
+        tab._add_all_traits()
+        assert len(tab._current_char.traits) == count_after_first
+
+    def test_add_all_traits_noop_without_char(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab._add_all_traits()  # must not raise
+
+    def test_remove_all_traits_clears_list_widget(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._remove_all_traits()
+        assert tab._traits_list.count() == 0
+
+    def test_remove_all_traits_clears_model(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._remove_all_traits()
+        assert len(tab._current_char.traits) == 0
+
+    def test_remove_all_traits_clears_xml(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._remove_all_traits()
+        char = tab._current_char
+        traits_el = char.pers_element.find("traits") if char.pers_element is not None else None
+        if traits_el is not None:
+            assert len(traits_el.findall("t")) == 0
+
+    def test_remove_all_traits_idempotent(self, qtbot):
+        """Calling Remove All Traits on an already-empty list must not raise."""
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._remove_all_traits()
+        tab._remove_all_traits()
+        assert len(tab._current_char.traits) == 0
+
+    def test_remove_all_traits_noop_without_char(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab._remove_all_traits()  # must not raise
+
+    def test_add_then_remove_all_round_trip(self, qtbot):
+        """Add all traits then remove all must leave model and XML in sync."""
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._add_all_traits()
+        tab._remove_all_traits()
+        assert len(tab._current_char.traits) == 0
+        assert tab._traits_list.count() == 0

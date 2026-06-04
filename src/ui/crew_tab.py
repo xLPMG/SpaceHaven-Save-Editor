@@ -427,9 +427,16 @@ class CrewTab(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(4)
 
+        top_row = QHBoxLayout()
         info = QLabel("Attribute points (typically 0–10).")
         info.setObjectName("StatCardDesc")
-        layout.addWidget(info)
+        top_row.addWidget(info)
+        top_row.addStretch()
+        max_all_btn = QPushButton("Max All")
+        max_all_btn.setObjectName("InlineButton")
+        max_all_btn.clicked.connect(self._max_all_attributes)
+        top_row.addWidget(max_all_btn)
+        layout.addLayout(top_row)
 
         self._attr_table = QTableWidget(0, 3)
         self._attr_table.setHorizontalHeaderLabels(["Attribute", "", "Points"])
@@ -522,6 +529,19 @@ class CrewTab(QWidget):
         remove_btn.clicked.connect(self._remove_trait)
         row.addWidget(remove_btn)
         layout.addLayout(row)
+
+        bulk_row = QHBoxLayout()
+        bulk_row.setSpacing(6)
+        add_all_btn = QPushButton("Add All Traits")
+        add_all_btn.setObjectName("InlineButton")
+        add_all_btn.clicked.connect(self._add_all_traits)
+        bulk_row.addWidget(add_all_btn)
+        remove_all_btn = QPushButton("Remove All Traits")
+        remove_all_btn.setObjectName("DangerButton")
+        remove_all_btn.clicked.connect(self._remove_all_traits)
+        bulk_row.addWidget(remove_all_btn)
+        bulk_row.addStretch()
+        layout.addLayout(bulk_row)
 
         return w
 
@@ -1639,6 +1659,32 @@ class CrewTab(QWidget):
         self._save.remove_trait(self._current_char, trait)
         self._traits_list.takeItem(self._traits_list.row(selected))
         self.status_message.emit("Trait removed (unsaved).")
+
+    def _max_all_attributes(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        for attr in self._current_char.attributes:
+            self._save.set_attribute(attr, MAX_ATTR_POINTS)
+        self._populate_attributes(self._current_char)
+        self.status_message.emit("All attributes maxed (unsaved).")
+
+    def _add_all_traits(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        added = 0
+        for trait_id in TRAIT_IDS:
+            if self._save.add_trait(self._current_char, trait_id) is not None:
+                added += 1
+        self._populate_traits(self._current_char)
+        self.status_message.emit(f"{added} trait(s) added (unsaved).")
+
+    def _remove_all_traits(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        for trait in list(self._current_char.traits):
+            self._save.remove_trait(self._current_char, trait)
+        self._populate_traits(self._current_char)
+        self.status_message.emit("All traits removed (unsaved).")
 
     # ------------------------------------------------------------------
     # Helpers
