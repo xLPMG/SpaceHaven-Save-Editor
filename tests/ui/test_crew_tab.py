@@ -1550,3 +1550,225 @@ class TestMassTraitEditing:
         tab._remove_all_traits()
         assert len(tab._current_char.traits) == 0
         assert tab._traits_list.count() == 0
+
+
+# ===========================================================================
+# TestReleasePrisoner
+# ===========================================================================
+
+_PRISONER_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="0">
+      <playerBank ca="0" cr="0"/>
+      <settings><diff sandbox="false"/></settings>
+      <questLines><questLines>
+        <l type="ExodusFleet" playerPrestigePoints="0"/>
+      </questLines></questLines>
+      <ships>
+        <ship sid="1" sname="TEST" sx="28" sy="28">
+          <characters>
+            <c entId="30" name="Prisoner" lname="Pete" cid="89"
+               side="NotSet" oside="Pirate" owside="Player" fac="999">
+              <props>
+                <Health v="50"/><Food v="80"/><Rest v="60"/>
+                <Comfort v="50"/><Mood v="30"/><Oxygen v="0"/>
+                <Temperature v="100"/>
+              </props>
+              <pers>
+                <attr/>
+                <traits/>
+                <conditions/>
+                <sociality><relationships/></sociality>
+                <skills/>
+              </pers>
+            </c>
+          </characters>
+        </ship>
+      </ships>
+      <research treeId="2535"><states/></research>
+    </game>
+""")
+
+
+class TestReleasePrisoner:
+    """Changing side away from NotSet must remove oside/owside and update the UI label."""
+
+    def _make_tab(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save(_PRISONER_XML))
+        tab._crew_list.setCurrentRow(0)
+        return tab
+
+    def test_prisoner_shown_with_label(self, qtbot):
+        tab = self._make_tab(qtbot)
+        labels = _crew_names(tab)
+        assert any("(Prisoner)" in lbl for lbl in labels)
+
+    def test_release_removes_oside(self, qtbot):
+        tab = self._make_tab(qtbot)
+        tab._set_char_attr("side", "Player")
+        assert tab._current_char.element.get("oside") is None
+
+    def test_release_removes_owside(self, qtbot):
+        tab = self._make_tab(qtbot)
+        tab._set_char_attr("side", "Player")
+        assert tab._current_char.element.get("owside") is None
+
+    def test_release_sets_side_attribute(self, qtbot):
+        tab = self._make_tab(qtbot)
+        tab._set_char_attr("side", "Player")
+        assert tab._current_char.element.get("side") == "Player"
+
+    def test_release_updates_crew_label(self, qtbot):
+        tab = self._make_tab(qtbot)
+        tab._set_char_attr("side", "Player")
+        labels = _crew_names(tab)
+        assert not any("(Prisoner)" in lbl for lbl in labels)
+
+    def test_setting_non_player_side_also_clears_prisoner_attrs(self, qtbot):
+        tab = self._make_tab(qtbot)
+        tab._set_char_attr("side", "Neutral")
+        assert tab._current_char.element.get("oside") is None
+        assert tab._current_char.element.get("owside") is None
+
+    def test_setting_side_to_not_set_preserves_oside_if_present(self, qtbot):
+        """Re-imprisoning must not overwrite an existing oside."""
+        tab = self._make_tab(qtbot)
+        # First release...
+        tab._set_char_attr("side", "Player")
+        # The attributes are gone now; manually re-add oside to simulate
+        # a character that has oside set while being set back to prisoner.
+        tab._current_char.element.set("oside", "Pirate")
+        tab._set_char_attr("side", "NotSet")
+        assert tab._current_char.element.get("oside") == "Pirate"
+
+    def test_imprison_crew_adds_oside(self, qtbot):
+        """Setting side to NotSet on a crew member must add oside."""
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        char = tab._current_char
+        char.element.set("side", "Player")
+        # Remove any pre-existing oside/owside
+        for attr in ("oside", "owside"):
+            if attr in char.element.attrib:
+                del char.element.attrib[attr]
+        tab._set_char_attr("side", "NotSet")
+        assert char.element.get("oside") == "Player"
+
+    def test_imprison_crew_adds_owside(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        char = tab._current_char
+        char.element.set("side", "Player")
+        for attr in ("oside", "owside"):
+            if attr in char.element.attrib:
+                del char.element.attrib[attr]
+        tab._set_char_attr("side", "NotSet")
+        assert char.element.get("owside") == "Player"
+
+    def test_imprison_crew_updates_label(self, qtbot):
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save())
+        tab._crew_list.setCurrentRow(0)
+        tab._set_char_attr("side", "NotSet")
+        labels = _crew_names(tab)
+        assert any("(Prisoner)" in lbl for lbl in labels)
+
+    def test_release_restores_player_faction(self, qtbot):
+        """Releasing a prisoner must set their fac to the ship's player faction."""
+        xml = textwrap.dedent("""\
+            <game mode="Normal" seed="0">
+              <playerBank ca="0" cr="0"/>
+              <settings f="461"><diff sandbox="false"/></settings>
+              <questLines><questLines>
+                <l type="ExodusFleet" playerPrestigePoints="0"/>
+              </questLines></questLines>
+              <ships>
+                <ship sid="1" sname="TEST" sx="28" sy="28">
+                  <characters>
+                    <c entId="10" name="Crew" lname="A" cid="89" side="Player" fac="461">
+                      <props>
+                        <Health v="100"/><Food v="100"/><Rest v="100"/>
+                        <Comfort v="50"/><Mood v="80"/><Oxygen v="0"/>
+                        <Temperature v="100"/>
+                      </props>
+                      <pers>
+                        <attr/><traits/><conditions/>
+                        <sociality><relationships/></sociality>
+                        <skills/>
+                      </pers>
+                    </c>
+                    <c entId="30" name="Prisoner" lname="B" cid="89"
+                       side="NotSet" oside="Player" fac="462">
+                      <props>
+                        <Health v="50"/><Food v="80"/><Rest v="60"/>
+                        <Comfort v="50"/><Mood v="30"/><Oxygen v="0"/>
+                        <Temperature v="100"/>
+                      </props>
+                      <pers>
+                        <attr/><traits/><conditions/>
+                        <sociality><relationships/></sociality>
+                        <skills/>
+                      </pers>
+                    </c>
+                  </characters>
+                </ship>
+              </ships>
+              <research treeId="2535"><states/></research>
+            </game>
+        """)
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save(xml))
+        # Select the prisoner (has "(Prisoner)" label)
+        for i in range(tab._crew_list.count()):
+            if "(Prisoner)" in tab._crew_list.item(i).text():
+                tab._crew_list.setCurrentRow(i)
+                break
+        assert tab._current_char.element.get("fac") == "462"
+        tab._set_char_attr("side", "Player")
+        assert tab._current_char.element.get("fac") == "461"
+
+    def test_release_updates_fac_spinner(self, qtbot):
+        """The fac spinner must reflect the updated faction after release."""
+        xml = textwrap.dedent("""\
+            <game mode="Normal" seed="0">
+              <playerBank ca="0" cr="0"/>
+              <settings f="461"><diff sandbox="false"/></settings>
+              <questLines><questLines>
+                <l type="ExodusFleet" playerPrestigePoints="0"/>
+              </questLines></questLines>
+              <ships>
+                <ship sid="1" sname="TEST" sx="28" sy="28">
+                  <characters>
+                    <c entId="30" name="Prisoner" lname="B" cid="89"
+                       side="NotSet" oside="Player" fac="462">
+                      <props>
+                        <Health v="50"/><Food v="80"/><Rest v="60"/>
+                        <Comfort v="50"/><Mood v="30"/><Oxygen v="0"/>
+                        <Temperature v="100"/>
+                      </props>
+                      <pers>
+                        <attr/><traits/><conditions/>
+                        <sociality><relationships/></sociality>
+                        <skills/>
+                      </pers>
+                    </c>
+                  </characters>
+                </ship>
+              </ships>
+              <research treeId="2535"><states/></research>
+            </game>
+        """)
+        tab = CrewTab()
+        qtbot.addWidget(tab)
+        tab.load(_make_save(xml))
+        tab._crew_list.setCurrentRow(0)
+        tab._set_char_attr("side", "Player")
+        assert tab._fac_spin.value() == 461
+

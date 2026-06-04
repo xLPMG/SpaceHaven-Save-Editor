@@ -351,6 +351,9 @@ class CrewTab(QWidget):
             "Identity",
         }
         mode_row = QHBoxLayout()
+        self._prisoner_btn = QPushButton()
+        self._prisoner_btn.clicked.connect(self._toggle_prisoner)
+        mode_row.addWidget(self._prisoner_btn)
         mode_row.addStretch()
         self._advanced_mode_check = QCheckBox("Advanced mode")
         self._advanced_mode_check.setChecked(False)
@@ -897,7 +900,7 @@ class CrewTab(QWidget):
 
         self._side_combo = QComboBox()
         self._side_combo.setEditable(True)
-        for side in ("Player", "Neutral", "Enemy"):
+        for side in ("Player", "Neutral", "Enemy", "NotSet"):
             self._side_combo.addItem(side)
         self._side_combo.currentTextChanged.connect(
             lambda text: self._set_char_attr("side", text)
@@ -911,6 +914,16 @@ class CrewTab(QWidget):
         )
         layout.addRow("Faction (fac):", self._fac_spin)
 
+        self._oside_edit = QLineEdit()
+        self._oside_edit.setPlaceholderText("e.g. Player, Pirate (leave blank to remove)")
+        self._oside_edit.editingFinished.connect(self._on_oside_changed)
+        layout.addRow("Original side (oside):", self._oside_edit)
+
+        self._owside_edit = QLineEdit()
+        self._owside_edit.setPlaceholderText("e.g. Player (leave blank to remove)")
+        self._owside_edit.editingFinished.connect(self._on_owside_changed)
+        layout.addRow("Original world side (owside):", self._owside_edit)
+
         self._dir_combo = QComboBox()
         self._dir_combo.setEditable(True)
         for direction in COMMON_DIRECTIONS:
@@ -921,6 +934,33 @@ class CrewTab(QWidget):
         layout.addRow("Direction:", self._dir_combo)
 
         return w
+
+    def _on_raw_fields_toggled(self, checked: bool) -> None:
+        pass  # no longer used — kept so old references don't break
+
+    def _on_oside_changed(self) -> None:
+        if self._current_char is None:
+            return
+        val = self._oside_edit.text().strip()
+        if val == self._current_char.element.get("oside", ""):
+            return
+        if val:
+            self._current_char.element.set("oside", val)
+        elif "oside" in self._current_char.element.attrib:
+            del self._current_char.element.attrib["oside"]
+        self.status_message.emit("Identity/appearance applied (unsaved).")
+
+    def _on_owside_changed(self) -> None:
+        if self._current_char is None:
+            return
+        val = self._owside_edit.text().strip()
+        if val == self._current_char.element.get("owside", ""):
+            return
+        if val:
+            self._current_char.element.set("owside", val)
+        elif "owside" in self._current_char.element.attrib:
+            del self._current_char.element.attrib["owside"]
+        self.status_message.emit("Identity/appearance applied (unsaved).")
 
     # ------------------------------------------------------------------
     # Load / Clear
@@ -1386,9 +1426,16 @@ class CrewTab(QWidget):
         self._fac_spin.setValue(self._parse_int(char.element.get("fac", "0"), 0))
         self._fac_spin.blockSignals(False)
 
+        self._oside_edit.setText(char.element.get("oside", ""))
+        self._owside_edit.setText(char.element.get("owside", ""))
+
         self._dir_combo.blockSignals(True)
         self._dir_combo.setCurrentText(char.element.get("dir", "D1"))
         self._dir_combo.blockSignals(False)
+
+        self._prisoner_btn.setText(
+            "Release Prisoner" if char.is_prisoner else "Make Prisoner"
+        )
 
     def _clear_new_tabs(self) -> None:
         self._task_combo.setCurrentText("Walk")
@@ -1422,6 +1469,8 @@ class CrewTab(QWidget):
         self._cid_combo.setCurrentText("89")
         self._side_combo.setCurrentText("Player")
         self._fac_spin.setValue(0)
+        self._oside_edit.setText("")
+        self._owside_edit.setText("")
         self._dir_combo.setCurrentText("D1")
 
     @staticmethod
@@ -1537,7 +1586,82 @@ class CrewTab(QWidget):
     def _set_char_attr(self, key: str, value: str) -> None:
         if self._current_char is None:
             return
-        self._current_char.element.set(key, value)
+        el = self._current_char.element
+        old_side = el.get("side", "Player") if key == "side" else None
+        el.set(key, value)
+        if key == "side":
+            if value == "NotSet":
+                # Imprisoning a crew member: record their previous faction as
+                # oside/owside so the game fully recognises them as a prisoner.
+                # Don't overwrite if already set (e.g. re-imprisoning).
+                if not el.get("oside"):
+                    el.set("oside", old_side)
+                if not el.get("owside"):
+                    el.set("owside", old_side)
+                # Add condition 4008 (Imprisoned) if not already present.
+                pers = self._ensure_pers(self._current_char)
+                conds_el = self._ensure_child(pers, "conditions")
+                if conds_el.find("c[@id='4008']") is None:
+                    cond_el = etree.SubElement(conds_el, "c")
+                    cond_el.set("id", "4008")
+                    cond_el.set("level", "5")
+                    cond_el.set("rs", "1")
+                    rec_el = etree.SubElement(cond_el, "rec")
+                    rec_el.set("ht", "3")
+                    rec_el.set("wt", "0")
+                    mood_el = etree.SubElement(cond_el, "mood")
+                    m1 = etree.SubElement(mood_el, "m")
+                    m1.set("ac", "-5")
+                    m2 = etree.SubElement(mood_el, "m")
+                    m2.set("ac", "-3")
+                # Mark the ai element as prisoner (prf=2, remove hsid).
+                ai_el = el.find("ai")
+                if ai_el is not None:
+                    ai_el.set("prf", "2")
+                    if "hsid" in ai_el.attrib:
+                        del ai_el.attrib["hsid"]
+            else:
+                # Releasing a prisoner: remove oside/owside, remove condition
+                # 4008 (Imprisoned), and restore the ship's player faction so
+                # the game no longer treats this character as a prisoner.
+                for attr in ("oside", "owside"):
+                    if attr in el.attrib:
+                        del el.attrib[attr]
+                pers = el.find("pers")
+                if pers is not None:
+                    conds_el = pers.find("conditions")
+                    if conds_el is not None:
+                        for cond in conds_el.findall("c[@id='4008']"):
+                            conds_el.remove(cond)
+                # Restore the ai element to crew state (remove prf/tasbpr/rest,
+                # add hsid pointing at the home ship).
+                ai_el = el.find("ai")
+                if ai_el is not None:
+                    for attr in ("prf", "tasbpr", "rest"):
+                        if attr in ai_el.attrib:
+                            del ai_el.attrib[attr]
+                if self._save is not None:
+                    ship = next(
+                        (s for s in self._save.ships if s.sid == self._current_char.ship_sid),
+                        None,
+                    )
+                    if ship is not None:
+                        player_fac = self._save._get_ship_faction(ship)
+                        el.set("fac", player_fac)
+                        self._fac_spin.blockSignals(True)
+                        self._fac_spin.setValue(int(player_fac))
+                        self._fac_spin.blockSignals(False)
+                        if ai_el is not None:
+                            ai_el.set("hsid", str(ship.sid))
+            # Refresh the crew list label (Prisoner suffix may have changed).
+            char = self._current_char
+            new_label = (
+                f"{char.full_name} (Prisoner)" if char.is_prisoner else char.full_name
+            )
+            for i in range(self._crew_list.count()):
+                if self._crew_list.item(i).data(Qt.ItemDataRole.UserRole) is char:
+                    self._crew_list.item(i).setText(new_label)
+                    break
         if key in {"name", "lname"}:
             self._avatar.set_character(
                 self._current_char.element.get("name", ""),
@@ -1602,6 +1726,15 @@ class CrewTab(QWidget):
             self._save.set_compatibility(rel, 50)
         self._populate_relationships(self._current_char)
         self.status_message.emit("Relationships normalized (unsaved).")
+
+    def _toggle_prisoner(self) -> None:
+        if self._save is None or self._current_char is None:
+            return
+        if self._current_char.is_prisoner:
+            self._set_char_attr("side", "Player")
+        else:
+            self._set_char_attr("side", "NotSet")
+        self._populate_identity(self._current_char)
 
     def _rename_character(self) -> None:
         if self._save is None or self._current_char is None:
@@ -1735,6 +1868,7 @@ class CrewTab(QWidget):
         self._first_name_edit.setEnabled(enabled)
         self._last_name_edit.setEnabled(enabled)
         self._tabs.setEnabled(enabled)
+        self._prisoner_btn.setEnabled(enabled)
 
     def _set_advanced_tabs_visible(self, visible: bool) -> None:
         bar = self._tabs.tabBar()

@@ -1067,10 +1067,12 @@ class SaveFile:
                 if fac:
                     return fac
 
-        # Secondary: copy from an existing character on this ship
+        # Secondary: copy from a non-prisoner crew member on this ship
         chars_el = ship.element.find("characters")
         if chars_el is not None:
             for c in chars_el.findall("c"):
+                if c.get("side") == "NotSet":
+                    continue  # skip prisoners — they may have a different faction
                 fac = c.get("fac")
                 if fac:
                     return fac
