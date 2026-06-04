@@ -1625,7 +1625,9 @@ class CrewTab(QWidget):
         if old_row != -1:
             self._crew_list.blockSignals(True)
             item = self._crew_list.takeItem(old_row)
-            item.setText(self._current_char.full_name)
+            char = self._current_char
+            new_label = f"{char.full_name} (Prisoner)" if char.is_prisoner else char.full_name
+            item.setText(new_label)
             # Binary-search insertion point to maintain sort order
             new_row = self._crew_list.count()
             for i in range(self._crew_list.count()):
@@ -1694,7 +1696,8 @@ class CrewTab(QWidget):
         self, char: Character, row: int | None = None
     ) -> QListWidgetItem:
         """Create a crew list entry. If row is specified, insert at that index; otherwise append."""
-        item = QListWidgetItem(char.full_name)
+        label = f"{char.full_name} (Prisoner)" if char.is_prisoner else char.full_name
+        item = QListWidgetItem(label)
         item.setData(Qt.ItemDataRole.UserRole, char)
         if row is None:
             self._crew_list.addItem(item)

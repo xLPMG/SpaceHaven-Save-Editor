@@ -140,6 +140,13 @@ class Character:
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
 
+    @property
+    def is_prisoner(self) -> bool:
+        """True when this character is being held prisoner (side='NotSet')."""
+        if self.element is None:
+            return False
+        return self.element.get("side") == "NotSet"
+
 
 @dataclass
 class StorageItem:
@@ -709,9 +716,6 @@ class SaveFile:
                         element=s_el,
                     )
                 )
-            if not items:
-                idx += 1
-                continue
 
             # Resolve the storage module type ID.
             # Normal case: <feat> is a child of <upMi m="...">.
@@ -983,6 +987,10 @@ class SaveFile:
         stat.value = value
         if stat.element is not None:
             stat.element.set("v", str(value))
+            # Keep the long-term value (ltv) in sync so that the game's smoothed
+            # display matches the new value immediately (prisoners have ltv set).
+            if stat.element.get("ltv") is not None:
+                stat.element.set("ltv", str(value))
 
     def set_attribute(self, attr: Attribute, points: int) -> None:
         attr.points = points
@@ -1328,7 +1336,11 @@ class SaveFile:
         new_el.set("entId", str(new_id))
         new_el.set("name", first_name)
         new_el.set("lname", last_name)
-        new_el.set("cid", str(ship.sid))
+        # cid is intentionally NOT changed: it is the game library character template
+        # ID (e.g. 89 for the standard human template) – NOT the ship SID.
+        # The deepcopy already preserves the correct cid from the source character.
+        # Overwriting it with ship.sid caused Ship.loadMap → GameLib.getCharacter to
+        # receive an unknown ID, returning null, and crashing with a NullPointerException.
 
         chars_el = ship.element.find("characters")
         if chars_el is None:
@@ -1352,6 +1364,45 @@ class SaveFile:
             self._parse_char_conditions(pers_el, char)
             self._parse_char_relationships(pers_el, char)
         self.characters.append(char)
+
+        # Resolve relationship target names for the new character and add
+        # reciprocal relationship entries in existing crew members' XML/memory.
+        id_to_name = {c.ent_id: c.full_name for c in self.characters}
+        for rel in char.relationships:
+            if rel.target_name.startswith("Unknown"):
+                rel.target_name = id_to_name.get(rel.target_id, rel.target_name)
+
+        for existing in self.characters:
+            if existing is char or existing.ship_sid != ship.sid:
+                continue
+            # Skip if this character already has a relationship with the new char
+            if any(r.target_id == new_id for r in existing.relationships):
+                continue
+            existing_pers = existing.pers_element
+            if existing_pers is None:
+                continue
+            sociality = existing_pers.find("sociality")
+            if sociality is None:
+                sociality = etree.SubElement(existing_pers, "sociality")
+            rels_el = sociality.find("relationships")
+            if rels_el is None:
+                rels_el = etree.SubElement(sociality, "relationships")
+            l_el = etree.SubElement(rels_el, "l")
+            l_el.set("targetId", str(new_id))
+            l_el.set("friendship", "0")
+            l_el.set("attraction", "0")
+            l_el.set("compatibility", "0")
+            existing.relationships.append(
+                Relationship(
+                    target_id=new_id,
+                    target_name=char.full_name,
+                    friendship=0,
+                    attraction=0,
+                    compatibility=0,
+                    element=l_el,
+                )
+            )
+
         return char
 
     def remove_character(self, char: Character) -> None:

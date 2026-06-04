@@ -152,6 +152,22 @@ class TestDataclasses:
         char = Character(ent_id=2, first_name="Solo", last_name="", ship_sid=89)
         assert char.full_name == "Solo"
 
+    def test_is_prisoner_false_for_crew(self):
+        char = Character(ent_id=1, first_name="Crew", last_name="", ship_sid=1)
+        from lxml import etree
+        char.element = etree.fromstring(b'<c side="Player"/>')
+        assert char.is_prisoner is False
+
+    def test_is_prisoner_true_for_not_set_side(self):
+        from lxml import etree
+        char = Character(ent_id=2, first_name="Pete", last_name="", ship_sid=1)
+        char.element = etree.fromstring(b'<c side="NotSet"/>')
+        assert char.is_prisoner is True
+
+    def test_is_prisoner_false_with_no_element(self):
+        char = Character(ent_id=999, first_name="Ghost", last_name="", ship_sid=1)
+        assert char.is_prisoner is False
+
 
 # ---------------------------------------------------------------------------
 # SaveFile.load / root validation
@@ -557,6 +573,18 @@ class TestCharacterMutations:
         conds_el = self.jarvis.pers_element.find("conditions")
         assert len(conds_el.findall("c")) == 0
 
+    def test_set_stat_updates_v_in_xml(self):
+        health = next(s for s in self.jarvis.stats if s.tag == "Health")
+        self.sf.set_stat(health, 42)
+        assert health.element.get("v") == "42"
+
+    def test_set_stat_does_not_add_ltv_when_absent(self):
+        """Stats without an ltv attribute must not gain one after set_stat."""
+        health = next(s for s in self.jarvis.stats if s.tag == "Health")
+        assert health.element.get("ltv") is None
+        self.sf.set_stat(health, 50)
+        assert health.element.get("ltv") is None
+
 
 # ---------------------------------------------------------------------------
 # Batch operations
@@ -933,6 +961,40 @@ class TestStorageEdgeCases:
         assert sf.get_sandbox() is False
 
 
+class TestEmptyStorageContainers:
+    """get_storage_containers must include containers that hold no items."""
+
+    _EMPTY_STORAGE_XML = textwrap.dedent("""\
+        <game mode="Normal" seed="0">
+          <ships>
+            <ship sid="1" sname="S" sx="10" sy="10">
+              <e entId="1" objId="x">
+                <wm><up><feat eatAllowed="1" cp="0" cpa="0"><inv/></feat></up></wm>
+              </e>
+            </ship>
+          </ships>
+        </game>
+    """)
+
+    def setup_method(self):
+        self.sf = _make_save_file(self._EMPTY_STORAGE_XML.encode())
+        self.ship = self.sf.ships[0]
+
+    def test_empty_container_is_included(self):
+        containers = self.sf.get_storage_containers(self.ship)
+        assert len(containers) == 1
+
+    def test_empty_container_has_no_items(self):
+        containers = self.sf.get_storage_containers(self.ship)
+        assert containers[0].items == []
+
+    def test_nonempty_container_still_included(self):
+        """Adding an item to the empty container makes it appear with items."""
+        containers = self.sf.get_storage_containers(self.ship)
+        self.sf.add_storage_item(containers[0], 16, 5)
+        assert len(containers[0].items) == 1
+
+
 # ---------------------------------------------------------------------------
 # Metadata accessors: get_game_time_str / get_star_system_count / get_ship_tiles
 # ---------------------------------------------------------------------------
@@ -1100,6 +1162,181 @@ class TestCloneCharacter:
     def test_clone_ship_sid_matches(self):
         clone = self.sf.clone_character(self.source, self.ship, "Clone", "G")
         assert clone.ship_sid == self.ship.sid
+
+
+# Fixture shared by cid, relationship-sync, and ltv tests below.
+_CREW_WITH_PRISONER_XML = textwrap.dedent("""\
+    <game mode="Normal" seed="0">
+      <masterData idCounter="500"/>
+      <ships>
+        <ship sid="1" sname="Player Ship" sx="10" sy="10">
+          <e entId="200" objId="storage1">
+            <wm>
+              <up>
+                <feat eatAllowed="1" cp="0" cpa="0">
+                  <inv/>
+                </feat>
+              </up>
+            </wm>
+          </e>
+          <characters>
+            <c entId="10" name="Alice" lname="A" cid="89" side="Player">
+              <props>
+                <Health v="100"/>
+                <Food v="100"/>
+                <Rest v="100"/>
+                <Comfort v="50"/>
+                <Mood v="80"/>
+                <Oxygen v="0"/>
+                <Temperature v="100"/>
+              </props>
+              <pers>
+                <attr/>
+                <traits/>
+                <conditions/>
+                <sociality>
+                  <relationships>
+                    <l targetId="20" friendship="10" attraction="0" compatibility="30"/>
+                  </relationships>
+                </sociality>
+                <skills/>
+              </pers>
+            </c>
+            <c entId="20" name="Bob" lname="B" cid="89" side="Player">
+              <props>
+                <Health v="90"/>
+                <Food v="100"/>
+                <Rest v="100"/>
+                <Comfort v="50"/>
+                <Mood v="70"/>
+                <Oxygen v="0"/>
+                <Temperature v="100"/>
+              </props>
+              <pers>
+                <attr/>
+                <traits/>
+                <conditions/>
+                <sociality>
+                  <relationships>
+                    <l targetId="10" friendship="10" attraction="0" compatibility="30"/>
+                  </relationships>
+                </sociality>
+                <skills/>
+              </pers>
+            </c>
+            <c entId="30" name="Prisoner" lname="Pete" cid="89" side="NotSet" oside="Pirate">
+              <props>
+                <Health v="22" ltv="79"/>
+                <Food v="100" ltv="78"/>
+                <Rest v="52" ltv="79"/>
+                <Comfort v="50"/>
+                <Mood v="3" ltv="50"/>
+                <Oxygen v="0"/>
+                <Temperature v="100"/>
+              </props>
+              <pers>
+                <attr/>
+                <traits/>
+                <conditions/>
+                <sociality><relationships/></sociality>
+                <skills/>
+              </pers>
+            </c>
+          </characters>
+        </ship>
+      </ships>
+    </game>
+""")
+
+
+class TestCloneCharacterCidFix:
+    """clone_character must not overwrite cid with the ship SID (crash fix)."""
+
+    def setup_method(self):
+        self.sf = _make_save_file(_CREW_WITH_PRISONER_XML.encode())
+        self.ship = self.sf.ships[0]
+        self.source = next(c for c in self.sf.characters if c.first_name == "Alice")
+
+    def test_clone_preserves_cid(self):
+        original_cid = self.source.element.get("cid")
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "X")
+        assert clone.element.get("cid") == original_cid
+
+    def test_clone_cid_is_not_ship_sid(self):
+        clone = self.sf.clone_character(self.source, self.ship, "Clone", "X")
+        assert clone.element.get("cid") != str(self.ship.sid)
+
+
+class TestCloneCharacterRelationshipSync:
+    """clone_character must add reciprocal relationship entries in existing crew."""
+
+    def setup_method(self):
+        self.sf = _make_save_file(_CREW_WITH_PRISONER_XML.encode())
+        self.ship = self.sf.ships[0]
+        self.source = next(c for c in self.sf.characters if c.first_name == "Alice")
+        self.bob = next(c for c in self.sf.characters if c.first_name == "Bob")
+        self.prisoner = next(c for c in self.sf.characters if c.first_name == "Prisoner")
+        self.clone = self.sf.clone_character(self.source, self.ship, "Clone", "X")
+
+    def test_existing_crew_gain_relationship_entry_for_clone(self):
+        assert any(r.target_id == self.clone.ent_id for r in self.bob.relationships)
+
+    def test_prisoner_gains_relationship_entry_for_clone(self):
+        assert any(r.target_id == self.clone.ent_id for r in self.prisoner.relationships)
+
+    def test_reciprocal_entry_has_zero_values(self):
+        rel = next(r for r in self.bob.relationships if r.target_id == self.clone.ent_id)
+        assert rel.friendship == 0
+        assert rel.attraction == 0
+        assert rel.compatibility == 0
+
+    def test_reciprocal_entry_written_to_xml(self):
+        rels_el = self.bob.pers_element.find("sociality/relationships")
+        target_ids = [el.get("targetId") for el in rels_el.findall("l")]
+        assert str(self.clone.ent_id) in target_ids
+
+    def test_clone_target_name_resolved(self):
+        # Relationships whose target is an existing crew member should have a
+        # resolved name rather than "Unknown (...)".
+        for rel in self.clone.relationships:
+            assert not rel.target_name.startswith("Unknown")
+
+    def test_no_duplicate_reciprocal_entries(self):
+        # Cloning twice must not double-add entries.
+        self.sf.clone_character(self.source, self.ship, "Clone2", "Y")
+        ids = [r.target_id for r in self.bob.relationships]
+        assert len(ids) == len(set(ids))
+
+
+class TestSetStatLtvFix:
+    """set_stat must also update ltv when the attribute is present (prisoners)."""
+
+    def setup_method(self):
+        self.sf = _make_save_file(_CREW_WITH_PRISONER_XML.encode())
+        self.prisoner = next(c for c in self.sf.characters if c.first_name == "Prisoner")
+
+    def test_set_stat_updates_ltv(self):
+        health = next(s for s in self.prisoner.stats if s.tag == "Health")
+        self.sf.set_stat(health, 100)
+        assert health.element.get("ltv") == "100"
+
+    def test_set_stat_ltv_matches_new_value(self):
+        health = next(s for s in self.prisoner.stats if s.tag == "Health")
+        self.sf.set_stat(health, 55)
+        assert health.element.get("ltv") == "55"
+        assert health.element.get("v") == "55"
+
+    def test_set_stat_without_ltv_attribute_not_added(self):
+        alice = next(c for c in self.sf.characters if c.first_name == "Alice")
+        health = next(s for s in alice.stats if s.tag == "Health")
+        assert health.element.get("ltv") is None
+        self.sf.set_stat(health, 50)
+        assert health.element.get("ltv") is None
+
+    def test_heal_all_crew_updates_ltv_for_prisoners(self):
+        self.sf.heal_all_crew()
+        health = next(s for s in self.prisoner.stats if s.tag == "Health")
+        assert health.element.get("ltv") == "100"
 
 
 # ---------------------------------------------------------------------------
